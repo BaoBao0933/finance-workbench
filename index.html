@@ -2265,7 +2265,7 @@ function renderHoldings() {
       <div class="watch-col w-val ${cls}" data-field="pct">${q ? (q.pct > 0 ? '+' : '') + fmtNum(q.pct) + '%' : '--'}</div>
       <div class="watch-col">${fmtNum(h.cost)}</div>
       <div class="watch-col p-hide"><b>${fmtNum(h.qty, 0)}</b></div>
-      <div class="watch-col p-hide" data-field="mv">${mv !== null ? fmtFund(mv) : '--'}</div>
+      <div class="watch-col p-hide" data-field="mv">${mv !== null ? fmtPosAmt(mv) : '--'}</div>
       <div class="watch-col w-val ${pcls}" data-field="pnl">${pnl !== null ? (pnl > 0 ? '+' : '') + fmtFund(pnl) : '--'}</div>
       <div class="watch-col w-val ${pcls}" data-field="rate">${rate !== null ? (rate > 0 ? '+' : '') + fmtNum(rate, 2) + '%' : '--'}</div>
       <div class="w-ops">
@@ -2294,9 +2294,9 @@ function updatePosSummary() {
   const pnl = mv - cost;
   const rate = cost > 0 ? (mv / cost - 1) * 100 : 0;
   const cls = clsOf(pnl);
-  $('ps-mv').textContent = fmtFund(mv);
+  $('ps-mv').textContent = fmtPosAmt(mv);
   $('ps-mv').className = 'val';
-  $('ps-pnl').textContent = (pnl > 0 ? '+' : '') + fmtFund(pnl);
+  $('ps-pnl').textContent = (pnl > 0 ? '+' : '') + fmtPosAmt(pnl);
   $('ps-pnl').className = 'val ' + cls;
   $('ps-rate').textContent = (rate > 0 ? '+' : '') + fmtNum(rate, 2) + '%';
   $('ps-rate').className = 'val ' + cls;
@@ -2371,7 +2371,7 @@ function updateHoldPrices() {
 
     row.querySelector('[data-field="price"] b').textContent = fmtNum(price);
     row.querySelector('[data-field="pct"]').textContent = (q.pct > 0 ? '+' : '') + fmtNum(q.pct) + '%';
-    row.querySelector('[data-field="mv"]').textContent = fmtFund(mv);
+    row.querySelector('[data-field="mv"]').textContent = fmtPosAmt(mv);
     const pnlEl = row.querySelector('[data-field="pnl"]');
     const rateEl = row.querySelector('[data-field="rate"]');
     if (pnlEl) pnlEl.textContent = (pnl > 0 ? '+' : '') + fmtFund(pnl);
@@ -2667,6 +2667,14 @@ function fmtFund(v) {
   if (a >= 1e8) return (v / 1e8).toFixed(2) + '亿';
   if (a >= 1e4) return (v / 1e4).toFixed(0) + '万';
   return v.toFixed(0);
+}
+// 持仓金额精确格式化：万元保留两位，避免 2.73万 被舍成 3万
+function fmtPosAmt(v) {
+  if (v === null || v === undefined || v === '-' || isNaN(v)) return '--';
+  const a = Math.abs(v);
+  if (a >= 1e8) return (v / 1e8).toFixed(2) + '亿';
+  if (a >= 1e4) return (v / 1e4).toFixed(2) + '万';
+  return v.toFixed(2);
 }
 
 function buildFundRow(type) {
