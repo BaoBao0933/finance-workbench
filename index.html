@@ -6,22 +6,22 @@
 <title>财经日报 · Finance Workbench</title>
 <style>
   :root {
-    --sidebar-bg: #2a2119;
-    --sidebar-hover: #463a2c;
-    --accent: #cf6f5e;
-    --accent-hover: #b3553f;
+    --sidebar-bg: #222b38;
+    --sidebar-hover: #37424f;
+    --accent: #5b7fbf;
+    --accent-hover: #4a6ca7;
     --up: #e64545;
     --up-bg: #fdecec;
     --down: #0aa869;
     --down-bg: #e6f7ef;
-    --text-main: #3a332c;
-    --text-sub: #8d8177;
-    --card-border: rgba(255, 253, 248, .6);
-    --bg: #f7f2ea;
-    --accent-soft: #f6ede2;
-    --glass: rgba(255, 251, 246, .5);
-    --glass-border: rgba(255, 255, 255, .8);
-    --gold: #cf8f6a;
+    --text-main: #2f3a48;
+    --text-sub: #7c8aa0;
+    --card-border: rgba(255, 255, 255, .7);
+    --bg: #eef2f8;
+    --accent-soft: #e9eef7;
+    --glass: rgba(255, 255, 255, .55);
+    --glass-border: rgba(255, 255, 255, .88);
+    --gold: #9fb4d6;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -967,30 +967,30 @@
   .news-item .n-tag-alt { background: #eef3fb; color: #4a7abf; }
   .news-empty { text-align: center; padding: 46px 20px; color: var(--text-sub); font-size: 14px; }
 
-  /* ============ 暖调元气 · 透明玻璃拟态强化层（仅表现层，不影响涨跌配色与局部刷新） ============ */
+  /* ============ 冷调月光 · 透明玻璃拟态强化层（仅表现层，不影响涨跌配色与局部刷新） ============ */
   body {
     background:
-      radial-gradient(720px 460px at 12% -6%, rgba(242, 180, 150, .24), transparent 62%),
-      radial-gradient(900px 560px at 84% -12%, rgba(242, 158, 158, .20), transparent 60%),
-      radial-gradient(760px 520px at 96% 42%, rgba(247, 205, 168, .26), transparent 62%),
-      radial-gradient(820px 560px at -4% 68%, rgba(245, 190, 205, .20), transparent 60%),
-      radial-gradient(700px 460px at 48% 112%, rgba(242, 200, 172, .22), transparent 62%),
-      linear-gradient(165deg, #fcf6ec 0%, #f8f0e3 45%, #f3eadc 100%);
+      radial-gradient(760px 480px at 12% -6%, rgba(148, 182, 218, .26), transparent 62%),
+      radial-gradient(920px 560px at 84% -12%, rgba(132, 170, 218, .22), transparent 60%),
+      radial-gradient(780px 520px at 96% 42%, rgba(172, 196, 230, .28), transparent 62%),
+      radial-gradient(840px 560px at -4% 68%, rgba(148, 176, 218, .22), transparent 60%),
+      radial-gradient(720px 460px at 48% 112%, rgba(160, 188, 224, .24), transparent 62%),
+      linear-gradient(165deg, #f2f6fc 0%, #ecf1f8 45%, #e6edf7 100%);
     background-attachment: fixed;
   }
-  /* 通透的玻璃介质层：为磨砂卡片提供背后可被模糊的色彩光斑（蜜桃·珊瑚·玫瑰调） */
+  /* 通透的玻璃介质层：为磨砂卡片提供背后可被模糊的冷色光斑（月光银蓝 · 冰青调） */
   body::after {
     content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
     background:
-      radial-gradient(440px 320px at 22% 18%, rgba(255, 199, 158, .46), transparent 70%),
-      radial-gradient(520px 400px at 78% 60%, rgba(255, 168, 178, .40), transparent 72%),
-      radial-gradient(420px 340px at 52% 88%, rgba(255, 204, 150, .42), transparent 70%),
-      radial-gradient(380px 300px at 90% 14%, rgba(235, 205, 222, .36), transparent 70%);
+      radial-gradient(460px 330px at 22% 16%, rgba(152, 196, 238, .42), transparent 70%),
+      radial-gradient(540px 410px at 78% 58%, rgba(132, 182, 234, .38), transparent 72%),
+      radial-gradient(440px 350px at 50% 90%, rgba(184, 210, 244, .40), transparent 70%),
+      radial-gradient(400px 310px at 90% 12%, rgba(170, 208, 244, .36), transparent 70%);
   }
   /* 细腻颗粒噪点（数字界面的"材质感"） */
   body::before {
     content: ''; position: fixed; inset: 0; pointer-events: none;
-    background-image: radial-gradient(circle at 1px 1px, rgba(140, 92, 66, .05) 1px, transparent 0);
+    background-image: radial-gradient(circle at 1px 1px, rgba(120, 150, 192, .05) 1px, transparent 0);
     background-size: 3px 3px;
     z-index: 0;
   }
@@ -1001,10 +1001,10 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
-  ::selection { background: rgba(207, 159, 87, .22); }
+  ::selection { background: rgba(120, 156, 210, .25); }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-thumb { background: #cdbfa6; border-radius: 6px; }
-  ::-webkit-scrollbar-thumb:hover { background: #b7a88c; }
+  ::-webkit-scrollbar-thumb { background: #aabdd6; border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: #93aac9; }
 
   /* 模块标题：意式字距与克制留白 */
   .module-header .m-title { letter-spacing: .4px; }
@@ -1015,28 +1015,28 @@
   .ov-card, .index-card, .live-bar {
     border-radius: 18px;
     background: linear-gradient(118deg,
-      rgba(255,255,255,.62) 0%,
-      rgba(255,255,255,.28) 36%,
-      rgba(255,255,255,.42) 66%,
-      rgba(255,255,255,.55) 100%);
-    backdrop-filter: blur(22px) saturate(180%);
-    -webkit-backdrop-filter: blur(22px) saturate(180%);
+      rgba(255,255,255,.48) 0%,
+      rgba(255,255,255,.16) 36%,
+      rgba(255,255,255,.30) 66%,
+      rgba(255,255,255,.42) 100%);
+    backdrop-filter: blur(26px) saturate(200%);
+    -webkit-backdrop-filter: blur(26px) saturate(200%);
     border: 1px solid var(--glass-border);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, .9),
       inset 0 -1px 0 rgba(255, 255, 255, .35),
       inset 1px 0 0 rgba(255, 255, 255, .35),
       inset -1px 0 0 rgba(255, 255, 255, .35),
-      0 1px 2px rgba(150,100,78,.06),
+      0 1px 2px rgba(80, 104, 138, .06),
       0 8px 18px rgba(60, 76, 100, .10),
       0 26px 60px rgba(55, 70, 95, .15);
   }
   .ov-card:hover, .index-card:hover {
     background: linear-gradient(118deg,
-      rgba(255,255,255,.74) 0%,
-      rgba(255,255,255,.40) 36%,
-      rgba(255,255,255,.54) 66%,
-      rgba(255,255,255,.66) 100%);
+      rgba(255,255,255,.62) 0%,
+      rgba(255,255,255,.28) 36%,
+      rgba(255,255,255,.40) 66%,
+      rgba(255,255,255,.52) 100%);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 1),
       inset 0 -1px 0 rgba(255, 255, 255, .45),
@@ -1053,9 +1053,9 @@
   .index-card.focus-card {
     border-radius: 22px;
     background: linear-gradient(118deg,
-      rgba(255,255,255,.68) 0%,
-      rgba(255,255,255,.42) 36%,
-      rgba(255,255,255,.60) 100%);
+      rgba(255,255,255,.54) 0%,
+      rgba(255,255,255,.30) 36%,
+      rgba(255,255,255,.48) 100%);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, .95),
       inset 0 -1px 0 rgba(255, 255, 255, .4),
@@ -1064,18 +1064,18 @@
       0 26px 64px rgba(55, 72, 100, .16);
   }
   .index-card.focus-card::after {
-    background: radial-gradient(circle, rgba(160, 180, 210, .32), transparent 72%);
+    background: radial-gradient(circle, rgba(150, 187, 232, .40), transparent 72%);
   }
   .index-card.focus-card .ic-price { font-weight: 800; letter-spacing: .5px; }
 
   /* —— 热门行业板块 strip 卡片：中性描边 + 玻璃高光 —— */
   .sector-chip {
     background: linear-gradient(120deg,
-      rgba(255,255,255,.6) 0%,
-      rgba(255,255,255,.32) 44%,
-      rgba(255,255,255,.52) 100%);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+      rgba(255,255,255,.46) 0%,
+      rgba(255,255,255,.20) 44%,
+      rgba(255,255,255,.38) 100%);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
     border: 1px solid var(--glass-border);
     border-radius: 16px;
     box-shadow:
@@ -1111,11 +1111,11 @@
     border-radius: 16px;
     border-color: rgba(200, 216, 236, .55);
     background: linear-gradient(120deg,
-      rgba(255,255,255,.6) 0%,
-      rgba(255,255,255,.36) 46%,
-      rgba(255,255,255,.54) 100%);
-    backdrop-filter: blur(18px) saturate(180%);
-    -webkit-backdrop-filter: blur(18px) saturate(180%);
+      rgba(255,255,255,.46) 0%,
+      rgba(255,255,255,.24) 46%,
+      rgba(255,255,255,.40) 100%);
+    backdrop-filter: blur(22px) saturate(200%);
+    -webkit-backdrop-filter: blur(22px) saturate(200%);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.8), inset 0 -1px 0 rgba(255,255,255,.3), 0 2px 8px rgba(60,76,100,.08), 0 14px 30px rgba(60,76,100,.12);
     overflow: hidden;
   }
