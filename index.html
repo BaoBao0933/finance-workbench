@@ -19,8 +19,8 @@
     --card-border: rgba(255, 253, 248, .55);
     --bg: #f3efe5;
     --accent-soft: #f4ebd8;
-    --glass: rgba(255, 253, 249, .66);
-    --glass-border: rgba(255, 255, 255, .65);
+    --glass: rgba(255, 255, 255, .46);
+    --glass-border: rgba(255, 255, 255, .78);
     --gold: #cf9f57;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -968,11 +968,21 @@
   /* ============ 意式暖调 · 玻璃拟态强化层（仅表现层，不影响涨跌配色与局部刷新） ============ */
   body {
     background:
-      radial-gradient(900px 540px at 88% -10%, rgba(224, 183, 122, .30), transparent 60%),
-      radial-gradient(760px 460px at -6% 8%, rgba(232, 205, 172, .35), transparent 55%),
-      radial-gradient(820px 520px at 32% 115%, rgba(240, 226, 204, .45), transparent 62%),
-      linear-gradient(165deg, #f7f0e2 0%, #f0e6d2 45%, #ece0c9 100%);
+      radial-gradient(720px 460px at 12% -6%, rgba(226, 170, 96, .40), transparent 62%),
+      radial-gradient(900px 560px at 84% -12%, rgba(216, 150, 82, .34), transparent 60%),
+      radial-gradient(760px 520px at 96% 42%, rgba(235, 180, 148, .34), transparent 62%),
+      radial-gradient(820px 560px at -4% 68%, rgba(228, 196, 160, .5), transparent 60%),
+      radial-gradient(700px 460px at 48% 112%, rgba(224, 178, 128, .42), transparent 62%),
+      linear-gradient(165deg, #f3e8d3 0%, #eedfc6 42%, #e9d8b9 100%);
     background-attachment: fixed;
+  }
+  /* 通透的玻璃介质层：为磨砂卡片提供背后可被模糊的色彩光斑 */
+  body::after {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(440px 320px at 22% 18%, rgba(255, 224, 168, .42), transparent 70%),
+      radial-gradient(520px 400px at 78% 60%, rgba(255, 198, 152, .40), transparent 72%),
+      radial-gradient(420px 340px at 52% 88%, rgba(240, 206, 170, .45), transparent 70%);
   }
   /* 细腻颗粒噪点（数字界面的"材质感"） */
   body::before {
@@ -998,49 +1008,78 @@
   .sector-title { letter-spacing: .4px; }
   .ic-name, .ov-label, .sc-name { letter-spacing: .2px; }
 
-  /* —— 玻璃拟态卡片系统：半透明 + 背景模糊 + 顶部高光 + 暖柔影 —— */
+  /* —— 玻璃拟态卡片系统：高透白玻璃 + 强背景模糊 + 斜向高光折射 + 亮色描边 + 弥散暖影 —— */
   .ov-card, .index-card, .live-bar {
     border-radius: 18px;
-    background: var(--glass);
-    backdrop-filter: blur(14px) saturate(160%);
-    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    background: linear-gradient(118deg,
+      rgba(255,255,255,.62) 0%,
+      rgba(255,255,255,.30) 34%,
+      rgba(255,251,244,.42) 66%,
+      rgba(255,255,255,.55) 100%);
+    backdrop-filter: blur(22px) saturate(175%);
+    -webkit-backdrop-filter: blur(22px) saturate(175%);
     border: 1px solid var(--glass-border);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, .6),
-      0 2px 3px rgba(120, 95, 60, .06),
-      0 14px 34px rgba(120, 95, 60, .12);
+      inset 0 1px 0 rgba(255, 255, 255, .9),
+      inset 0 -1px 0 rgba(255, 255, 255, .35),
+      inset 1px 0 0 rgba(255, 255, 255, .35),
+      inset -1px 0 0 rgba(255, 255, 255, .35),
+      0 1px 2px rgba(120, 95, 60, .05),
+      0 8px 18px rgba(120, 95, 60, .10),
+      0 26px 60px rgba(120, 95, 60, .16);
   }
   .ov-card:hover, .index-card:hover {
+    background: linear-gradient(118deg,
+      rgba(255,255,255,.72) 0%,
+      rgba(255,255,255,.40) 34%,
+      rgba(255,251,244,.52) 66%,
+      rgba(255,255,255,.66) 100%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, .7),
-      0 6px 16px rgba(178, 130, 70, .12),
-      0 20px 44px rgba(120, 95, 60, .16);
-    border-color: #e8dcc2;
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      inset 0 -1px 0 rgba(255, 255, 255, .45),
+      inset 1px 0 0 rgba(255, 255, 255, .45),
+      inset -1px 0 0 rgba(255, 255, 255, .45),
+      0 4px 12px rgba(178, 130, 70, .10),
+      0 14px 30px rgba(120, 95, 60, .14),
+      0 34px 80px rgba(120, 95, 60, .20);
+    border-color: #f2e6cd;
   }
   .ov-card.clickable:hover { border-color: var(--accent); }
 
   /* 核心指数大卡：更通透的大玻璃，暖金光晕 */
   .index-card.focus-card {
     border-radius: 22px;
-    background: rgba(255, 253, 249, .58);
+    background: linear-gradient(118deg,
+      rgba(255,255,255,.66) 0%,
+      rgba(255,252,246,.42) 36%,
+      rgba(255,255,255,.60) 100%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, .65),
+      inset 0 1px 0 rgba(255, 255, 255, .95),
+      inset 0 -1px 0 rgba(255, 255, 255, .4),
+      inset 1px 0 0 rgba(255, 255, 255, .4),
       0 4px 10px rgba(120, 95, 60, .08),
-      0 22px 50px rgba(120, 95, 60, .14);
+      0 24px 60px rgba(120, 95, 60, .16);
   }
   .index-card.focus-card::after {
-    background: radial-gradient(circle, rgba(224, 183, 122, .25), transparent 70%);
+    background: radial-gradient(circle, rgba(224, 183, 122, .35), transparent 72%);
   }
   .index-card.focus-card .ic-price { font-weight: 800; letter-spacing: .5px; }
 
   /* —— 热门行业板块 strip 卡片：暖金描边 + 玻璃高光 —— */
   .sector-chip {
-    background: var(--glass);
-    backdrop-filter: blur(14px) saturate(160%);
-    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    background: linear-gradient(120deg,
+      rgba(255,255,255,.6) 0%,
+      rgba(255,255,255,.34) 42%,
+      rgba(255,255,255,.52) 100%);
+    backdrop-filter: blur(20px) saturate(175%);
+    -webkit-backdrop-filter: blur(20px) saturate(175%);
     border: 1px solid var(--glass-border);
     border-radius: 16px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 3px 10px rgba(120,95,60,.08);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.8),
+      inset 0 -1px 0 rgba(255,255,255,.3),
+      0 2px 6px rgba(120,95,60,.06),
+      0 10px 24px rgba(120,95,60,.12);
     position: relative;
     overflow: hidden;
   }
@@ -1068,10 +1107,13 @@
   .sec-hot-card {
     border-radius: 16px;
     border-color: rgba(240, 214, 176, .9);
-    background: rgba(255, 255, 255, .52);
-    backdrop-filter: blur(12px) saturate(160%);
-    -webkit-backdrop-filter: blur(12px) saturate(160%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 2px 8px rgba(180,120,40,.06);
+    background: linear-gradient(120deg,
+      rgba(255,255,255,.6) 0%,
+      rgba(255,255,255,.38) 46%,
+      rgba(255,255,255,.54) 100%);
+    backdrop-filter: blur(18px) saturate(175%);
+    -webkit-backdrop-filter: blur(18px) saturate(175%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.8), inset 0 -1px 0 rgba(255,255,255,.3), 0 2px 8px rgba(180,120,40,.06), 0 14px 30px rgba(120,95,60,.10);
     overflow: hidden;
   }
   .sec-hot-card::after {
