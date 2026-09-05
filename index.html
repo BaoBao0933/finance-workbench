@@ -6,33 +6,33 @@
 <title>财经日报 · Finance Workbench</title>
 <style>
   :root {
-    --sidebar-bg: #f7e9dc;
-    --sidebar-hover: #f3e0cd;
-    --accent: #cf7a5d;
-    --accent-hover: #b9644a;
+    --sidebar-bg: #222b38;
+    --sidebar-hover: #37424f;
+    --accent: #5b7fbf;
+    --accent-hover: #4a6ca7;
     --up: #e64545;
     --up-bg: #fdecec;
     --down: #0aa869;
     --down-bg: #e6f7ef;
-    --text-main: #3a322b;
-    --text-sub: #8d7b6b;
-    --card-border: rgba(255, 255, 255, .72);
-    --bg: #f6e7d8;
-    --accent-soft: #f4e2d0;
-    --glass: rgba(255, 253, 250, .6);
-    --glass-border: rgba(255, 255, 255, .86);
-    --gold: #d9a06e;
+    --text-main: #2f3a48;
+    --text-sub: #7c8aa0;
+    --card-border: rgba(255, 255, 255, .7);
+    --bg: #eef2f8;
+    --accent-soft: #e9eef7;
+    --glass: rgba(255, 255, 255, .55);
+    --glass-border: rgba(255, 255, 255, .88);
+    --gold: #9fb4d6;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     background:
-      radial-gradient(760px 520px at 14% -8%, rgba(255, 196, 159, .45), transparent 62%),
-      radial-gradient(900px 600px at 82% -6%, rgba(255, 178, 164, .38), transparent 60%),
-      radial-gradient(760px 560px at 96% 48%, rgba(250, 210, 170, .42), transparent 62%),
-      radial-gradient(840px 560px at 0% 78%, rgba(255, 196, 200, .34), transparent 60%),
-      radial-gradient(720px 520px at 55% 112%, rgba(250, 214, 184, .40), transparent 62%),
-      linear-gradient(165deg, #fbf0e6 0%, #f7e7d6 42%, #f3e5da 100%);
+      radial-gradient(760px 520px at 14% -8%, rgba(148, 182, 218, .42), transparent 62%),
+      radial-gradient(900px 600px at 82% -6%, rgba(132, 170, 218, .36), transparent 60%),
+      radial-gradient(760px 560px at 96% 48%, rgba(172, 196, 230, .38), transparent 62%),
+      radial-gradient(840px 560px at 0% 78%, rgba(148, 176, 218, .30), transparent 60%),
+      radial-gradient(720px 520px at 55% 112%, rgba(160, 188, 224, .34), transparent 62%),
+      linear-gradient(165deg, #f2f6fc 0%, #ecf1f8 42%, #e6edf7 100%);
     background-attachment: fixed;
     color: var(--text-main);
     display: flex;
@@ -48,12 +48,12 @@
   @keyframes gradientWash { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
   @keyframes sparkPop { 0% { transform: scale(.5); opacity: 0; } 30% { opacity: 1; } 100% { transform: scale(1.3); opacity: 0; } }
   @keyframes wobble { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
-  @keyframes glowPulse { 0%,100% { box-shadow: 0 3px 10px rgba(204,138,88,.35); } 50% { box-shadow: 0 3px 20px rgba(204,138,88,.6); } }
+  @keyframes glowPulse { 0%,100% { box-shadow: 0 3px 10px rgba(91,107,132,.35); } 50% { box-shadow: 0 3px 20px rgba(91,107,132,.6); } }
 
-  /* 首页标题流光渐变（暖陶土调） */
+  /* 首页标题流光渐变（中性钢蓝调） */
   .header .title {
     display: inline-block;
-    background: linear-gradient(90deg, #c99267, #ecbf92, #c99267);
+    background: linear-gradient(90deg, #5b6b84, #93a3bc, #5b6b84);
     background-size: 200% auto;
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -978,30 +978,30 @@
   .news-item .n-tag-alt { background: #eef3fb; color: #4a7abf; }
   .news-empty { text-align: center; padding: 46px 20px; color: var(--text-sub); font-size: 14px; }
 
-  /* ============ 暖调奶油 · 透明玻璃拟态强化层（仅表现层，不影响涨跌配色与局部刷新） ============ */
+  /* ============ 冷调钢蓝 · 透明玻璃拟态强化层（仅表现层，不影响涨跌配色与局部刷新） ============ */
   body {
     background:
-      radial-gradient(760px 480px at 12% -6%, rgba(255, 200, 158, .30), transparent 62%),
-      radial-gradient(920px 560px at 84% -12%, rgba(255, 178, 164, .26), transparent 60%),
-      radial-gradient(780px 520px at 96% 42%, rgba(250, 212, 170, .32), transparent 62%),
-      radial-gradient(840px 560px at -4% 68%, rgba(255, 190, 200, .26), transparent 60%),
-      radial-gradient(720px 460px at 48% 112%, rgba(250, 216, 186, .28), transparent 62%),
-      linear-gradient(165deg, #fbf0e6 0%, #f7e7d6 45%, #f4e6db 100%);
+      radial-gradient(760px 480px at 12% -6%, rgba(148, 182, 218, .36), transparent 62%),
+      radial-gradient(920px 560px at 84% -12%, rgba(132, 170, 218, .30), transparent 60%),
+      radial-gradient(780px 520px at 96% 42%, rgba(172, 196, 230, .34), transparent 62%),
+      radial-gradient(840px 560px at -4% 68%, rgba(148, 176, 218, .28), transparent 60%),
+      radial-gradient(720px 460px at 48% 112%, rgba(160, 188, 224, .30), transparent 62%),
+      linear-gradient(165deg, #f2f6fc 0%, #ecf1f8 42%, #e6edf7 100%);
     background-attachment: fixed;
   }
-  /* 通透的玻璃介质层：为磨砂卡片提供背后可被模糊的暖色光斑（奶油桃 · 柔粉调） */
+  /* 通透的玻璃介质层：为磨砂卡片提供背后可被模糊的冷色光斑（钢蓝 · 冰青调） */
   body::after {
     content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
     background:
-      radial-gradient(460px 330px at 22% 16%, rgba(255, 200, 160, .42), transparent 70%),
-      radial-gradient(540px 410px at 78% 58%, rgba(255, 170, 170, .38), transparent 72%),
-      radial-gradient(440px 350px at 50% 90%, rgba(255, 216, 178, .40), transparent 70%),
-      radial-gradient(400px 310px at 90% 12%, rgba(255, 186, 208, .36), transparent 70%);
+      radial-gradient(460px 330px at 22% 16%, rgba(148, 182, 218, .42), transparent 70%),
+      radial-gradient(540px 410px at 78% 58%, rgba(132, 170, 218, .38), transparent 72%),
+      radial-gradient(440px 350px at 50% 90%, rgba(172, 196, 230, .40), transparent 70%),
+      radial-gradient(400px 310px at 90% 12%, rgba(148, 176, 218, .36), transparent 70%);
   }
   /* 细腻颗粒噪点（数字界面的"材质感"） */
   body::before {
     content: ''; position: fixed; inset: 0; pointer-events: none;
-    background-image: radial-gradient(circle at 1px 1px, rgba(190, 140, 100, .05) 1px, transparent 0);
+    background-image: radial-gradient(circle at 1px 1px, rgba(110, 130, 160, .05) 1px, transparent 0);
     background-size: 3px 3px;
     z-index: 0;
   }
