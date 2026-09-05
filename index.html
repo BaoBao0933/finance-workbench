@@ -612,11 +612,12 @@
   .watch-col b { font-weight: 600; color: var(--text-main); }
   .watch-col.up { color: var(--up); } .watch-col.up b { color: var(--up); }
   .watch-col.down { color: var(--down); } .watch-col.down b { color: var(--down); }
-  /* 涨跌幅：整个单元格用纯色背景表意涨跌（红涨绿跌、白色文字），不再显示额外色块；背景随 class 自动变化，局部刷新若改 class 或 text 均生效 */
-  .pct-bg { border-radius: 7px; padding: 3px 9px; font-weight: 600; text-align: center; line-height: 1.15; }
-  .pct-bg.up { background: var(--up); color: #fff; }
-  .pct-bg.down { background: var(--down); color: #fff; }
-  .pct-bg.flat { background: #eef1f5; color: #8a94a6; }
+  /* 涨跌幅：独立 pill 居中于列内，背景只包住数字（红涨绿跌、白色文字），不贴边、不占满整列 */
+  .pct-col { display: flex; align-items: center; justify-content: center; }
+  .pct-pill { border-radius: 7px; padding: 3px 12px; font-weight: 600; line-height: 1.15; white-space: nowrap; }
+  .pct-pill.up { background: var(--up); color: #fff; }
+  .pct-pill.down { background: var(--down); color: #fff; }
+  .pct-pill.flat { background: #eef1f5; color: #8a94a6; }
   /* 通用红涨绿跌（class 直接挂在 b/span 上时生效，如成分股/龙虎榜表格） */
   b.up, span.up { color: var(--up); }
   b.down, span.down { color: var(--down); }
@@ -2443,7 +2444,7 @@ function renderWatchlist() {
     return `<div class="watch-row${w.pinned ? ' pinned' : ''}" data-secid="${w.secid}">
       <div class="watch-col w-name-col">${dot}<span class="w-name">${w.name} <span class="w-flag">${w.type}</span></span><span class="w-code">${w.code}</span></div>
       <div class="watch-col w-val" data-field="price"><b>${q ? fmtNum(q.price) : '--'}</b></div>
-      <div class="watch-col w-val pct-bg ${cls}" data-field="pct">${q ? (q.pct > 0 ? '+' : '') + fmtNum(q.pct) + '%' : '--'}</div>
+      <div class="watch-col pct-col" data-field="pct"><span class="pct-pill ${cls}">${q ? (q.pct > 0 ? '+' : '') + fmtNum(q.pct) + '%' : '--'}</span></div>
       <div class="watch-col w-val ${cls} w-hide" data-field="chg">${q ? (q.chg > 0 ? '+' : '') + fmtNum(q.chg) : '--'}</div>
       <div class="watch-col w-hide"><b>${q ? fmtNum(q.open) : '--'}</b></div>
       <div class="watch-col w-hide">${q && q.amount > 0 ? (q.amount / 1e8).toFixed(0) + '亿' : '--'}</div>
@@ -2483,7 +2484,8 @@ function updateWatchPrices() {
       priceEl.classList.add(delta >= 0 ? 'flash-up' : 'flash-down');
     }
     priceEl.textContent = priceTxt;
-    row.querySelector('[data-field="pct"]').textContent = pctTxt;
+    const pctPill = row.querySelector('[data-field="pct"] .pct-pill');
+    if (pctPill) { pctPill.textContent = pctTxt; pctPill.className = 'pct-pill ' + cls; }
     row.querySelector('[data-field="chg"]').textContent = chgTxt;
   });
 }
@@ -2693,7 +2695,7 @@ function renderHoldings() {
     return `<div class="pos-row" data-secid="${h.secid}">
       <div class="watch-col w-name-col">${dot}<span class="w-name">${h.name} <span class="w-flag">${h.type}</span></span><span class="w-code">${h.code}</span></div>
       <div class="watch-col w-val" data-field="price"><b>${price !== null ? fmtNum(price) : '--'}</b></div>
-      <div class="watch-col w-val pct-bg ${cls}" data-field="pct">${q ? (q.pct > 0 ? '+' : '') + fmtNum(q.pct) + '%' : '--'}</div>
+      <div class="watch-col pct-col" data-field="pct"><span class="pct-pill ${cls}">${q ? (q.pct > 0 ? '+' : '') + fmtNum(q.pct) + '%' : '--'}</span></div>
       <div class="watch-col">${fmtNum(h.cost)}</div>
       <div class="watch-col p-hide"><b>${fmtNum(h.qty, 0)}</b></div>
       <div class="watch-col p-hide" data-field="mv">${mv !== null ? fmtPosAmt(mv) : '--'}</div>
@@ -2801,7 +2803,8 @@ function updateHoldPrices() {
     row.querySelector('.w-dot').className = 'w-dot ' + cls;
 
     row.querySelector('[data-field="price"] b').textContent = fmtNum(price);
-    row.querySelector('[data-field="pct"]').textContent = (q.pct > 0 ? '+' : '') + fmtNum(q.pct) + '%';
+    const pctPill = row.querySelector('[data-field="pct"] .pct-pill');
+    if (pctPill) { pctPill.textContent = (q.pct > 0 ? '+' : '') + fmtNum(q.pct) + '%'; pctPill.className = 'pct-pill ' + cls; }
     row.querySelector('[data-field="mv"]').textContent = fmtPosAmt(mv);
     const pnlEl = row.querySelector('[data-field="pnl"]');
     const rateEl = row.querySelector('[data-field="rate"]');
