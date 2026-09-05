@@ -1374,7 +1374,7 @@
         <!-- 新增/编辑持仓表单 -->
         <div class="pos-form" id="pos-form">
           <span class="pf-name" id="pf-name">--</span>
-          <label>成本价</label><input id="pf-cost" type="number" min="0" step="0.001" placeholder="买入成本">
+          <label>总成本(元)</label><input id="pf-cost" type="number" min="0" step="0.001" placeholder="买入总成本，如 120000">
           <label>持股数</label><input id="pf-qty" type="number" min="1" step="1" placeholder="如 100">
           <button class="btn-add" id="pf-ok">✓ 确认</button>
           <button class="pf-cancel" id="pf-cancel">取消</button>
@@ -1395,7 +1395,7 @@
           <span class="watch-head">名称 / 代码</span>
           <span class="watch-head">最新价</span>
           <span class="watch-head pct-h">涨跌幅</span>
-          <span class="watch-head">成本价</span>
+          <span class="watch-head">总成本(元)</span>
           <span class="watch-head p-hide">持股数</span>
           <span class="watch-head p-hide">市值</span>
           <span class="watch-head">盈亏</span>
@@ -2689,15 +2689,15 @@ function renderHoldings() {
     const cls = q ? clsOf(q.pct) : 'flat';
     const price = q ? q.price : null;
     const mv = price !== null ? price * h.qty : null;
-    const pnl = price !== null ? (price - h.cost) * h.qty : null;
-    const rate = price !== null ? (price / h.cost - 1) * 100 : null;
+    const pnl = mv !== null ? mv - h.cost : null;
+    const rate = mv !== null && h.cost > 0 ? (mv / h.cost - 1) * 100 : null;
     const pcls = pnl === null ? 'flat' : clsOf(pnl);
     const dot = q ? `<span class="w-dot ${cls}"></span>` : '<span class="w-dot"></span>';
     return `<div class="pos-row" data-secid="${h.secid}">
       <div class="watch-col w-name-col">${dot}<span class="w-name">${h.name} <span class="w-flag">${h.type}</span></span><span class="w-code">${h.code}</span></div>
       <div class="watch-col w-val" data-field="price"><b>${price !== null ? fmtNum(price) : '--'}</b></div>
       <div class="watch-col pct-col" data-field="pct"><span class="pct-pill ${cls}">${q ? (q.pct > 0 ? '+' : '') + fmtNum(q.pct) + '%' : '--'}</span></div>
-      <div class="watch-col">${fmtNum(h.cost)}</div>
+      <div class="watch-col">${h.cost ? fmtPosAmt(h.cost) : '--'}</div>
       <div class="watch-col p-hide"><b>${fmtNum(h.qty, 0)}</b></div>
       <div class="watch-col p-hide" data-field="mv">${mv !== null ? fmtPosAmt(mv) : '--'}</div>
       <div class="watch-col w-val ${pcls}" data-field="pnl">${pnl !== null ? (pnl > 0 ? '+' : '') + fmtPosAmt(pnl) : '--'}</div>
@@ -2717,7 +2717,7 @@ function updatePosSummary() {
   let mv = 0, cost = 0, hasQuote = false;
   holdings.forEach(h => {
     const q = holdQuotes[h.secid];
-    if (q && q.price) { mv += q.price * h.qty; cost += h.cost * h.qty; hasQuote = true; }
+    if (q && q.price) { mv += q.price * h.qty; cost += h.cost; hasQuote = true; }
   });
   if (!hasQuote || !holdings.length) {
     $('ps-mv').textContent = '--'; $('ps-mv').className = 'val';
@@ -2787,8 +2787,8 @@ function updateHoldPrices() {
     const cls = clsOf(q.pct);
     const price = q.price;
     const mv = price * h.qty;
-    const pnl = (price - h.cost) * h.qty;
-    const rate = (price / h.cost - 1) * 100;
+    const pnl = mv - h.cost;
+    const rate = h.cost > 0 ? (mv / h.cost - 1) * 100 : 0;
     const pcls = clsOf(pnl);
 
     row.querySelectorAll('.w-val').forEach(elm => {
