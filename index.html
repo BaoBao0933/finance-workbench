@@ -612,6 +612,10 @@
   .watch-col b { font-weight: 600; color: var(--text-main); }
   .watch-col.up { color: var(--up); } .watch-col.up b { color: var(--up); }
   .watch-col.down { color: var(--down); } .watch-col.down b { color: var(--down); }
+  /* 涨跌幅数字下方的纯色小方块：用 ::after 伪元素，局部刷新(textContent)不会覆盖，背景 currentColor 自动跟随涨跌色 */
+  .pct-col { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+  .pct-col::after { content: ''; width: 10px; height: 10px; border-radius: 3px; background: currentColor; }
+  .ic-badge::after { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: currentColor; margin-left: 6px; vertical-align: middle; }
   /* 通用红涨绿跌（class 直接挂在 b/span 上时生效，如成分股/龙虎榜表格） */
   b.up, span.up { color: var(--up); }
   b.down, span.down { color: var(--down); }
@@ -2438,7 +2442,7 @@ function renderWatchlist() {
     return `<div class="watch-row${w.pinned ? ' pinned' : ''}" data-secid="${w.secid}">
       <div class="watch-col w-name-col">${dot}<span class="w-name">${w.name} <span class="w-flag">${w.type}</span></span><span class="w-code">${w.code}</span></div>
       <div class="watch-col w-val" data-field="price"><b>${q ? fmtNum(q.price) : '--'}</b></div>
-      <div class="watch-col w-val ${cls}" data-field="pct">${q ? (q.pct > 0 ? '+' : '') + fmtNum(q.pct) + '%' : '--'}</div>
+      <div class="watch-col w-val pct-col ${cls}" data-field="pct">${q ? (q.pct > 0 ? '+' : '') + fmtNum(q.pct) + '%' : '--'}</div>
       <div class="watch-col w-val ${cls} w-hide" data-field="chg">${q ? (q.chg > 0 ? '+' : '') + fmtNum(q.chg) : '--'}</div>
       <div class="watch-col w-hide"><b>${q ? fmtNum(q.open) : '--'}</b></div>
       <div class="watch-col w-hide">${q && q.amount > 0 ? (q.amount / 1e8).toFixed(0) + '亿' : '--'}</div>
@@ -2688,11 +2692,11 @@ function renderHoldings() {
     return `<div class="pos-row" data-secid="${h.secid}">
       <div class="watch-col w-name-col">${dot}<span class="w-name">${h.name} <span class="w-flag">${h.type}</span></span><span class="w-code">${h.code}</span></div>
       <div class="watch-col w-val" data-field="price"><b>${price !== null ? fmtNum(price) : '--'}</b></div>
-      <div class="watch-col w-val ${cls}" data-field="pct">${q ? (q.pct > 0 ? '+' : '') + fmtNum(q.pct) + '%' : '--'}</div>
+      <div class="watch-col w-val pct-col ${cls}" data-field="pct">${q ? (q.pct > 0 ? '+' : '') + fmtNum(q.pct) + '%' : '--'}</div>
       <div class="watch-col">${fmtNum(h.cost)}</div>
       <div class="watch-col p-hide"><b>${fmtNum(h.qty, 0)}</b></div>
       <div class="watch-col p-hide" data-field="mv">${mv !== null ? fmtPosAmt(mv) : '--'}</div>
-      <div class="watch-col w-val ${pcls}" data-field="pnl">${pnl !== null ? (pnl > 0 ? '+' : '') + fmtFund(pnl) : '--'}</div>
+      <div class="watch-col w-val ${pcls}" data-field="pnl">${pnl !== null ? (pnl > 0 ? '+' : '') + fmtPosAmt(pnl) : '--'}</div>
       <div class="watch-col w-val ${pcls}" data-field="rate">${rate !== null ? (rate > 0 ? '+' : '') + fmtNum(rate, 2) + '%' : '--'}</div>
       <div class="w-ops">
         <button class="w-pin" title="编辑成本/数量" data-act="edit">✎</button>
@@ -2800,7 +2804,7 @@ function updateHoldPrices() {
     row.querySelector('[data-field="mv"]').textContent = fmtPosAmt(mv);
     const pnlEl = row.querySelector('[data-field="pnl"]');
     const rateEl = row.querySelector('[data-field="rate"]');
-    if (pnlEl) pnlEl.textContent = (pnl > 0 ? '+' : '') + fmtFund(pnl);
+    if (pnlEl) pnlEl.textContent = (pnl > 0 ? '+' : '') + fmtPosAmt(pnl);
     if (rateEl) rateEl.textContent = (rate > 0 ? '+' : '') + fmtNum(rate, 2) + '%';
   });
   updatePosSummary();
