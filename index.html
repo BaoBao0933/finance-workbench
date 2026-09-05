@@ -1066,22 +1066,35 @@
   }
   .ov-card.clickable:hover { border-color: var(--accent); }
 
+  /* 数据概览（核心指数）普通卡片：统一高透钢蓝玻璃，顶部折射高光 */
+  .index-card { position: relative; overflow: hidden; }
+  .index-card::before {
+    content: ''; position: absolute; left: 0; top: 0; right: 0; height: 54%;
+    background: linear-gradient(115deg, rgba(255,255,255,.7), rgba(224,235,250,.18) 46%, transparent 72%);
+    pointer-events: none;
+  }
+  .index-card > *:not(.ic-badge) { position: relative; z-index: 1; }
+
   /* 核心指数大卡：更通透的大玻璃，冷光辉晕 */
   .index-card.focus-card {
     border-radius: 22px;
     background: linear-gradient(118deg,
-      rgba(255,255,255,.54) 0%,
-      rgba(255,255,255,.30) 36%,
-      rgba(255,255,255,.48) 100%);
+      rgba(255,255,255,.48) 0%,
+      rgba(224,235,250,.34) 34%,
+      rgba(255,255,255,.22) 60%,
+      rgba(255,255,255,.42) 100%);
+    backdrop-filter: blur(26px) saturate(180%);
+    -webkit-backdrop-filter: blur(26px) saturate(180%);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, .95),
       inset 0 -1px 0 rgba(255, 255, 255, .4),
       inset 1px 0 0 rgba(255, 255, 255, .4),
+      inset -1px 0 0 rgba(255, 255, 255, .4),
       0 4px 10px rgba(60, 76, 100, .08),
       0 26px 64px rgba(55, 72, 100, .16);
   }
   .index-card.focus-card::after {
-    background: radial-gradient(circle, rgba(150, 187, 232, .40), transparent 72%);
+    background: radial-gradient(circle at 78% 18%, rgba(150, 187, 232, .46), transparent 74%);
   }
   .index-card.focus-card .ic-price { font-weight: 800; letter-spacing: .5px; }
 
