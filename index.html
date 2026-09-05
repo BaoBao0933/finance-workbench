@@ -395,6 +395,8 @@
     transition: box-shadow .2s, transform .2s;
   }
   .ov-card:hover { box-shadow: 0 8px 24px rgba(30, 44, 62, .09); transform: translateY(-2px); }
+  .ov-card.clickable { cursor: pointer; }
+  .ov-card.clickable:hover { border-color: var(--accent); }
   .ov-icon {
     width: 48px; height: 48px;
     border-radius: 11px;
@@ -1065,20 +1067,20 @@
               <div class="ov-note" id="ov-north-note">港股通实时 · 加载中…</div>
             </div>
           </div>
-          <div class="ov-card">
+          <div class="ov-card clickable" id="ov-top-card">
             <div class="ov-icon red">📈</div>
             <div class="ov-body">
               <div class="ov-label">板块涨幅榜首</div>
               <div class="ov-value up" id="ov-top">--</div>
-              <div class="ov-note">行业板块（按涨跌幅）</div>
+              <div class="ov-note">点击查看成分股</div>
             </div>
           </div>
-          <div class="ov-card">
+          <div class="ov-card clickable" id="ov-bottom-card">
             <div class="ov-icon green">📉</div>
             <div class="ov-body">
               <div class="ov-label">板块跌幅榜首</div>
               <div class="ov-value down" id="ov-bottom">--</div>
-              <div class="ov-note">行业板块（按涨跌幅）</div>
+              <div class="ov-note">点击查看成分股</div>
             </div>
           </div>
         </div>
@@ -2076,8 +2078,14 @@ async function loadBoardRank() {
       const top = topRes && topRes.data && topRes.data.diff && topRes.data.diff[0];
       const bot = botRes && botRes.data && botRes.data.diff && botRes.data.diff[0];
       if (!top && !bot) continue;
-      if (top) $('ov-top').textContent = `${top.f14} +${top.f3}%`;
-      if (bot) $('ov-bottom').textContent = `${bot.f14} ${bot.f3}%`;
+      if (top) {
+        $('ov-top').textContent = `${top.f14} +${top.f3}%`;
+        $('ov-top').dataset.code = top.f12; $('ov-top').dataset.name = top.f14; $('ov-top').dataset.pct = top.f3;
+      }
+      if (bot) {
+        $('ov-bottom').textContent = `${bot.f14} ${bot.f3}%`;
+        $('ov-bottom').dataset.code = bot.f12; $('ov-bottom').dataset.name = bot.f14; $('ov-bottom').dataset.pct = bot.f3;
+      }
       return;
     } catch (e) { /* 下一域名 */ }
   }
@@ -2101,6 +2109,16 @@ $('btn-gen-report').addEventListener('click', () => showToast('日报生成功�
 document.querySelectorAll('[data-wip]').forEach(el =>
   el.addEventListener('click', () => showToast('该数据视图建设中，敬请期待')));
 $('link-all-index').addEventListener('click', () => switchPage('自选股票'));
+
+// 首页板块涨跌幅榜首 → 点击进入成分股视图（切到行业板块页再打开成分股）
+function openRankSector(el) {
+  const code = el.dataset.code, name = el.dataset.name, pct = parseFloat(el.dataset.pct || '0');
+  if (!code) { showToast('板块数据加载中，稍后再点…'); return; }
+  switchPage('行业板块');
+  setTimeout(() => openHotSector({ code, name, pct }, pct), 60);
+}
+$('ov-top-card').addEventListener('click', e => { if (e.target.closest('#ov-top-card')) openRankSector($('ov-top')); });
+$('ov-bottom-card').addEventListener('click', e => { if (e.target.closest('#ov-bottom-card')) openRankSector($('ov-bottom')); });
 
 // 导航切换
 const navItems = document.querySelectorAll('.nav-item');
