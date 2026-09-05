@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -1509,9 +1509,9 @@
 /* ================= 配置 ================= */
 // 首页展示的指数（secid 为东方财富行情接口代码，tx 为腾讯备用通道代码）
 const INDEXES = [
-  { secid: '1.000001',  name: '上证指数',  code: 'sh000001', tx: 'sh000001', flag: 'A股',  amount: true  },
-  { secid: '1.000688',  name: '科创50',    code: 'sh000688', tx: 'sh000688', flag: 'A股',  amount: true  },
-  { secid: '100.HSI',   name: '恒生指数',  code: 'hkHSI',    tx: 'hkHSI',    flag: '港股', amount: true  },
+  { secid: '1.000001',  name: '上证指数',  code: 'sh000001', tx: 'sh000001', tz: 'sh000001', flag: 'A股',  amount: true  },
+  { secid: '1.000688',  name: '科创50',    code: 'sh000688', tx: 'sh000688', tz: 'sh000688', flag: 'A股',  amount: true  },
+  { secid: '100.HSI',   name: '恒生指数',  code: 'hkHSI',    tx: 'hkHSI',    tz: 'hkHSI',    flag: '港股', amount: true  },
   { secid: '100.N225',  name: '日经225',   code: 'jpN225',   flag: '日本', amount: false },
   { secid: '100.KS11',  name: '韩国KOSPI', code: 'krKS11',   flag: '韩国', amount: false },
   { secid: '100.DJIA',  name: '道琼斯',    code: 'usDJI',    tx: 'usDJI',    flag: '美股', volume: true  },
@@ -1664,7 +1664,9 @@ async function fetchJson(url, timeout = 6000) {
   try {
     const r = await fetch(url, { signal: ctl.signal, cache: 'no-store' });
     if (!r.ok) throw new Error('http ' + r.status);
-    return await r.json();
+    const text = await r.text();
+    // 部分东财接口返回带 BOM 的 JSON，需剥离开头 \uFEFF 才能 JSON.parse
+    return JSON.parse(text.replace(/^\uFEFF/, '').trim());
   } finally { clearTimeout(timer); }
 }
 
@@ -1817,6 +1819,7 @@ function renderAll() {
     else if (cardCache[cfg.code]) cardCache[cfg.code].chg.textContent = '行情通道恢复中…';
   });
   if (lastAmount !== null) $('ov-amount').textContent = lastAmount;
+  loadZones(); // 卡片就绪后计算压力位/支撑位（内部有5分钟缓存）
 }
 // 根据指数配置返回其所属挂载容器（focus slot 或对应分区的 grid）
 function slotFor(cfg, wrap) {
@@ -1863,36 +1866,53 @@ async function loadNorth() {
   note.textContent = '港股通数据暂不可用';
 }
 
-// 指数压力位 / 支撑位 / 枢轴（基于近60日K线，页面可见时刷新）
+// 指数压力位 / 支撑位 / 枢轴
+// K线数据量大且日频变化，做缓存（5分钟）避免每次刷新都请求
+const zoneCache = {};
+let zoneLoading = false;
 async function loadZones() {
-  const hosts = ['push2his.eastmoney.com', 'push2hisdelay.eastmoney.com'];
-  for (const cfg of INDEXES) {
-    const c = cardCache[cfg.code];
-    if (!c) continue;
-    for (const host of hosts) {
+  if (zoneLoading) return;          // 上一次未拉完则跳过本次
+  const pending = INDEXES.filter(cfg => {
+    const v = zoneCache[cfg.code];
+    if (!v || (Date.now() - v.t) > 5 * 60 * 1000) return true;
+    applyZones(cfg, v);
+    return false;
+  });
+  if (!pending.length) return;
+  zoneLoading = true;
+  try {
+    await Promise.all(pending.map(async cfg => {
+      if (!cfg.tz) return; // 腾讯无该指数K线，保持 --（美股/日韩）
       try {
-        const url = `https://${host}/api/qt/stock/kline/get?secid=${cfg.secid}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56&klt=101&fqt=0&beg=0&end=20500101&lmt=60&_=${Date.now()}`;
-        const res = await fetchJson(url, 6500);
-        const kl = res && res.data && res.data.klines;
-        if (!kl || !kl.length) continue;
-        // 接口 beg=0 时可能返回全量历史，只取最近 60 根计算
-        const rows = kl.slice(-60).map(s => { const a = s.split(','); return { open:+a[1], close:+a[2], high:+a[3], low:+a[4] }; });
+        // 腾讯历史K线：CORS 开放（ACAO=*），返回标准 JSON
+        const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${cfg.tz},day,,,80,qfq&_=${Date.now()}`;
+        const res = await fetchJson(url, 12000);
+        const src = res && res.data && res.data[cfg.tz];
+        const kl = src && (src.day || (src.qfqday && src.qfqday.length ? src.qfqday : null));
+        if (!kl || !kl.length) return;
+        // 每条 [date, open, close, high, low, volume]
+        const rows = kl.slice(-60).map(a => ({ high:+a[3], low:+a[4], close:+a[2] }));
         const high = Math.max(...rows.map(r => r.high));
         const low = Math.min(...rows.map(r => r.low));
         const last = rows[rows.length - 1];
         const pivot = Math.round((last.high + last.low + last.close) / 3 * 100) / 100;
-        const price = lastQuotes[cfg.code] ? lastQuotes[cfg.code].price : null;
-        c.zr.textContent = fmtNum(high);
-        c.zp.textContent = fmtNum(pivot);
-        c.zs.textContent = fmtNum(low);
-        if (price != null && price > 0) {
-          const dist = (high / price - 1) * 100;
-          c.zpct.textContent = (dist > 0 ? '' : dist < 0 ? '↓' : '') + fmtNum(Math.abs(dist), 1) + '%';
-        } else c.zpct.textContent = '--';
-        break; // 该指数成功，跳到下一个
-      } catch (e) { /* 换备用域名 */ }
-    }
-  }
+        zoneCache[cfg.code] = { t: Date.now(), high, low, pivot };
+        applyZones(cfg, zoneCache[cfg.code]);
+      } catch (e) { /* 该指数K线暂不可得 */ }
+    }));
+  } finally { zoneLoading = false; }
+}
+function applyZones(cfg, v) {
+  const c = cardCache[cfg.code];
+  if (!c) return;
+  c.zr.textContent = fmtNum(v.high);
+  c.zp.textContent = fmtNum(v.pivot);
+  c.zs.textContent = fmtNum(v.low);
+  const price = lastQuotes[cfg.code] ? lastQuotes[cfg.code].price : null;
+  if (price != null && price > 0) {
+    const dist = (v.high / price - 1) * 100;
+    c.zpct.textContent = (dist > 0 ? '' : dist < 0 ? '↓' : '') + fmtNum(Math.abs(dist), 1) + '%';
+  } else c.zpct.textContent = '--';
 }
 
 function setLive(ok, suffix) {
@@ -2074,7 +2094,6 @@ function refresh(manual) {
   }
   loadQuotes();
   loadNorth();
-  loadZones();
 }
 $('btn-refresh').addEventListener('click', () => refresh(true));
 $('btn-report').addEventListener('click', () => showToast('日报生成功能建设中，敬请期待 📝'));
