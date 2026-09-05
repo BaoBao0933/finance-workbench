@@ -960,6 +960,102 @@
   .news-item .n-time { font-variant-numeric: tabular-nums; }
   .news-item .n-tag-alt { background: #eef3fb; color: #4a7abf; }
   .news-empty { text-align: center; padding: 46px 20px; color: var(--text-sub); font-size: 14px; }
+
+  /* ============ 视觉强化层（仅表现层，不影响涨跌配色与局部刷新） ============ */
+  body {
+    background:
+      radial-gradient(1200px 620px at 88% -12%, rgba(123, 92, 255, .09), transparent 60%),
+      radial-gradient(1000px 520px at -8% 2%, rgba(255, 166, 86, .075), transparent 55%),
+      radial-gradient(900px 560px at 55% 115%, rgba(10, 168, 105, .06), transparent 62%),
+      linear-gradient(180deg, #f6f7fb 0%, #eef1f7 100%);
+    background-attachment: fixed;
+  }
+  /* 全局更细腻的字体渲染与排版节奏 */
+  body, button, input {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection { background: rgba(123, 92, 255, .18); }
+  /* 统一滚动条氛围 */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #c6cedb; border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: #aab4c6; }
+
+  /* 模块标题：加字距与呼吸感，提升排版层级 */
+  .module-header .m-title { letter-spacing: .4px; }
+  .sector-title { letter-spacing: .4px; }
+  .ic-name, .ov-label, .sc-name { letter-spacing: .2px; }
+
+  /* —— 卡片系统：更柔和的浮起阴影 + 微圆角 + 精致悬停 —— */
+  .ov-card, .index-card, .live-bar {
+    border-radius: 16px;
+    border-color: rgba(234, 238, 243, .9);
+    box-shadow: 0 1px 1px rgba(30,44,62,.03), 0 4px 12px rgba(30,44,62,.05), 0 14px 34px rgba(30,44,62,.05);
+  }
+  .ov-card:hover, .index-card:hover {
+    box-shadow: 0 4px 12px rgba(108,75,232,.07), 0 14px 34px rgba(30,44,62,.10);
+    border-color: #cfc5ff;
+  }
+  .ov-card.clickable:hover { border-color: var(--accent); }
+
+  /* 核心指数大卡：增强顶部光晕氛围，价格更挺拔 */
+  .index-card.focus-card {
+    border-radius: 20px;
+    box-shadow: 0 2px 4px rgba(30,44,62,.04), 0 10px 30px rgba(30,44,62,.07);
+  }
+  .index-card.focus-card .ic-price { font-weight: 800; letter-spacing: .5px; }
+
+  /* —— 热门行业板块 strip 卡片 —— */
+  .sector-chip {
+    background: #fff;
+    border: 1px solid rgba(234, 238, 243, .95);
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(30,44,62,.05);
+    position: relative;
+    overflow: hidden;
+  }
+  .sector-chip::before {
+    content: ''; position: absolute; left: 0; top: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, rgba(123,92,255,.55), rgba(255,166,86,.5));
+    opacity: 0; transition: opacity .25s;
+  }
+  .sector-chip:hover::before { opacity: 1; }
+  .sector-chip:hover {
+    border-color: #cfc5ff;
+    box-shadow: 0 8px 22px rgba(108,75,232,.12), 0 3px 10px rgba(30,44,62,.06);
+  }
+  .sector-chip .sc-rank {
+    background: #eef1f5; color: #7c8698; font-weight: 700;
+    padding: 1px 7px; border-radius: 6px; font-size: 10.5px;
+  }
+
+  /* —— 热点精选板块（行业板块页置顶）：更高级的光晕卡片 —— */
+  .sec-hot {
+    border-radius: 18px;
+    border-color: rgba(255, 217, 194, .85);
+    box-shadow: 0 2px 6px rgba(180, 90, 20, .05), 0 12px 28px rgba(180, 90, 20, .06);
+  }
+  .sec-hot-card {
+    border-radius: 14px;
+    border-color: rgba(255, 224, 204, .9);
+    box-shadow: 0 2px 8px rgba(180,90,20,.05);
+    overflow: hidden;
+  }
+  .sec-hot-card::after {
+    content: ''; position: absolute; right: -24px; top: -24px; width: 78px; height: 78px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,166,86,.22), transparent 70%); pointer-events: none;
+  }
+  .sec-hot-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 8px 22px rgba(108,75,232,.16), 0 3px 8px rgba(180,90,20,.06);
+  }
+
+  /* —— 板块榜首/跌幅榜首卡片（首页） —— */
+  .ov-card.clickable { position: relative; overflow: hidden; }
+  .ov-card.clickable::after {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: linear-gradient(180deg, var(--accent), transparent); opacity: .9;
+  }
 </style>
 </head>
 <body>
@@ -1997,7 +2093,7 @@ function renderSectors(list) {
     const up = s.pct >= 0;
     const abs = Math.min(Math.abs(s.pct), 10) / 10 * 100;
     return `
-    <div class="sector-chip fade-in" data-secid="${s.secid}" title="${s.name} 板块实时行情">
+    <div class="sector-chip fade-in" data-secid="${s.secid}" data-code="${s.secid.split('.').pop()}" data-name="${s.name}" data-pct="${s.pct}" title="${s.name} · 点击查看成分股">
       <div class="sc-top"><span class="sc-name">${s.name}</span><span class="sc-rank">#${i + 1}</span></div>
       <div class="sc-val ${up ? 'up' : 'down'}">${s.pct > 0 ? '+' : ''}${fmtNum(s.pct, 2)}%</div>
       <div class="sc-bar"><i class="${up ? 'up' : 'down'}" style="width:${abs}%"></i></div>
@@ -2006,6 +2102,7 @@ function renderSectors(list) {
   }).join('');
   strip.querySelectorAll('.sector-chip').forEach(chip => {
     sectorCache[chip.dataset.secid] = {
+      root: chip,
       pctEl: chip.querySelector('.sc-val'),
       barEl: chip.querySelector('.sc-bar i'),
       priceEl: chip.querySelector('.sc-price'),
@@ -2022,6 +2119,7 @@ function updateSectors(list) {
     const up = s.pct >= 0;
     const cls = up ? 'up' : 'down';
     const pctTxt = (s.pct > 0 ? '+' : '') + fmtNum(s.pct, 2) + '%';
+    c.root.dataset.pct = s.pct;
     c.pctEl.className = 'sc-val ' + cls;
     if (c.pctEl.textContent !== pctTxt) {
       c.pctEl.classList.remove('flash-up', 'flash-down');
@@ -2119,6 +2217,11 @@ function openRankSector(el) {
 }
 $('ov-top-card').addEventListener('click', e => { if (e.target.closest('#ov-top-card')) openRankSector($('ov-top')); });
 $('ov-bottom-card').addEventListener('click', e => { if (e.target.closest('#ov-bottom-card')) openRankSector($('ov-bottom')); });
+// 首页「热门行业板块」卡片 → 点击查看成分股（与含 90. 前缀的 secid 拆出板块代码）
+$('sector-strip').addEventListener('click', e => {
+  const chip = e.target.closest('.sector-chip');
+  if (chip) openRankSector(chip);
+});
 
 // 导航切换
 const navItems = document.querySelectorAll('.nav-item');
