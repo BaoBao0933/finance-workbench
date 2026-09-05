@@ -30,14 +30,88 @@
   }
 
   /* ============ 侧边栏 ============ */
+
+  /* ===== 高级趣味动效（纯装饰，不影响数据/局部刷新）===== */
+  @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  @keyframes gradientWash { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+  @keyframes sparkPop { 0% { transform: scale(.5); opacity: 0; } 30% { opacity: 1; } 100% { transform: scale(1.3); opacity: 0; } }
+  @keyframes wobble { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+  @keyframes glowPulse { 0%,100% { box-shadow: 0 3px 10px rgba(108,75,232,.4); } 50% { box-shadow: 0 3px 20px rgba(108,75,232,.75); } }
+
+  /* 首页标题流光渐变 */
+  .header .title {
+    display: inline-block;
+    background: linear-gradient(90deg, #7b5cff, #ff5cb0, #7b5cff);
+    background-size: 200% auto;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientWash 5s linear infinite;
+  }
+
+  /* 侧边栏 logo 动效 */
+  .logo-icon { animation: glowPulse 3.5s ease-in-out infinite; }
+  .logo-dog { transition: transform .4s ease; }
+  .logo:hover .logo-dog { transform: scale(1.12) rotate(-3deg); }
+
+  /* 导航项微动效 */
+  .nav-item .icon { display: inline-block; transition: transform .25s ease; }
+  .nav-item:hover .icon { transform: translateX(2px) scale(1.15); animation: wobble 1s ease infinite; }
+  .nav-item::after {
+    content: '';
+    position: absolute; right: 14px; top: 50%;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    transform: translateY(-50%) scale(0);
+    transition: transform .2s ease;
+  }
+  .nav-item:hover::after { transform: translateY(-50%) scale(1); }
+
+  /* 模块标题前的小图标点缀 */
+  .module-header .m-title { display: inline-flex; align-items: center; gap: 7px; }
+  .module-header .m-title .m-ico { font-size: 17px; animation: floaty 3s ease-in-out infinite; }
+
+  /* 趣味欢迎横幅 */
+  .fun-banner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 22px;
+    margin-bottom: 20px;
+    border-radius: 18px;
+    overflow: hidden;
+    color: #fff;
+    background: linear-gradient(120deg, #7b5cff, #a24eff, #ff5cb0);
+    background-size: 200% 200%;
+    animation: gradientWash 7s ease infinite;
+    box-shadow: 0 10px 26px rgba(123, 92, 255, .30);
+  }
+  .fun-banner .fb-left { display: flex; align-items: center; gap: 16px; z-index: 1; }
+  .fun-banner .fb-emoji { font-size: 40px; filter: drop-shadow(0 4px 8px rgba(0,0,0,.2)); animation: floaty 3s ease-in-out infinite; }
+  .fun-banner .fb-title { font-size: 17px; font-weight: 700; letter-spacing: .5px; }
+  .fun-banner .fb-sub { font-size: 13px; margin-top: 3px; opacity: .85; }
+  .fun-banner .fb-sparks { position: absolute; right: 20px; top: 10px; bottom: 10px; width: 160px; pointer-events: none; }
+  .fun-banner .spark { position: absolute; font-size: 18px; opacity: .9; animation: floaty 3.2s ease-in-out infinite; }
+  .fun-banner .spark.s1 { left: 10px; top: 4px; animation-delay: .2s; }
+  .fun-banner .spark.s2 { left: 56px; bottom: 4px; font-size: 15px; animation-delay: 1s; }
+  .fun-banner .spark.s3 { left: 108px; top: 10px; animation-delay: .6s; }
+  .fun-banner .spark.s4 { left: 140px; bottom: 10px; font-size: 15px; animation-delay: 1.4s; }
+  .fun-banner .spark.s5 { right: 4px; top: 50%; font-size: 20px; animation-delay: .9s; }
+
+  /* 侧边栏底部光晕 */
   .sidebar {
     width: 224px;
     min-width: 224px;
-    background: var(--sidebar-bg);
     color: #c3cddb;
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    position: relative;
+    background:
+      radial-gradient(600px 220px at 120% -8%, rgba(123,92,255,.20), transparent 60%),
+      radial-gradient(500px 260px at -20% 110%, rgba(90,120,255,.14), transparent 60%),
+      var(--sidebar-bg);
   }
   .sidebar::-webkit-scrollbar { width: 4px; }
   .sidebar::-webkit-scrollbar-thumb { background: #3a4d66; border-radius: 2px; }
@@ -923,10 +997,25 @@
         <span id="live-time">--</span>
       </div>
 
+      <!-- 趣味欢迎横幅（纯装饰） -->
+      <div class="fun-banner">
+        <div class="fb-left">
+          <span class="fb-emoji">📈</span>
+          <div class="fb-text">
+            <div class="fb-title">祝你今天收益长虹！</div>
+            <div class="fb-sub" id="fun-tip">行情实时滚动中…</div>
+          </div>
+        </div>
+        <div class="fb-sparks">
+          <i class="spark s1">✨</i><i class="spark s2">🌱</i><i class="spark s3">🔥</i>
+          <i class="spark s4">💎</i><i class="spark s5">🚀</i>
+        </div>
+      </div>
+
       <!-- 核心指数 -->
       <div class="module">
         <div class="module-header">
-          <span class="m-title">核心指数</span>
+          <span class="m-title"><span class="m-ico">📊</span>核心指数</span>
           <span class="m-sub">重点 · 全球市场实时行情</span>
           <a class="m-link" id="link-all-index">自选股 →</a>
         </div>
@@ -936,7 +1025,7 @@
       <!-- 市场概览 -->
       <div class="module">
         <div class="module-header">
-          <span class="m-title">市场概览</span>
+          <span class="m-title"><span class="m-ico">🌏</span>市场概览</span>
           <div class="tabs">
             <div class="tab active">两市成交</div>
             <div class="tab" data-wip>资金动向</div>
