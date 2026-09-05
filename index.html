@@ -203,13 +203,22 @@
   .tab.active { background: #ede9fe; color: var(--accent); font-weight: 600; }
 
   /* 核心指数卡片 */
-  .index-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-  }
+  /* ===== 重点指数（独立大卡）===== */
+  .index-focus { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .index-focus { grid-template-columns: 1fr; } }
+  /* 通用指数栅格（重点关注-全球股指、期货市场 复用） */
+  .index-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
   @media (max-width: 1400px) { .index-grid { grid-template-columns: repeat(3, 1fr); } }
   @media (max-width: 1000px) { .index-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ===== 分区指数 ===== */
+  .index-regions { display: flex; flex-direction: column; gap: 18px; margin-top: 18px; }
+  .index-region .ir-head { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 11px; }
+  .index-region .ir-head::before { content: ''; width: 4px; height: 14px; border-radius: 2px; background: var(--accent); }
+  .index-region .ir-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 1000px) { .index-region .ir-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 700px) { .index-region .ir-grid { grid-template-columns: 1fr; } }
+
   .index-card {
     background: #fff;
     border: 1px solid var(--card-border);
@@ -219,21 +228,32 @@
     transition: box-shadow .2s, transform .2s, border-color .2s;
   }
   .index-card:hover { box-shadow: 0 10px 28px rgba(30, 44, 62, .10); transform: translateY(-2px); border-color: #ddd5ff; }
+  .index-card.gr { border-color: #d7e6fb; background: linear-gradient(160deg, #fbfdff, #fff); }
+  .index-card.gr .ic-name { color: #2b4c88; }
   .ic-top { display: flex; align-items: center; gap: 9px; }
   .ic-name { font-size: 16px; font-weight: 600; }
   .ic-code { font-size: 12.5px; color: var(--text-sub); }
   .ic-badge {
     margin-left: auto;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 3px 10px;
-    border-radius: 7px;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 8px;
   }
   .ic-badge.up { background: var(--up-bg); color: var(--up); }
   .ic-badge.down { background: var(--down-bg); color: var(--down); }
   .ic-badge.flat { background: #eef1f5; color: #8a94a6; }
+  /* 重点大卡价格更突出 */
+  .index-card.focus-card { padding: 26px 28px 22px; border-radius: 18px; position: relative; overflow: hidden; }
+  .index-card.focus-card::after { content: ''; position: absolute; right: -40px; top: -40px; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, rgba(123,92,255,.08), transparent 70%); pointer-events: none; }
+  .index-card.focus-card .ic-top { margin-bottom: 4px; }
+  .index-card.focus-card .ic-name { font-size: 19px; font-weight: 700; }
+  .index-card.focus-card .ic-price { font-size: 46px; }
+  .index-card.focus-card .ic-change { font-size: 17px; }
+  .index-card.focus-card .ic-ohl { margin-top: 18px; padding-top: 14px; }
+  .index-card.focus-card .ic-ohl .col b { font-size: 17px; }
   .ic-price {
-    font-size: 32px;
+    font-size: 30px;
     font-weight: 700;
     margin-top: 13px;
     font-variant-numeric: tabular-nums;
@@ -248,13 +268,16 @@
   .ic-change.flat { color: var(--text-sub); }
   .ic-ohl {
     display: flex;
+    gap: 14px;
     margin-top: 14px;
     padding-top: 12px;
     border-top: 1px dashed #eef1f5;
     font-size: 12.5px;
     color: var(--text-sub);
   }
-  .ic-ohl .col b { display: block; color: #444f61; font-weight: 600; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .ic-ohl .col { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .ic-ohl .col b { display: block; color: #444f61; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .ic-ohl .col.extra b { color: #7c66d6; font-weight: 700; }
   .market-flag {
     font-size: 11px;
     color: #9aa4b6;
@@ -904,10 +927,10 @@
       <div class="module">
         <div class="module-header">
           <span class="m-title">核心指数</span>
-          <span class="m-sub">A股 · 港股 · 日韩 · 美股 全球指数实时行情</span>
+          <span class="m-sub">重点 · 全球市场实时行情</span>
           <a class="m-link" id="link-all-index">自选股 →</a>
         </div>
-        <div class="index-grid" id="index-grid"></div>
+        <div id="index-areas"></div>
       </div>
 
       <!-- 市场概览 -->
@@ -1390,6 +1413,13 @@ const INDEXES = [
   { secid: '100.NDX',   name: '纳斯达克',  code: 'usNDX',    tx: 'usIXIC',   flag: '美股', volume: true  },
   { secid: '100.SPX',   name: '标普500',   code: 'usSPX',    tx: 'usINX',    flag: '美股', volume: true  },
 ];
+// 聚焦(重点)指数：独立大卡展示
+const FOCUS_INDEX_NAMES = ['上证指数', '科创50'];
+// 分区展示顺序
+const INDEX_REGIONS = [
+  { key: 'ap',  title: '港股 · 亚太', names: ['恒生指数', '日经225', '韩国KOSPI'] },
+  { key: 'us',  title: '美股',        names: ['道琼斯', '纳斯达克', '标普500'] },
+];
 // 额外取深证综指用于计算两市成交额
 const SZ_SECID = '0.399106';
 
@@ -1498,18 +1528,22 @@ function renderIndexCard(cfg, q) {
   </div>`;
 }
 
-function skeletonCard(cfg, text) {
-  return `
-  <div class="index-card">
-    <div class="ic-top"><span class="ic-name">${cfg.name}</span><span class="ic-code">${cfg.code}</span><span class="market-flag">${cfg.flag}</span></div>
-    <div class="ic-price flat" style="color:#c9d1de">--</div>
-    <div class="ic-change flat">${text}</div>
-    <div class="ic-ohl"><div class="col">开<b>--</b></div><div class="col">高<b>--</b></div><div class="col">低<b>--</b></div><div class="col">成交额<b>--</b></div></div>
-  </div>`;
-}
-
 function renderSkeleton() {
-  $('index-grid').innerHTML = INDEXES.map(cfg => skeletonCard(cfg, '加载中…')).join('');
+  const wrap = $('index-areas');
+  wrap.innerHTML = `
+    <div class="index-focus" data-slot="focus"></div>
+    <div class="index-regions">
+      ${INDEX_REGIONS.map(r => `
+        <div class="index-region" data-region="${r.key}">
+          <div class="ir-head">${r.title}</div>
+          <div class="ir-grid" data-slot="region:${r.key}"></div>
+        </div>`).join('')}
+    </div>`;
+  INDEXES.forEach(cfg => {
+    const focus = FOCUS_INDEX_NAMES.includes(cfg.name);
+    const slot = slotFor(cfg, wrap);
+    if (slot) slot.appendChild(buildCardNode(cfg, focus));
+  });
 }
 
 /* ================= 数据加载（多通道容灾） ================= */
@@ -1592,9 +1626,9 @@ const lastQuotes = {};
 let lastAmount = null;
 const cardCache = {}; // code -> {priceEl, pctEl, chgEl, openEl, highEl, lowEl, extraEl, root}
 
-function buildCardNode(cfg) {
+function buildCardNode(cfg, focus) {
   const div = document.createElement('div');
-  div.className = 'index-card';
+  div.className = 'index-card' + (focus ? ' focus-card' : '');
   div.innerHTML = `
     <div class="ic-top">
       <span class="ic-name">${cfg.name}</span>
@@ -1655,14 +1689,26 @@ function updateCard(cfg, q) {
 }
 
 function renderAll() {
-  const grid = $('index-grid');
+  const wrap = $('index-areas');
   INDEXES.forEach(cfg => {
+    const focus = FOCUS_INDEX_NAMES.includes(cfg.name);
+    if (!cardCache[cfg.code]) {
+      // 找到该卡片所属的 slot 并挂载
+      const slot = slotFor(cfg, wrap);
+      if (slot) slot.appendChild(buildCardNode(cfg, focus));
+    }
     const q = lastQuotes[cfg.code];
-    if (!cardCache[cfg.code]) grid.appendChild(buildCardNode(cfg));
     if (q) updateCard(cfg, q);
-    else cardCache[cfg.code].chg.textContent = '行情通道恢复中…';
+    else if (cardCache[cfg.code]) cardCache[cfg.code].chg.textContent = '行情通道恢复中…';
   });
   if (lastAmount !== null) $('ov-amount').textContent = lastAmount;
+}
+// 根据指数配置返回其所属挂载容器（focus slot 或对应分区的 grid）
+function slotFor(cfg, wrap) {
+  if (FOCUS_INDEX_NAMES.includes(cfg.name)) return wrap.querySelector('[data-slot="focus"]');
+  const region = INDEX_REGIONS.find(r => r.names.includes(cfg.name));
+  if (region) return wrap.querySelector(`[data-slot="region:${region.key}"]`);
+  return wrap.querySelector('[data-slot="focus"]');
 }
 
 function setAmount(sh, sz) {
@@ -3762,9 +3808,8 @@ setInterval(() => {
 /* ================= 启动 ================= */
 // 首次渲染：指数卡片骨架 + 板块占位
 (function initCards() {
-  const grid = $('index-grid');
-  INDEXES.forEach(cfg => grid.appendChild(buildCardNode(cfg)));
-  renderAll();
+  renderSkeleton();           // 先建立重点区 + 各区容器（占位卡片）
+  renderAll();                // 随后用真实数据节点填充/刷新
 })();
 
 refresh(false);
