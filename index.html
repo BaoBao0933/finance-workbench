@@ -352,6 +352,22 @@
   .ic-ohl .col { flex: 1; display: flex; flex-direction: column; gap: 2px; }
   .ic-ohl .col b { display: block; color: #444f61; font-weight: 600; font-variant-numeric: tabular-nums; }
   .ic-ohl .col.extra b { color: #7c66d6; font-weight: 700; }
+  /* 压力位 / 支撑位行 */
+  .ic-zone {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 11px;
+    font-size: 12px;
+  }
+  .ic-zone .z { flex: 1; border-radius: 9px; padding: 6px 9px; background: #f6f7fa; }
+  .ic-zone .z .z-lab { color: var(--text-sub); font-size: 11px; }
+  .ic-zone .z b { display: block; margin-top: 1px; font-weight: 600; color: #444f61; font-variant-numeric: tabular-nums; }
+  .ic-zone .z.z-r b { color: var(--up); }
+  .ic-zone .z.z-s b { color: var(--down); }
+  .ic-zone .z.z-p b { color: #b98a2a; }
+  .ic-zone .z.pct { text-align: right; }
+  .ic-zone .z.pct b { font-size: 11px; color: var(--text-sub); font-weight: 500; }
   .market-flag {
     font-size: 11px;
     color: #9aa4b6;
@@ -1044,9 +1060,9 @@
           <div class="ov-card">
             <div class="ov-icon blue">Ⓢ</div>
             <div class="ov-body">
-              <div class="ov-label">北向资金净流入</div>
-              <div class="ov-value neutral">--</div>
-              <div class="ov-note">实时披露已暂停</div>
+              <div class="ov-label">南向资金净流入</div>
+              <div class="ov-value neutral" id="ov-north">--</div>
+              <div class="ov-note" id="ov-north-note">港股通实时 · 加载中…</div>
             </div>
           </div>
           <div class="ov-card">
@@ -1732,6 +1748,12 @@ function buildCardNode(cfg, focus) {
       <div class="col">高<b class="v-high">--</b></div>
       <div class="col">低<b class="v-low">--</b></div>
       <div class="col extra"><b class="v-extra">--</b></div>
+    </div>
+    <div class="ic-zone">
+      <div class="z z-r">压<b class="v-zr">--</b></div>
+      <div class="z z-p">枢<b class="v-zp">--</b></div>
+      <div class="z z-s">支<b class="v-zs">--</b></div>
+      <div class="z pct"><span class="z-lab">距压</span><b class="v-zpct">--</b></div>
     </div>`;
   cardCache[cfg.code] = {
     root: div,
@@ -1742,6 +1764,10 @@ function buildCardNode(cfg, focus) {
     high: div.querySelector('.v-high'),
     low: div.querySelector('.v-low'),
     extra: div.querySelector('.v-extra'),
+    zr: div.querySelector('.v-zr'),
+    zp: div.querySelector('.v-zp'),
+    zs: div.querySelector('.v-zs'),
+    zpct: div.querySelector('.v-zpct'),
   };
   return div;
 }
@@ -1803,6 +1829,69 @@ function slotFor(cfg, wrap) {
 function setAmount(sh, sz) {
   if (sh && sz && sh.amount > 0 && sz.amount > 0) {
     lastAmount = ((sh.amount + sz.amount) / 1e8).toFixed(0) + ' 亿';
+  }
+}
+
+// 南向资金净流入（港股通沪+深，实时；北向实时披露已暂停，故展示南向）
+async function loadNorth() {
+  const el = $('ov-north');
+  const note = $('ov-north-note');
+  if (!el) return;
+  const hosts = ['push2.eastmoney.com', 'push2delay.eastmoney.com'];
+  for (const host of hosts) {
+    try {
+      const url = `https://${host}/api/qt/kamt/get?fields1=f1,f2,f3,f4,f5&fields2=f51,f52,f53,f54,f55,f56,f57,f58&ut=b2884a393a59ad64002292a3e90d46a5&_=${Date.now()}`;
+      const res = await fetchJson(url, 5000);
+      const d = res && res.data;
+      if (!d) continue;
+      const sh = d.sh2hk, sz = d.sz2hk;
+      if (!sh || !sz) continue;
+      // dayNetAmtIn 单位为“万元”，转亿
+      const amtYi = (sh.dayNetAmtIn + sz.dayNetAmtIn) / 1e4;
+      const abs = Math.abs(amtYi);
+      const txt = (abs >= 1 ? amtYi.toFixed(0) : amtYi.toFixed(2)) + ' 亿';
+      const cls = amtYi > 0 ? 'up' : amtYi < 0 ? 'down' : 'flat';
+      el.textContent = (amtYi > 0 ? '+' : '') + txt;
+      el.className = 'ov-value ' + cls;
+      const date = (sh.date2 || '').slice(0, 10).replace(/-/g, '.') || '';
+      note.textContent = `港股通实时 · ${date}`;
+      return;
+    } catch (e) { /* 换备用域名 */ }
+  }
+  el.textContent = '--';
+  el.className = 'ov-value neutral';
+  note.textContent = '港股通数据暂不可用';
+}
+
+// 指数压力位 / 支撑位 / 枢轴（基于近60日K线，页面可见时刷新）
+async function loadZones() {
+  const hosts = ['push2his.eastmoney.com', 'push2hisdelay.eastmoney.com'];
+  for (const cfg of INDEXES) {
+    const c = cardCache[cfg.code];
+    if (!c) continue;
+    for (const host of hosts) {
+      try {
+        const url = `https://${host}/api/qt/stock/kline/get?secid=${cfg.secid}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56&klt=101&fqt=0&beg=0&end=20500101&lmt=60&_=${Date.now()}`;
+        const res = await fetchJson(url, 6500);
+        const kl = res && res.data && res.data.klines;
+        if (!kl || !kl.length) continue;
+        // 接口 beg=0 时可能返回全量历史，只取最近 60 根计算
+        const rows = kl.slice(-60).map(s => { const a = s.split(','); return { open:+a[1], close:+a[2], high:+a[3], low:+a[4] }; });
+        const high = Math.max(...rows.map(r => r.high));
+        const low = Math.min(...rows.map(r => r.low));
+        const last = rows[rows.length - 1];
+        const pivot = Math.round((last.high + last.low + last.close) / 3 * 100) / 100;
+        const price = lastQuotes[cfg.code] ? lastQuotes[cfg.code].price : null;
+        c.zr.textContent = fmtNum(high);
+        c.zp.textContent = fmtNum(pivot);
+        c.zs.textContent = fmtNum(low);
+        if (price != null && price > 0) {
+          const dist = (high / price - 1) * 100;
+          c.zpct.textContent = (dist > 0 ? '' : dist < 0 ? '↓' : '') + fmtNum(Math.abs(dist), 1) + '%';
+        } else c.zpct.textContent = '--';
+        break; // 该指数成功，跳到下一个
+      } catch (e) { /* 换备用域名 */ }
+    }
   }
 }
 
@@ -1984,6 +2073,8 @@ function refresh(manual) {
     setTimeout(() => btn.classList.remove('spinning'), 850);
   }
   loadQuotes();
+  loadNorth();
+  loadZones();
 }
 $('btn-refresh').addEventListener('click', () => refresh(true));
 $('btn-report').addEventListener('click', () => showToast('日报生成功能建设中，敬请期待 📝'));
