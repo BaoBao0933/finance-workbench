@@ -52,11 +52,7 @@
   /* 首页标题流光渐变（中性钢蓝调） */
   .header .title {
     display: inline-block;
-    background: linear-gradient(90deg, #5b6b84, #93a3bc, #5b6b84);
-    background-size: 200% auto;
-    -webkit-background-clip: text; background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: gradientWash 5s linear infinite;
+    text-wrap: balance;
   }
 
   /* 侧边栏 logo 动效 */
@@ -219,6 +215,7 @@
     font-size: 25px;
     font-weight: 700;
     letter-spacing: .5px;
+    text-wrap: balance;
     background: linear-gradient(100deg, #f5e6c8 0%, #d4a574 30%, #e9b17c 50%, #d4a574 70%, #f5e6c8 100%);
     background-size: 200% auto;
     -webkit-background-clip: text;
@@ -361,10 +358,28 @@
   .ic-badge.down { background: linear-gradient(135deg, rgba(114,154,147,.4) 0%, rgba(251,254,229,0) 100%); color: var(--down); }
   .ic-badge.flat { background: #eef1f5; color: #8a94a6; }
   /* 重点大卡价格更突出 */
-  .index-card.focus-card { padding: 26px 28px 22px; border-radius: 18px; position: relative; overflow: hidden; }
-  .index-card.focus-card::after { content: ''; position: absolute; right: -40px; top: -40px; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, rgba(91,127,191,.16), transparent 70%); pointer-events: none; }
+  .index-card.focus-card {
+    padding: 26px 28px 22px;
+    border-radius: 18px;
+    position: relative;
+    overflow: hidden;
+    border-color: rgba(201,168,106,.45);
+    background:
+      linear-gradient(120deg, rgba(255,255,255,.92), rgba(242,247,255,.70) 52%, rgba(255,252,244,.64)),
+      linear-gradient(90deg, rgba(201,168,106,.08), transparent 40%);
+  }
+  /* 签名：顶部香槟金主题光带 */
+  .index-card.focus-card::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; top: 0; height: 3px;
+    background: linear-gradient(90deg, var(--gold, #c9a86a), #f4e3c0 45%, var(--gold, #c9a86a));
+    opacity: .9;
+    pointer-events: none;
+  }
+  .index-card.focus-card::after { content: ''; position: absolute; right: -40px; top: -40px; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, rgba(201,168,106,.20), transparent 70%); pointer-events: none; }
   .index-card.focus-card .ic-top { margin-bottom: 4px; }
-  .index-card.focus-card .ic-name { font-size: 19px; font-weight: 700; }
+  .index-card.focus-card .ic-name { font-size: 19px; font-weight: 700; letter-spacing: .5px; color: #7a623c; }
   .index-card.focus-card .ic-price { font-size: 46px; }
   .index-card.focus-card .ic-change { font-size: 17px; }
   .index-card.focus-card .ic-ohl { margin-top: 18px; padding-top: 14px; }
