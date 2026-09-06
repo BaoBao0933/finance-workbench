@@ -207,12 +207,15 @@
   /* 页面内联 Lucide SVG 图标尺寸标准化 */
   .btn .icon svg { width: 15px; height: 15px; display: block; stroke-width: 2; }
   .module-header .m-ico svg { width: 17px; height: 17px; display: block; stroke-width: 2; }
-  .fun-banner .fb-emoji svg { width: 52px; height: 52px; display: block; filter: drop-shadow(0 2px 8px rgba(255,140,66,.45)); }
+  .fun-banner .fb-emoji svg { width: 40px; height: 40px; display: block; stroke-width: 2; }
   .fun-banner .fb-emoji img { width: 48px; height: 48px; display: block; }
   .fun-banner .spark svg { width: 18px; height: 18px; display: block; stroke-width: 2; }
   .fun-banner .spark img { width: 22px; height: 22px; display: block; }
   .fun-banner .spark.s2 svg, .fun-banner .spark.s4 svg { width: 15px; height: 15px; }
   .fun-banner .spark.s5 svg { width: 20px; height: 20px; }
+  .fun-banner .spark.s1 img { width: 20px; height: 20px; }
+  .fun-banner .spark.s2 img, .fun-banner .spark.s4 img { width: 18px; height: 18px; }
+  .fun-banner .spark.s5 img { width: 24px; height: 24px; }
   .ov-icon svg { width: 26px; height: 26px; stroke-width: 2; }
   .watch-empty .we-icon svg { width: 40px; height: 40px; display: block; stroke-width: 1.75; }
   .placeholder .p-icon svg { width: 46px; height: 46px; stroke-width: 1.5; }
@@ -1815,27 +1818,14 @@ try {
       <!-- 趣味欢迎横幅（纯装饰） -->
       <div class="fun-banner">
         <div class="fb-left">
-          <span class="fb-emoji">
-            <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <defs>
-                <linearGradient id="icoGrad" x1="0" y1="1" x2="1" y2="0">
-                  <stop offset="0" stop-color="#ff9a5c"/><stop offset="1" stop-color="#ffc170"/>
-                </linearGradient>
-              </defs>
-              <path d="M22 7l-8.5 8.5-5-5L2 17" stroke="url(#icoGrad)" stroke-width="2.4"/>
-              <path d="M16 7h6v6" stroke="url(#icoGrad)" stroke-width="2.4"/>
-            </svg>
-          </span>
+          <span class="fb-emoji"><img src="icons/openmoji/color/1F680.svg" alt=""></span>
           <div class="fb-text">
             <div class="fb-title">祝你今天收益长虹！</div>
           </div>
         </div>
         <div class="fb-sparks">
-          <i class="spark s1"><svg viewBox="0 0 24 24" fill="none" stroke="url(#icoGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg></i>
-          <i class="spark s2"><svg viewBox="0 0 24 24" fill="none" stroke="url(#icoGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.288 1.288L21 12l-5.8 1.9a2 2 0 0 0-1.288 1.288L12 21l-1.9-5.8a2 2 0 0 0-1.288-1.288L3 12l5.8-1.9a2 2 0 0 0 1.288-1.288Z"/></svg></i>
-          <i class="spark s3"><svg viewBox="0 0 24 24" fill="none" stroke="url(#icoGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></i>
-          <i class="spark s4"><svg viewBox="0 0 24 24" fill="none" stroke="url(#icoGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></i>
-          <i class="spark s5"><svg viewBox="0 0 24 24" fill="none" stroke="url(#icoGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2-3.09 6.26L2 9.27l5 4.87-1.18 6.88L12 17.77l6.18 3.25L17 14.14l5-4.87-6.91-1.01z"/></svg></i>
+          <i class="spark s1"><img src="icons/openmoji/color/1FA99.svg" alt=""></i><i class="spark s2"><img src="icons/openmoji/color/2728.svg" alt=""></i><i class="spark s3"><img src="icons/openmoji/color/1F525.svg" alt=""></i>
+          <i class="spark s4"><img src="icons/openmoji/color/1F4C8.svg" alt=""></i><i class="spark s5"><img src="icons/openmoji/color/2B50.svg" alt=""></i>
         </div>
       </div>
 
