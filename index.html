@@ -166,7 +166,17 @@
     user-select: none;
   }
   .nav-item:hover { background: rgba(255, 255, 255, .28); color: #2f3d4d; }
-  .nav-item.active { background: rgba(255, 255, 255, .42); color: #2b3a4c; font-weight: 700; border: 1px solid rgba(255,255,255,.6); box-shadow: 0 4px 16px rgba(90, 105, 120, .18), inset 0 1px 0 rgba(255,255,255,.7); }
+  .nav-item.active {
+    background: linear-gradient(180deg, rgba(255,255,255,.62), rgba(255,255,255,.28));
+    color: #263b52;
+    font-weight: 700;
+    border: 1px solid rgba(255, 255, 255, .85);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, .95),
+      inset 0 -1px 0 rgba(255, 255, 255, .55),
+      0 2px 6px rgba(120, 135, 150, .12),
+      0 8px 22px rgba(120, 135, 150, .22);
+  }
   .nav-item.active .icon { transform: scale(1.05); filter: saturate(1.1); }
   .nav-item.active::before { display: none; }
   .nav-item .icon { width: 20px; text-align: center; font-size: 17px; }
