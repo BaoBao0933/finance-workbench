@@ -2132,8 +2132,8 @@ function updateCard(cfg, q) {
   const cls = clsOf(q.pct);
   // 价格变动时添加闪烁动效（先清空再赋值 className，最后追加动画类）
   c.price.className = 'ic-price';
-  // 大盘指数（聚焦大卡）根据当日实际涨跌上色：涨红 / 跌绿
-  if (c.root.classList.contains('focus-card') && cls !== 'flat') c.price.classList.add(cls);
+  // 指数卡片按当日实际涨跌实时上色：涨红 / 跌绿（聚焦大卡与港股美股等分区指数一致变色）
+  if (cls !== 'flat') c.price.classList.add(cls);
   if (c.price.textContent && c.price.textContent !== priceStr) {
     c.price.classList.remove('flash-up', 'flash-down');
     void c.price.offsetWidth;
