@@ -27,12 +27,11 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     background:
-      radial-gradient(760px 520px at 14% -8%, rgba(112, 158, 208, .50), transparent 62%),
-      radial-gradient(900px 600px at 82% -6%, rgba(96, 148, 205, .44), transparent 60%),
-      radial-gradient(760px 560px at 96% 48%, rgba(128, 172, 218, .46), transparent 62%),
-      radial-gradient(840px 560px at 0% 78%, rgba(110, 156, 205, .40), transparent 60%),
-      radial-gradient(720px 520px at 55% 112%, rgba(120, 166, 212, .44), transparent 62%),
-      linear-gradient(165deg, #dbe6f4 0%, #cfddf0 45%, #c3d5ec 100%);
+      radial-gradient(820px 540px at 8% -4%, rgba(114, 139, 154, .34), transparent 64%),
+      radial-gradient(900px 580px at 90% -8%, rgba(95, 122, 138, .28), transparent 62%),
+      radial-gradient(760px 520px at 100% 60%, rgba(190, 204, 214, .30), transparent 66%),
+      radial-gradient(840px 540px at 60% 112%, rgba(114, 139, 154, .22), transparent 62%),
+      linear-gradient(135deg, #5f7a8a 0%, #728b9a 26%, #a3bac7 58%, #d9e0e4 86%, #fcedf0 100%);
     background-attachment: fixed;
     color: var(--text-main);
     display: flex;
@@ -987,22 +986,21 @@
   /* ============ 冷调钢蓝 · 透明玻璃拟态强化层（仅表现层，不影响涨跌配色与局部刷新） ============ */
   body {
     background:
-      radial-gradient(760px 480px at 12% -6%, rgba(148, 182, 218, .36), transparent 62%),
-      radial-gradient(920px 560px at 84% -12%, rgba(132, 170, 218, .30), transparent 60%),
-      radial-gradient(780px 520px at 96% 42%, rgba(172, 196, 230, .34), transparent 62%),
-      radial-gradient(840px 560px at -4% 68%, rgba(148, 176, 218, .28), transparent 60%),
-      radial-gradient(720px 460px at 48% 112%, rgba(160, 188, 224, .30), transparent 62%),
-      linear-gradient(165deg, #f2f6fc 0%, #ecf1f8 42%, #e6edf7 100%);
+      radial-gradient(820px 500px at 10% -4%, rgba(114, 139, 154, .30), transparent 64%),
+      radial-gradient(920px 560px at 88% -10%, rgba(95, 122, 138, .26), transparent 62%),
+      radial-gradient(760px 500px at 96% 44%, rgba(190, 204, 214, .28), transparent 66%),
+      radial-gradient(820px 500px at 60% 112%, rgba(114, 139, 154, .20), transparent 62%),
+      linear-gradient(135deg, #5f7a8a 0%, #728b9a 26%, #a3bac7 58%, #d9e0e4 86%, #fcedf0 100%);
     background-attachment: fixed;
   }
   /* 通透的玻璃介质层：为磨砂卡片提供背后可被模糊的冷色光斑（钢蓝 · 冰青调） */
   body::after {
     content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
     background:
-      radial-gradient(460px 330px at 22% 16%, rgba(112, 158, 208, .48), transparent 70%),
-      radial-gradient(540px 410px at 78% 58%, rgba(96, 148, 205, .42), transparent 72%),
-      radial-gradient(440px 350px at 50% 90%, rgba(128, 172, 218, .44), transparent 70%),
-      radial-gradient(400px 310px at 90% 12%, rgba(110, 156, 205, .42), transparent 70%);
+      radial-gradient(460px 330px at 22% 16%, rgba(114, 139, 154, .30), transparent 70%),
+      radial-gradient(540px 410px at 78% 58%, rgba(163, 186, 199, .30), transparent 72%),
+      radial-gradient(440px 350px at 50% 90%, rgba(217, 224, 228, .32), transparent 70%),
+      radial-gradient(400px 310px at 90% 12%, rgba(114, 139, 154, .28), transparent 70%);
   }
   /* 细腻颗粒噪点（数字界面的"材质感"） */
   body::before {
