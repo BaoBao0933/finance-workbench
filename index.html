@@ -83,7 +83,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 22px;
+    padding: 18px 26px;
     margin-bottom: 20px;
     border-radius: 18px;
     overflow: hidden;
@@ -94,10 +94,9 @@
     border: 1px solid rgba(255,255,255,.22);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 12px 30px rgba(40,55,78,.22);
   }
-  .fun-banner .fb-left { display: flex; align-items: center; gap: 16px; z-index: 1; }
+  .fun-banner .fb-left { display: flex; align-items: center; gap: 18px; z-index: 1; }
   .fun-banner .fb-emoji { font-size: 40px; filter: drop-shadow(0 4px 8px rgba(0,0,0,.2)); animation: floaty 3s ease-in-out infinite; }
-  .fun-banner .fb-title { font-size: 17px; font-weight: 700; letter-spacing: .5px; }
-  .fun-banner .fb-sub { font-size: 13px; margin-top: 3px; opacity: .85; }
+  .fun-banner .fb-title { font-size: 17px; font-weight: 700; letter-spacing: 1px; line-height: 1.6; }
   .fun-banner .fb-sparks { position: absolute; right: 20px; top: 10px; bottom: 10px; width: 160px; pointer-events: none; }
   .fun-banner .spark { position: absolute; font-size: 18px; opacity: .9; animation: floaty 3.2s ease-in-out infinite; }
   .fun-banner .spark.s1 { left: 10px; top: 4px; animation-delay: .2s; }
@@ -1342,7 +1341,6 @@
           <span class="fb-emoji">📈</span>
           <div class="fb-text">
             <div class="fb-title">祝你今天收益长虹！</div>
-            <div class="fb-sub" id="fun-tip">行情实时滚动中…</div>
           </div>
         </div>
         <div class="fb-sparks">
@@ -4823,12 +4821,8 @@ function todayQuoteIndex() {
 function renderDailyQuote() {
   const idx = todayQuoteIndex();
   const t = document.querySelector('.fun-banner .fb-title');
-  const s = document.getElementById('fun-tip');
   if (!t) return;
   t.textContent = DAILY_QUOTES[idx];
-  if (s) {
-    s.textContent = '每日投资格言';
-  }
 }
 
 // 跨过凌晨自动换一句：调度到下一个 0 点执行
