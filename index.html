@@ -928,9 +928,8 @@
   /* ============ 重点关注页 ============ */
   .focus-wrap { max-width: 1280px; display: flex; flex-direction: column; gap: 20px; margin-top: 12px; }
   .focus-block-title { font-size: 16px; font-weight: 700; color: var(--text); margin: 2px 0 14px; display: flex; align-items: center; gap: 7px; }
-  .focus-emo { margin-left: auto; font-size: 13.5px; font-weight: 700; color: #5a6577; letter-spacing: .3px; }
   #focus-sectors .sec-cell { min-width: 158px; }
-  /* 快讯 / 海外 —— 全宽上下排列，更透气 */
+  /* 快讯 —— 全宽上下排列，更透气 */
   .focus-cols { display: flex; flex-direction: column; gap: 22px; }
   .focus-col .news-list { max-height: 460px; overflow-y: auto; padding: 2px 6px 2px 2px; display: flex; flex-direction: column; gap: 10px; }
   .focus-col .news-list::-webkit-scrollbar { width: 5px; }
@@ -1628,10 +1627,6 @@
           <div id="fd-list"></div>
         </div>
         <div class="focus-cols">
-          <div class="focus-col">
-            <div class="focus-block-title">🌐 外围利好利空 · 海外光通信消息<span class="focus-emo" id="focus-emo"></span></div>
-            <div class="news-list" id="focus-overseas"><div class="news-empty">海外消息加载中…</div></div>
-          </div>
           <div class="focus-col">
             <div class="focus-block-title">⚡ 光纤 / 光通信 实时快讯</div>
             <div class="news-list" id="focus-news"><div class="news-empty">快讯加载中…</div></div>
@@ -4169,21 +4164,12 @@ const FOCUS_STOCKS = [
 // 光纤/光通信相关板块筛选关键词
 const FOCUS_SECTOR_KW = ['光通信', '光模块', '光器件', '光纤', '光缆', 'CPO', '共封装', '通信设备', '数据中心', '算力'];
 const FOCUS_NEWS_KW = ['光纤', '光缆', '光模块', '光器件', '光通信', 'CPO', '共封装', '硅光', '算力', '数据中心', '东数西算', '800G', '1.6T', '服务器', 'AI', '海缆', '交换机'];
-// 光通信硬核词（海外消息命中其一即强制视为相关）
-const FOCUS_LIGHT_CORE = ['光模块', '光通信', '光器件', '光芯片', 'CPO', '共封装', '硅光', '光纤', '光缆', '海缆', '800G', '1.6T', 'Coherent', 'Lumentum', '中际旭创', '新易盛', '天孚通信'];
-// 光通信 / AI 算力产业链关键词（海外消息需命中其中 ≥2 个 + 海外地域词）
-const FOCUS_LIGHT_CHAIN = ['英伟达', 'NVIDIA', 'AI算力', '算力', '数据中心', '服务器', '云计算', '资本开支', '光模块', '光通信', 'CPO', '硅光', '光纤', '数据中心互联', '液冷', 'AI芯片', '晶圆'];
-// 海外 / 外围地域关键词（海外消息需再命中其中至少一个）
-const FOCUS_OVERSEAS_MARKET = ['美国', '美股', '北美', '欧洲', '英国', '日本', '韩国', '台湾', '美联储', '海外', '全球', '国际', 'OpenAI', '微软', '谷歌', '亚马逊', 'Meta', '英伟达'];
-const FOCUS_BULL_WORDS = ['上涨', '涨停', '大涨', '上调', '突破', '创新高', '签署', '订单', '加码', '采购', '扩产', '受益', '合作', '增持', '回购', '中标', '利好', '获批', '落地', '超预期', '提速', '翻倍', '放量'];
-const FOCUS_BEAR_WORDS = ['下跌', '跌停', '大跌', '下调', '减持', '禁令', '限制', '推迟', '亏损', '裁员', '索赔', '调查', '出口管制', '利空', '反倾销', '下滑', '低于预期', '不及预期', '担忧', '承压', '砍单'];
 
 let focusSecCache = {};    // code -> {root, pct, codeEl}
 let focusStockCache = {};  // secid -> {row, price, pct, chg, amt}
 let focusFdCache = {};     // 板块成分股 secid -> rowEl
 let focusFdCode = null;    // 当前展开的板块代码
 let focusNewsCache = [];   // 光通信相关快讯
-let focusOverseas = [];    // 海外相关消息
 
 function fcKey(sid) { return (sid.split('.').pop() || '').toUpperCase(); }
 
@@ -4341,7 +4327,7 @@ async function loadFocusDetailStocks() {
   $('fd-list').innerHTML = '<div class="news-empty">成分股加载失败</div>';
 }
 
-// 加载快讯（复用东财快讯 JSONP）→ 过滤光通信 + 海外光通信消息
+// 加载快讯（复用东财快讯 JSONP）→ 过滤光通信快讯
 async function loadFocusNews() {
   const list = await fetchNews();
   if (!list) return;
@@ -4350,28 +4336,7 @@ async function loadFocusNews() {
   const hasBody = n => !!String(n.title || n.digest || '').trim();
   // 光通信相关快讯
   focusNewsCache = list.filter(n => hasBody(n) && FOCUS_NEWS_KW.some(k => text(n).includes(k)));
-  // 外围海外消息：must命中光通信/AI算力链，且过滤无关(务虚)条目
-  focusOverseas = list.filter(n => {
-    if (!hasBody(n)) return false;
-    const t = text(n);
-    // 命中光通信核心词 → 直接视为相关
-    if (FOCUS_LIGHT_CORE.some(k => t.includes(k))) return true;
-    // 否则需命中 ≥2 个产业词 且 命中海外地域词（避免单个“算力/AI”宽词误入）
-    const hit = FOCUS_LIGHT_CHAIN.filter(k => t.includes(k));
-    return hit.length >= 2 && FOCUS_OVERSEAS_MARKET.some(k => t.includes(k));
-  }).slice(0, 40);
   renderFocusNews();
-  renderFocusOverseas();
-}
-
-function focusTag(n) {
-  const t = (n.title || '') + (n.digest || '');
-  let bull = 0, bear = 0;
-  FOCUS_BULL_WORDS.forEach(w => { if (t.includes(w)) bull++; });
-  FOCUS_BEAR_WORDS.forEach(w => { if (t.includes(w)) bear++; });
-  if (bull > bear) return { tag: '<span class="focus-tag bull">利好</span>', cls: 'bull', n: 1 };
-  if (bear > bull) return { tag: '<span class="focus-tag bear">利空</span>', cls: 'bear', n: -1 };
-  return { tag: '<span class="focus-tag neutral">中性</span>', cls: 'neutral', n: 0 };
 }
 
 function focusItemHtml(n, ext = {}) {
@@ -4395,20 +4360,6 @@ function renderFocusNews() {
   const el = $('focus-news');
   if (!focusNewsCache.length) { el.innerHTML = ''; return; }
   el.innerHTML = focusNewsCache.slice(0, 25).map(n => focusItemHtml(n)).join('');
-}
-function renderFocusOverseas() {
-  const el = $('focus-overseas');
-  if (!focusOverseas.length) { el.innerHTML = '<div class="news-empty">暂无海外光通信相关消息，稍后自动刷新…</div>'; return; }
-  let bull = 0, bear = 0;
-  const html = focusOverseas.map(n => {
-    const r = focusTag(n);
-    if (r.n > 0) bull++;
-    else if (r.n < 0) bear++;
-    return focusItemHtml(n, { tag: r.tag, cls: r.cls });
-  }).join('');
-  const emo = $('focus-emo');
-  emo.innerHTML = `利好 <b style="color:var(--up)">${bull}</b> · 利空 <b style="color:var(--down)">${bear}</b>`;
-  el.innerHTML = html;
 }
 
 function loadFocus() {
