@@ -79,7 +79,7 @@
 
   /* 模块标题前的小图标点缀 */
   .module-header .m-title { display: inline-flex; align-items: center; gap: 7px; }
-  .module-header .m-ico { font-size: 17px; animation: floaty 3s ease-in-out infinite; -webkit-text-fill-color: initial; color: #d4a574; }
+  .module-header .m-ico { font-size: 17px; animation: floaty 3s ease-in-out infinite; }
 
   /* 趣味欢迎横幅（深色磨砂玻璃） */
   .fun-banner {
@@ -224,6 +224,15 @@
     -webkit-text-fill-color: transparent;
     animation: gradientWash 5s linear infinite;
   }
+  #page-sectors .header .title {
+    display: inline-block;
+    background: linear-gradient(100deg, #f5e6c8 0%, #d4a574 30%, #e9b17c 50%, #d4a574 70%, #f5e6c8 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientWash 5s linear infinite;
+  }
   .header .time-row {
     margin-top: 8px;
     font-size: 14px;
@@ -293,16 +302,7 @@
   /* ============ 模块 ============ */
   .module { margin-top: 26px; }
   .module-header { display: flex; align-items: baseline; gap: 13px; margin-bottom: 16px; }
-  .module-header .m-title {
-    font-size: 19px;
-    font-weight: 700;
-    background: linear-gradient(100deg, #f5e6c8 0%, #d4a574 30%, #e9b17c 50%, #d4a574 70%, #f5e6c8 100%);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: gradientWash 5s linear infinite;
-  }
+  .module-header .m-title { font-size: 19px; font-weight: 700; }
   .module-header .m-sub { font-size: 13.5px; color: var(--text-sub); }
   .module-header .m-link {
     margin-left: auto;
