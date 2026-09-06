@@ -213,11 +213,32 @@
   .m-ico.m-emoji-bob img, .title-ico.m-emoji-bob img { animation: floaty 2.8s ease-in-out infinite; }
   .m-ico.m-emoji-swing img, .title-ico.m-emoji-swing img { animation: swayIco 3.4s ease-in-out infinite; }
   .m-ico.m-emoji-spin img, .title-ico.m-emoji-spin img { animation: spinSlow 7s linear infinite; }
-  .m-ico.m-emoji-wing img, .title-ico.m-emoji-wing img { animation: flapWing 1.6s ease-in-out infinite; transform-origin: 60% 50%; }
   .title-ico { display: inline-block; vertical-align: -4px; margin-right: 8px; }
   @keyframes swayIco { 0%,100% { transform: rotate(-9deg); } 50% { transform: rotate(9deg); } }
   @keyframes spinSlow { from { transform: rotate(0); } to { transform: rotate(360deg); } }
-  @keyframes flapWing { 0%,100% { transform: rotate(-16deg) scaleY(.94); } 50% { transform: rotate(10deg) scaleY(1.06); } }
+  /* 资金流向「飞钱」：较明显的扑翼 + 自身缓浮 */
+  .fund-ico { position: relative; display: inline-block; width: 34px; height: 28px; margin-right: 6px; vertical-align: -6px; }
+  .fund-ico > img { width: 26px; height: 26px; display: block; animation: flapWing 1s ease-in-out infinite, fundHover 1.8s ease-in-out infinite; transform-origin: 55% 62%; filter: drop-shadow(0 2px 3px rgba(0,0,0,.28)); }
+  /* 环绕飞钱（多个旋转漂浮的金币） */
+  .fund-ico .coin { position: absolute; width: 10px; height: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font: 700 7px/1 -apple-system, "Segoe UI", sans-serif; color: #8a5b00;
+    background: radial-gradient(circle at 32% 28%, #ffe08a, #f5b23d 58%, #d98e14);
+    box-shadow: 0 1px 2px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.4), inset 0 -1px 2px rgba(160,100,0,.4);
+    animation: coinSpin var(--cd, 1.4s) ease-in-out var(--cdelay, 0s) infinite; }
+  .fund-ico .coin::before { content: "¥"; }
+  .fund-ico .coin.c1 { top: -3px; left: 1px; --cd: 1.3s; }
+  .fund-ico .coin.c2 { top: 7px; right: -6px; --cd: 1.7s; --cdelay: .25s; }
+  .fund-ico .coin.c3 { bottom: -4px; left: 10px; --cd: 1.5s; --cdelay: .5s; font-size: 6px; width: 8px; height: 8px; }
+  @keyframes coinSpin { 0%,100% { transform: translateY(0) rotate(-16deg) scale(.85); opacity: .7; } 50% { transform: translateY(-5px) rotate(12deg) scale(1.12); opacity: 1; } }
+  @keyframes fundHover { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-3px) rotate(2deg); } }
+  .m-ico.m-emoji-wing img, .title-ico.m-emoji-wing img { animation: flapWing 1s ease-in-out infinite; transform-origin: 55% 60%; }
+  /* 通用扑翼：更明显的扇动 */
+  @keyframes flapWing {
+    0%,100% { transform: rotate(-6deg) rotateY(-22deg) scaleY(.92) translateY(1px); }
+    25% { transform: rotate(9deg) rotateY(6deg) scaleY(1.1) translateY(-1px); }
+    55% { transform: rotate(-9deg) rotateY(20deg) scaleY(.9) translateY(1px); }
+    100% { transform: rotate(-6deg) rotateY(-22deg) scaleY(.92) translateY(1px); }
+  }
   .fun-banner .fb-emoji svg { width: 40px; height: 40px; display: block; stroke-width: 2; }
   .fun-banner .fb-emoji img { width: 48px; height: 48px; display: block; }
   .fun-banner .spark svg { width: 18px; height: 18px; display: block; stroke-width: 2; }
@@ -2165,7 +2186,7 @@ try {
     <div id="page-funds" style="display:none">
       <div class="header">
         <div>
-          <div class="title"><span class="title-ico m-emoji-wing"><img src="icons/openmoji/color/1F4B8.svg" alt=""></span>资金流向</div>
+          <div class="title"><span class="fund-ico"><img src="icons/openmoji/color/1F4B8.svg" alt=""><span class="coin c1"></span><span class="coin c2"></span><span class="coin c3"></span></span>资金流向</div>
           <div class="time-row"><span id="fund-status">主力资金实时监控加载中…</span></div>
         </div>
         <div class="header-actions">
@@ -5470,4 +5491,4 @@ setInterval(() => loadBoardRank(), 300000); // 板块榜首每 5 分钟重试一
 </script>
 </body>
 </html>
-<!-- DEPLOY-MARKER 20260906230022 -->
+<!-- DEPLOY-MARKER 20260906231952 -->
