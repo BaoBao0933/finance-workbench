@@ -1240,6 +1240,10 @@
   }
   .pos-row:hover { box-shadow: 0 6px 18px rgba(150, 112, 62,.08); transform: translateY(-1px); }
   .pos-row .w-ops { display: flex; gap: 4px; justify-content: flex-end; }
+  /* 持仓行名称/代码/标签：与自选 (#watch-row) 同配色，避免深色主题下不可见 */
+  .pos-row .w-name { font-weight: 600; font-size: 15.5px; display: flex; align-items: center; gap: 8px; color: #eef0f2; }
+  .pos-row .w-code { font-size: 12.5px; color: #9aa1a9; font-weight: 500; }
+  .pos-row .w-flag { font-size: 11px; color: #b6bcc5; background: #3a3a40; border-radius: 4px; padding: 1px 6px; font-weight: 500; }
   @media (max-width: 900px) {
     .pos-row { grid-template-columns: 2fr 1fr 1fr 1fr 76px; }
     .pos-row .p-hide { display: none; }
@@ -1828,6 +1832,9 @@
   :root[data-theme="light"] .watch-row .w-name { color: #22273a; }
   :root[data-theme="light"] .watch-row .w-code { color: #6a7488; }
   :root[data-theme="light"] .watch-row .w-flag { color: #5a6476; background: #e6eaf0; }
+  :root[data-theme="light"] .pos-row .w-name { color: #22273a; }
+  :root[data-theme="light"] .pos-row .w-code { color: #6a7488; }
+  :root[data-theme="light"] .pos-row .w-flag { color: #5a6476; background: #e6eaf0; }
   :root[data-theme="light"] .watch-col { color: #22273a; }
   :root[data-theme="light"] .watch-col b { color: #22273a; }
   :root[data-theme="light"] .watch-head { color: #6a7488; }
