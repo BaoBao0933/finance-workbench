@@ -17,8 +17,8 @@
     --text-main: #2f3a48;
     --text-sub: #4b5a6d;
     --card-border: rgba(255, 255, 255, 0);
-    --bg: #eef2f8;
-    --accent-soft: #e9eef7;
+    --bg: #f4f3f0;
+    --accent-soft: #f0efec;
     --glass: rgba(255, 255, 255, .55);
     --glass-border: rgba(255, 255, 255, 0);
     --gold: #9fb4d6;
@@ -27,11 +27,11 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     background:
-      radial-gradient(820px 540px at 8% -4%, rgba(114, 139, 154, .34), transparent 64%),
-      radial-gradient(900px 580px at 90% -8%, rgba(95, 122, 138, .28), transparent 62%),
-      radial-gradient(760px 520px at 100% 60%, rgba(190, 204, 214, .30), transparent 66%),
-      radial-gradient(840px 540px at 60% 112%, rgba(114, 139, 154, .22), transparent 62%),
-      linear-gradient(135deg, #5f7a8a 0%, #728b9a 24%, #a3bac7 52%, #d9e0e4 78%, #fce5d7 100%);
+      radial-gradient(760px 520px at 12% -4%, rgba(232, 93, 62, .13), transparent 62%),
+      radial-gradient(860px 560px at 88% -8%, rgba(232, 93, 62, .09), transparent 60%),
+      radial-gradient(720px 500px at 100% 58%, rgba(240, 200, 180, .28), transparent 64%),
+      radial-gradient(800px 540px at 58% 112%, rgba(228, 222, 214, .34), transparent 62%),
+      linear-gradient(135deg, #faf9f7 0%, #f4f3f0 26%, #ecebe8 54%, #f0efec 78%, #f7f5f2 100%);
     background-attachment: fixed;
     color: var(--text-main);
     display: flex;
@@ -1060,29 +1060,29 @@
   .news-item .n-tag-alt { background: #eef3fb; color: #4a7abf; }
   .news-empty { text-align: center; padding: 46px 20px; color: var(--text-sub); font-size: 14px; }
 
-  /* ============ 冷调钢蓝 · 透明玻璃拟态强化层（仅表现层，不影响涨跌配色与局部刷新） ============ */
+  /* ============ 暖调极简 · 透明玻璃拟态强化层（仅表现层，不影响涨跌配色与局部刷新） ============ */
   body {
     background:
-      radial-gradient(820px 500px at 10% -4%, rgba(114, 139, 154, .30), transparent 64%),
-      radial-gradient(920px 560px at 88% -10%, rgba(95, 122, 138, .26), transparent 62%),
-      radial-gradient(760px 500px at 96% 44%, rgba(190, 204, 214, .28), transparent 66%),
-      radial-gradient(820px 500px at 60% 112%, rgba(114, 139, 154, .20), transparent 62%),
-      linear-gradient(135deg, #5f7a8a 0%, #728b9a 24%, #a3bac7 52%, #d9e0e4 78%, #fce5d7 100%);
+      radial-gradient(760px 500px at 10% -4%, rgba(232, 93, 62, .12), transparent 62%),
+      radial-gradient(880px 560px at 88% -10%, rgba(232, 93, 62, .08), transparent 60%),
+      radial-gradient(720px 500px at 96% 44%, rgba(240, 200, 180, .26), transparent 64%),
+      radial-gradient(800px 500px at 58% 112%, rgba(228, 222, 214, .32), transparent 62%),
+      linear-gradient(135deg, #faf9f7 0%, #f4f3f0 26%, #ecebe8 54%, #f0efec 78%, #f7f5f2 100%);
     background-attachment: fixed;
   }
-  /* 通透的玻璃介质层：为磨砂卡片提供背后可被模糊的冷色光斑（钢蓝 · 冰青调） */
+  /* 通透的玻璃介质层：为磨砂卡片提供背后可被模糊的暖色光斑（珊瑚橙弥散 + 暖灰白） */
   body::after {
     content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
     background:
-      radial-gradient(460px 330px at 22% 16%, rgba(114, 139, 154, .30), transparent 70%),
-      radial-gradient(540px 410px at 78% 58%, rgba(163, 186, 199, .30), transparent 72%),
-      radial-gradient(440px 350px at 50% 90%, rgba(217, 224, 228, .32), transparent 70%),
-      radial-gradient(400px 310px at 90% 12%, rgba(114, 139, 154, .28), transparent 70%);
+      radial-gradient(500px 360px at 20% 14%, rgba(232, 93, 62, .12), transparent 70%),
+      radial-gradient(560px 420px at 80% 56%, rgba(240, 193, 170, .26), transparent 72%),
+      radial-gradient(460px 360px at 50% 92%, rgba(232, 226, 218, .34), transparent 70%),
+      radial-gradient(420px 320px at 92% 10%, rgba(232, 93, 62, .10), transparent 70%);
   }
   /* 细腻颗粒噪点（数字界面的"材质感"） */
   body::before {
     content: ''; position: fixed; inset: 0; pointer-events: none;
-    background-image: radial-gradient(circle at 1px 1px, rgba(110, 130, 160, .05) 1px, transparent 0);
+    background-image: radial-gradient(circle at 1px 1px, rgba(150, 130, 115, .06) 1px, transparent 0);
     background-size: 3px 3px;
     z-index: 0;
   }
@@ -1093,10 +1093,10 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
-  ::selection { background: rgba(120, 156, 210, .25); }
+  ::selection { background: rgba(232, 93, 62, .18); }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-thumb { background: #aabdd6; border-radius: 6px; }
-  ::-webkit-scrollbar-thumb:hover { background: #93aac9; }
+  ::-webkit-scrollbar-thumb { background: #d8d2c8; border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: #c5bdb0; }
 
   /* 模块标题：意式字距与克制留白 */
   .module-header .m-title { letter-spacing: .4px; }
@@ -1169,7 +1169,7 @@
       0 26px 64px rgba(55, 72, 100, .16);
   }
   .index-card.focus-card::after {
-    background: radial-gradient(circle at 78% 18%, rgba(150, 187, 232, .46), transparent 74%);
+    background: radial-gradient(circle at 78% 18%, rgba(224, 178, 122, .42), transparent 74%);
   }
   .index-card.focus-card .ic-price { font-weight: 800; letter-spacing: .5px; }
 
@@ -1226,7 +1226,7 @@
   }
   .sec-hot-card::after {
     content: ''; position: absolute; right: -24px; top: -24px; width: 84px; height: 84px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(170, 192, 220, .30), transparent 70%); pointer-events: none;
+    background: radial-gradient(circle, rgba(224, 178, 122, .32), transparent 70%); pointer-events: none;
   }
   .sec-hot-card:hover {
     border-color: var(--accent);
