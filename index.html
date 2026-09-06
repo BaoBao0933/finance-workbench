@@ -2923,10 +2923,11 @@ function buildPosChart(force) {
   if (force || pcState.n !== n) {
     pcState.n = n;
     if (n < 2) { // 数据不足：仅显示零轴占位
+      const tip = holdings.length === 0 ? '暂无持仓' : (holdings.length === 1 ? '仅 1 只持仓，添加更多后显示盈亏波形' : '行情加载中…');
       wrap.innerHTML = `<svg viewBox="0 0 600 150" preserveAspectRatio="none">
         <defs>${pcDefs(H)}</defs>
         <line x1="14" y1="75" x2="586" y2="75" stroke="rgba(80,96,120,.3)" stroke-dasharray="4 7" stroke-width="1"/>
-        <text x="300" y="72" text-anchor="middle" font-size="13" fill="rgba(140,155,175,.6)">暂无盈亏数据</text>
+        <text x="300" y="72" text-anchor="middle" font-size="13" fill="rgba(140,155,175,.6)">${tip}</text>
       </svg>`; return;
     }
     pcState.line = null;
