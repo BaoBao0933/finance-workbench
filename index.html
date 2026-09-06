@@ -1421,21 +1421,21 @@
   /* 仅调整配色/背景，不改动文字内容、布局与涨跌配色逻辑 */
   :root[data-theme="light"] {
     color-scheme: light;
-    --sidebar-bg: #f7f1e6;
-    --sidebar-hover: #efe6d3;
-    --accent: #e07a3f;
-    --accent-hover: #c9692f;
+    --sidebar-bg: #eef1f6;
+    --sidebar-hover: #e3e8f0;
+    --accent: #e85d4e;
+    --accent-hover: #d2483a;
     --up: #e85d4e;
-    --up-bg: #fdeee6;
-    --down: #0aa869;
-    --down-bg: #e4f5ec;
-    --text-main: #3a3327;
-    --text-sub: #6b6255;
-    --card-border: rgba(190,160,110,.16);
-    --bg: #f7f1e6;
-    --accent-soft: #f3e9d6;
-    --glass: rgba(255,253,247,.72);
-    --glass-border: rgba(255,252,244,.85);
+    --up-bg: rgba(232,93,78,.12);
+    --down: #0ba06b;
+    --down-bg: rgba(11,160,107,.12);
+    --text-main: #1d222b;
+    --text-sub: #6a7384;
+    --card-border: rgba(30,40,60,.07);
+    --bg: #eef1f6;
+    --accent-soft: #e9edf3;
+    --glass: rgba(255,255,255,.60);
+    --glass-border: rgba(255,255,255,.9);
     --gold: #c9a86a;
   }
 
@@ -1468,11 +1468,11 @@
   /* 浅色主题：暖奶油玻璃卡片面（还原之前风格） */
   :root[data-theme="light"] body {
     background:
-      radial-gradient(900px 620px at 16% -8%, rgba(232,140,90,.12), transparent 62%),
-      radial-gradient(820px 560px at 92% -10%, rgba(224,170,110,.14), transparent 60%),
-      radial-gradient(760px 540px at 102% 64%, rgba(224,138,90,.10), transparent 64%),
-      radial-gradient(880px 600px at 4% 110%, rgba(84,78,64,.05), transparent 62%),
-      linear-gradient(150deg, #f7f1e6 0%, #faf6ec 26%, #f4ede0 54%, #f8f3e9 78%, #f6f0e4 100%);
+      radial-gradient(900px 620px at 16% -8%, rgba(120,160,255,.10), transparent 62%),
+      radial-gradient(820px 560px at 92% -10%, rgba(120,190,255,.12), transparent 60%),
+      radial-gradient(760px 540px at 102% 64%, rgba(200,160,255,.07), transparent 64%),
+      radial-gradient(880px 600px at 4% 110%, rgba(90,110,150,.04), transparent 62%),
+      linear-gradient(150deg, #eef1f6 0%, #f4f6fb 26%, #e9edf4 54%, #f1f4f9 78%, #ecf0f6 100%);
     background-attachment: fixed;
   }
   :root[data-theme="light"] .ov-card,
@@ -1498,149 +1498,149 @@
   :root[data-theme="light"] .pos-chart-card,
   :root[data-theme="light"] .pos-row,
   :root[data-theme="light"] .lhb-row {
-    background: linear-gradient(120deg, rgba(255,253,247,.78), rgba(255,252,244,.50) 48%, rgba(255,254,250,.66));
-    backdrop-filter: blur(16px) saturate(160%);
-    -webkit-backdrop-filter: blur(16px) saturate(160%);
-    border-color: rgba(255,253,246,.85);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 8px rgba(160,125,70,.10), 0 12px 30px rgba(145,108,60,.12);
+    background: linear-gradient(120deg, rgba(255,255,255,.74), rgba(255,255,255,.46) 48%, rgba(255,255,255,.62));
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-color: rgba(255,255,255,.92);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 4px 16px rgba(120,140,180,.12), 0 14px 40px rgba(120,140,180,.14);
   }
   :root[data-theme="light"] .ov-card:hover,
   :root[data-theme="light"] .index-card:hover,
   :root[data-theme="light"] .sector-chip:hover,
   :root[data-theme="light"] .sec-hot-card:hover {
-    background: linear-gradient(120deg, rgba(255,254,250,.92), rgba(255,252,244,.58));
+    background: linear-gradient(120deg, rgba(255,255,255,.94), rgba(255,255,255,.55));
     border-color: var(--accent) !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 10px 26px rgba(150,112,62,.16);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 12px 30px rgba(120,140,180,.18);
   }
 
   /* 浅色主题：各分区/核心指数卡还原暖色玻璃 */
   :root[data-theme="light"] .index-card.gr {
-    background: linear-gradient(160deg, rgba(255,254,250,.82), rgba(250,244,230,.55)) !important;
-    border: 1px solid rgba(200,168,115,.20);
+    background: linear-gradient(160deg, rgba(255,255,255,.82), rgba(240,246,255,.55)) !important;
+    border: 1px solid rgba(140,170,220,.20);
   }
   :root[data-theme="light"] .index-card.focus-card {
     background:
-      linear-gradient(120deg, rgba(255,253,247,.9), rgba(242,247,255,.66) 52%, rgba(255,252,244,.6)),
-      linear-gradient(90deg, rgba(201,168,106,.10), transparent 40%) !important;
-    border: 1px solid rgba(201,168,106,.40);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 18px 44px rgba(140,105,58,.14);
+      linear-gradient(120deg, rgba(255,255,255,.9), rgba(240,246,255,.66) 52%, rgba(255,255,255,.6)),
+      linear-gradient(90deg, rgba(155,175,215,.10), transparent 40%) !important;
+    border: 1px solid rgba(150,175,215,.40);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 18px 44px rgba(120,140,180,.16);
   }
   :root[data-theme="light"] .index-card.focus-card::before {
-    background: linear-gradient(90deg, var(--gold,#c9a86a), #f4e3c0 45%, var(--gold,#c9a86a)) !important;
+    background: linear-gradient(90deg, rgba(155,180,225,.85), rgba(220,232,250,.8) 45%, rgba(155,180,225,.85)) !important;
   }
   :root[data-theme="light"] .index-card::before {
-    background: linear-gradient(115deg, rgba(255,255,255,.7), rgba(232,120,96,.08) 46%, transparent 72%) !important;
+    background: linear-gradient(115deg, rgba(255,255,255,.7), rgba(120,180,255,.08) 46%, transparent 72%) !important;
   }
-  :root[data-theme="light"] .ic-badge.flat { background: #ece5d6; color: #6b6255; }
-  :root[data-theme="light"] .market-flag { color: #6b6255; background: #ece5d6; }
+  :root[data-theme="light"] .ic-badge.flat { background: #e6eaf0; color: #6a7384; }
+  :root[data-theme="light"] .market-flag { color: #6a7384; background: #e6eaf0; }
 
   /* 浅色主题：激活态从珊瑚橙还原为暖色柔和药丸（琥珀文字） */
   :root[data-theme="light"] .tab.active {
-    background: linear-gradient(180deg, #fffdf8, #f3ecdb) !important;
-    color: var(--accent) !important;
-    border-color: rgba(200,168,115,.25) !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 6px rgba(150,112,62,.12) !important;
+    background: linear-gradient(180deg, #ff7a68, #e8545f) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 4px 12px rgba(232,93,78,.32) !important;
   }
   :root[data-theme="light"] .fund-tab.active {
-    background: linear-gradient(135deg, #fffdf8, #f3ecdb) !important;
-    color: var(--accent) !important;
-    border-color: rgba(200,168,115,.25) !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 6px rgba(150,112,62,.12) !important;
+    background: linear-gradient(135deg, #ff7a68, #e8545f) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 4px 12px rgba(232,93,78,.32) !important;
   }
   :root[data-theme="light"] .news-tag.active {
-    background: linear-gradient(135deg, #fffdf8, #f3ecdb) !important;
-    color: var(--accent) !important;
-    border-color: rgba(200,168,115,.25) !important;
-    box-shadow: none !important;
+    background: linear-gradient(135deg, #ff7a68, #e8545f) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+    box-shadow: 0 3px 10px rgba(232,93,78,.28) !important;
   }
   :root[data-theme="light"] .btn-refresh {
-    background: linear-gradient(180deg, #fffdf8, #f3ecdb);
-    color: var(--accent) !important;
-    border-color: rgba(200,168,115,.25);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.95), inset 0 -2px 4px rgba(196,160,110,.12), 0 2px 6px rgba(150,112,62,.12);
+    background: linear-gradient(180deg, #ff7a68, #e8545f);
+    color: #fff !important;
+    border-color: transparent;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 4px 12px rgba(232,93,78,.3);
   }
-  :root[data-theme="light"] .btn-refresh:hover { background: linear-gradient(180deg, #fffefb, #f2ead8); }
+  :root[data-theme="light"] .btn-refresh:hover { background: linear-gradient(180deg, #ff8a78, #e95a66); }
 
   /* 浅色主题：图标底片还原为暖色浅底 */
-  :root[data-theme="light"] .ov-icon.purple { background: #ece5d8 !important; color: #7a6b4e !important; }
-  :root[data-theme="light"] .ov-icon.blue { background: #f3e9d8 !important; color: #8a6b3a !important; }
+  :root[data-theme="light"] .ov-icon.purple { background: #e6eaf1 !important; color: #7a6f8c !important; }
+  :root[data-theme="light"] .ov-icon.blue { background: #e7ecf4 !important; color: #4a6a9b !important; }
   :root[data-theme="light"] .ov-icon.red { background: rgba(232,109,94,.13) !important; color: #e85d4e !important; }
   :root[data-theme="light"] .ov-icon.green { background: rgba(10,168,105,.12) !important; color: #0aa869 !important; }
 
   /* 浅色主题：置顶自选 / 置灰标签 / 搜索输入 */
   :root[data-theme="light"] .watch-row.pinned {
-    background: linear-gradient(90deg, #fbf4e4, #fffdf8 40%) !important;
-    border-color: #ecdcb8;
+    background: linear-gradient(90deg, #eef2fb, #fbfcfe 40%) !important;
+    border-color: #c9d7ea;
   }
-  :root[data-theme="light"] .news-pin.dim { color: var(--text-sub); background: #f4f0e7 !important; border-color: rgba(200,168,115,.2); }
+  :root[data-theme="light"] .news-pin.dim { color: var(--text-sub); background: #eef1f6 !important; border-color: rgba(140,160,200,.22); }
   :root[data-theme="light"] .search-input,
-  :root[data-theme="light"] .search-drop { color: #3a3327 !important; }
-  :root[data-theme="light"] .search-input::placeholder { color: #9a8f7a; }
-  :root[data-theme="light"] .sector-chip .sc-rank { background: #f0e9db; color: #6b5b3e !important; }
+  :root[data-theme="light"] .search-drop { color: #22273a !important; }
+  :root[data-theme="light"] .search-input::placeholder { color: #8b94a6; }
+  :root[data-theme="light"] .sector-chip .sc-rank { background: #eaedf3; color: #5f6878 !important; }
 
-  /* 浅色主题：文字从白系还原为暖墨色系（恢复之前浅色版的可读配色） */
-  :root[data-theme="light"] .sidebar { color: #6b6255; }
-  :root[data-theme="light"] .logo-text .logo-title { color: #3a3327; }
-  :root[data-theme="light"] .logo-text .logo-sub { color: #8a8170; }
-  :root[data-theme="light"] .nav-group-title { color: #8a8170; }
-  :root[data-theme="light"] .nav-item:hover { background: rgba(120,95,50,.08); color: #3a3327; }
-  :root[data-theme="light"] .nav-item.active { background: linear-gradient(180deg, #ef8a6b, #d85f45); color: #fff; }
-  :root[data-theme="light"] .sidebar-footer { color: #8a8170; }
-  :root[data-theme="light"] .header .title { color: #3a3327; }
-  :root[data-theme="light"] .header .time-row { color: #8a8170; }
-  :root[data-theme="light"] .header .time-row #header-time { color: #3a3327; }
-  :root[data-theme="light"] .market-tag { background: rgba(120,95,50,.10); color: #6b6255; }
-  :root[data-theme="light"] .market-tag.closed { background: #ece5d6; color: #8a8170; }
-  :root[data-theme="light"] .market-tag.open { background: rgba(232,109,94,.14); color: #cf5630; }
+  /* 浅色主题：文字还原为中性墨色（恢复之前浅色版的可读配色） */
+  :root[data-theme="light"] .sidebar { color: #5a6476; }
+  :root[data-theme="light"] .logo-text .logo-title { color: #22273a; }
+  :root[data-theme="light"] .logo-text .logo-sub { color: #6a7488; }
+  :root[data-theme="light"] .nav-group-title { color: #6a7488; }
+  :root[data-theme="light"] .nav-item:hover { background: rgba(70,90,140,.08); color: #22273a; }
+  :root[data-theme="light"] .nav-item.active { background: linear-gradient(180deg, #ff7a68, #e8545f); color: #fff; }
+  :root[data-theme="light"] .sidebar-footer { color: #6a7488; }
+  :root[data-theme="light"] .header .title { color: #22273a; }
+  :root[data-theme="light"] .header .time-row { color: #6a7488; }
+  :root[data-theme="light"] .header .time-row #header-time { color: #22273a; }
+  :root[data-theme="light"] .market-tag { background: rgba(70,90,140,.10); color: #5a6476; }
+  :root[data-theme="light"] .market-tag.closed { background: #e6eaf0; color: #6a7488; }
+  :root[data-theme="light"] .market-tag.open { background: rgba(232,93,78,.14); color: #d0563f; }
   :root[data-theme="light"] .market-tag.auction { background: rgba(224,160,80,.16); color: #b47020; }
-  :root[data-theme="light"] .module-header .m-sub { color: #8a8170; }
-  :root[data-theme="light"] .ic-ohl .col b { color: #4a443a; }
+  :root[data-theme="light"] .module-header .m-sub { color: #6a7488; }
+  :root[data-theme="light"] .ic-ohl .col b { color: #3a4152; }
   :root[data-theme="light"] .ic-zone .z b,
   :root[data-theme="light"] .ic-zone .z.z-r b,
   :root[data-theme="light"] .ic-zone .z.z-s b,
-  :root[data-theme="light"] .ic-zone .z.z-p b { color: #4a443a; }
-  :root[data-theme="light"] .ic-zone .z.pct b { color: #8a8170; }
-  :root[data-theme="light"] .ov-note { color: #8a8170; }
-  :root[data-theme="light"] .watch-row .w-name { color: #3a3327; }
-  :root[data-theme="light"] .watch-row .w-code { color: #8a8170; }
-  :root[data-theme="light"] .watch-row .w-flag { color: #6b6255; background: #ece5d6; }
-  :root[data-theme="light"] .watch-col { color: #3a3327; }
-  :root[data-theme="light"] .watch-col b { color: #3a3327; }
-  :root[data-theme="light"] .watch-head { color: #8a8170; }
-  :root[data-theme="light"] .pct-pill.flat { background: #ece5d6; color: #6b6255; }
-  :root[data-theme="light"] .watch-empty .we-hint { color: #8a8170; }
-  :root[data-theme="light"] .w-pin { color: #8a8170; }
+  :root[data-theme="light"] .ic-zone .z.z-p b { color: #3a4152; }
+  :root[data-theme="light"] .ic-zone .z.pct b { color: #6a7488; }
+  :root[data-theme="light"] .ov-note { color: #6a7488; }
+  :root[data-theme="light"] .watch-row .w-name { color: #22273a; }
+  :root[data-theme="light"] .watch-row .w-code { color: #6a7488; }
+  :root[data-theme="light"] .watch-row .w-flag { color: #5a6476; background: #e6eaf0; }
+  :root[data-theme="light"] .watch-col { color: #22273a; }
+  :root[data-theme="light"] .watch-col b { color: #22273a; }
+  :root[data-theme="light"] .watch-head { color: #6a7488; }
+  :root[data-theme="light"] .pct-pill.flat { background: #e6eaf0; color: #5a6476; }
+  :root[data-theme="light"] .watch-empty .we-hint { color: #6a7488; }
+  :root[data-theme="light"] .w-pin { color: #6a7488; }
   :root[data-theme="light"] .w-pin:hover,
-  :root[data-theme="light"] .w-pin.active { background: #efe7d6; color: var(--accent); box-shadow: none; }
-  :root[data-theme="light"] .news-item .n-summary { color: #6b6255; }
-  :root[data-theme="light"] .news-item .n-meta { color: #8a8170; }
-  :root[data-theme="light"] .news-item .n-tag { background: #efe7d6; color: var(--accent); }
-  :root[data-theme="light"] .news-item.hot .n-title { color: #a23b28; }
-  :root[data-theme="light"] .focus-col .news-item .news-digest { color: #6b6255; }
-  :root[data-theme="light"] .focus-col .news-meta { color: #8a8170; }
-  :root[data-theme="light"] .focus-tag.neutral { background: #f0ebe0; color: #6b6255; }
-  :root[data-theme="light"] .fund-note { color: #8a8170; }
-  :root[data-theme="light"] .fund-row:hover { background: #f7f1e3; }
-  :root[data-theme="light"] .fund-rank { color: #6b6255; background: #f0ebe0; }
+  :root[data-theme="light"] .w-pin.active { background: #e8ecf2; color: var(--accent); box-shadow: none; }
+  :root[data-theme="light"] .news-item .n-summary { color: #5a6476; }
+  :root[data-theme="light"] .news-item .n-meta { color: #6a7488; }
+  :root[data-theme="light"] .news-item .n-tag { background: #e8ecf2; color: var(--accent); }
+  :root[data-theme="light"] .news-item.hot .n-title { color: #b83a2a; }
+  :root[data-theme="light"] .focus-col .news-item .news-digest { color: #5a6476; }
+  :root[data-theme="light"] .focus-col .news-meta { color: #6a7488; }
+  :root[data-theme="light"] .focus-tag.neutral { background: #eaedf3; color: #5a6476; }
+  :root[data-theme="light"] .fund-note { color: #6a7488; }
+  :root[data-theme="light"] .fund-row:hover { background: #f0f3f8; }
+  :root[data-theme="light"] .fund-rank { color: #5a6476; background: #eaedf3; }
   :root[data-theme="light"] .fund-row:nth-child(-n+3) .fund-rank { background: #fdeee6; color: #e85d4e; }
-  :root[data-theme="light"] .fund-name .fc { color: #8a8170; }
-  :root[data-theme="light"] .senti-card .sc-vals .mid { color: #8a7a60; }
-  :root[data-theme="light"] .senti-card .sc-sub { color: #8a8170; }
-  :root[data-theme="light"] .ladder-row { background: #f8f3e8; }
-  :root[data-theme="light"] .ladder-row:hover { background: #f2ebdb; }
-  :root[data-theme="light"] .sec-cell .scp.flat { color: #6b6255; }
-  :root[data-theme="light"] .sec-cell .scc { color: #8a8170; }
-  :root[data-theme="light"] .sec-hot-card .hp.flat { color: #6b6255; }
-  :root[data-theme="light"] .sec-hot-card .hc { color: #8a8170; }
-  :root[data-theme="light"] .pos-sum-card .lab { color: #6b6255; }
-  :root[data-theme="light"] .pos-chart-legend { color: #6b6255; }
-  :root[data-theme="light"] .pos-form label { color: #6b6255; }
-  :root[data-theme="light"] .pos-form .pf-cancel { color: #6b6255; }
-  :root[data-theme="light"] .pos-form .pf-cancel:hover { background: #ece5d6; color: var(--text-main); }
-  :root[data-theme="light"] .lhb-wrap .lhb-row .watch-head { color: #3a3327; }
-  :root[data-theme="light"] .lhb-wrap .lhb-row .sr-name small { color: #6b6255; }
+  :root[data-theme="light"] .fund-name .fc { color: #6a7488; }
+  :root[data-theme="light"] .senti-card .sc-vals .mid { color: #6a7284; }
+  :root[data-theme="light"] .senti-card .sc-sub { color: #6a7488; }
+  :root[data-theme="light"] .ladder-row { background: #f0f3f8; }
+  :root[data-theme="light"] .ladder-row:hover { background: #e9edf3; }
+  :root[data-theme="light"] .sec-cell .scp.flat { color: #5a6476; }
+  :root[data-theme="light"] .sec-cell .scc { color: #6a7488; }
+  :root[data-theme="light"] .sec-hot-card .hp.flat { color: #5a6476; }
+  :root[data-theme="light"] .sec-hot-card .hc { color: #6a7488; }
+  :root[data-theme="light"] .pos-sum-card .lab { color: #5a6476; }
+  :root[data-theme="light"] .pos-chart-legend { color: #5a6476; }
+  :root[data-theme="light"] .pos-form label { color: #5a6476; }
+  :root[data-theme="light"] .pos-form .pf-cancel { color: #5a6476; }
+  :root[data-theme="light"] .pos-form .pf-cancel:hover { background: #e6eaf0; color: var(--text-main); }
+  :root[data-theme="light"] .lhb-wrap .lhb-row .watch-head { color: #22273a; }
+  :root[data-theme="light"] .lhb-wrap .lhb-row .sr-name small { color: #5a6476; }
   :root[data-theme="light"] .lhb-wrap .lhb-row .watch-col,
-  :root[data-theme="light"] .lhb-row .watch-col { color: #4a443a; }
+  :root[data-theme="light"] .lhb-row .watch-col { color: #3a4152; }
   :root[data-theme="light"] .lhb-row:nth-child(-n+4) .sr-rank,
   :root[data-theme="light"] .sec-row:nth-child(-n+4) .sr-rank { background: transparent; color: #e85d4e; }
 </style>
