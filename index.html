@@ -998,7 +998,7 @@
 
   /* ============ 龙虎榜页 ============ */
   .lhb-wrap { max-width: 1240px; }
-  .lhb-wrap .lhb-row .watch-head { color: #1f2c3b; font-weight: 700; }
+  .lhb-wrap .lhb-row .watch-head { color: #1f2c3b; font-weight: 700; font-size: 14px; letter-spacing: .3px; }
   .lhb-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 22px 0 14px; flex-wrap: wrap; }
   .lhb-row {
     display: grid; grid-template-columns: 46px 2fr 1fr 1fr 1.3fr 1.1fr 1.1fr 2.6fr;
@@ -1008,8 +1008,12 @@
   }
   .lhb-row:hover { box-shadow: 0 5px 14px rgba(30,44,62,.07); }
   .lhb-row:nth-child(-n+4) .sr-rank { background: transparent; color: #e0413e; }
+  .lhb-wrap .lhb-row .sr-name { font-weight: 700; font-size: 16px; color: var(--text-main); }
+  .lhb-wrap .lhb-row .sr-name small { font-size: 12.5px; color: #5b6b7e; font-weight: 500; margin-left: 8px; }
+  .lhb-wrap .lhb-row .sr-rank { font-size: 15px; font-weight: 700; }
+  .lhb-wrap .lhb-row .watch-col { font-size: 15.5px; color: #3f4a5a; }
   .lhb-reason {
-    font-size: 13px; color: #7a859a;
+    font-size: 14px; color: #465366; font-weight: 500;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   @media (max-width: 900px) { .lhb-row { grid-template-columns: 46px 2fr 1fr 1.3fr; } .lhb-row .w-hide { display: none; } }
