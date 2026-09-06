@@ -4827,9 +4827,7 @@ function renderDailyQuote() {
   if (!t) return;
   t.textContent = DAILY_QUOTES[idx];
   if (s) {
-    const d = new Date();
-    const p = n => String(n).padStart(2, '0');
-    s.textContent = `每日投资格言 · ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} · 第 ${idx + 1} 句 / 共 ${DAILY_QUOTES.length} 句`;
+    s.textContent = '每日投资格言';
   }
 }
 
