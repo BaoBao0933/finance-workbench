@@ -1226,6 +1226,40 @@
   }
   .sec-hot-title { color: var(--accent); }
   .sec-hot-sub { color: var(--text-sub); }
+
+  /* ============ 交互体验增强 ============ */
+  /* 触摸优化：消除双击缩放延迟与误选 */
+  button, .clickable, .fund-tab, .w-pin, .sector-chip, .sec-cell, .sec-hot-card, .btn,
+  .pos-row, .lhb-row, .news-item, .watch-item, .ov-card {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* 键盘 / 辅助技术焦点环（仅键盘触发，点击不显示） */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  .fund-tab:focus-visible,
+  .sec-cell:focus-visible,
+  .sec-hot-card:focus-visible,
+  .sector-chip:focus-visible,
+  .ov-card.clickable:focus-visible,
+  .w-pin:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(91,127,191,.18);
+  }
+  /* 通用按压反馈：点击时轻微下沉 */
+  button:active, .fund-tab:active, .clickable:active, .btn:active {
+    transform: scale(.97);
+  }
+  /* 满足减少动态效果偏好：关闭流光与光晕动画 */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001s !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001s !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -1341,7 +1375,7 @@
               <div class="ov-note">点击查看成分股</div>
             </div>
           </div>
-          <div class="ov-card clickable" id="ov-bottom-card">
+          <div class="ov-card clickable" tabindex="0" role="button" id="ov-bottom-card">
             <div class="ov-icon green"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#0aa869" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 7 10 13 14 11 19 18"/><polyline points="14 18 19 18 19 13"/></svg></div>
             <div class="ov-body">
               <div class="ov-label">板块跌幅榜首</div>
@@ -2263,7 +2297,7 @@ function renderSectors(list) {
     const up = s.pct >= 0;
     const abs = Math.min(Math.abs(s.pct), 10) / 10 * 100;
     return `
-    <div class="sector-chip fade-in" data-secid="${s.secid}" data-code="${s.secid.split('.').pop()}" data-name="${s.name}" data-pct="${s.pct}" title="${s.name} · 点击查看成分股">
+    <div class="sector-chip fade-in" tabindex="0" role="button" data-secid="${s.secid}" data-code="${s.secid.split('.').pop()}" data-name="${s.name}" data-pct="${s.pct}" title="${s.name} · 点击查看成分股">
       <div class="sc-top"><span class="sc-name">${s.name}</span><span class="sc-rank">#${i + 1}</span></div>
       <div class="sc-val ${up ? 'up' : 'down'}">${s.pct > 0 ? '+' : ''}${fmtNum(s.pct, 2)}%</div>
       <div class="sc-bar"><i class="${up ? 'up' : 'down'}" style="width:${abs}%"></i></div>
@@ -2591,6 +2625,17 @@ $('btn-search-add').addEventListener('click', () => {
 });
 $('btn-watch-add').addEventListener('click', () => $('watch-search').focus());
 $('btn-watch-refresh').addEventListener('click', () => loadWatchQuotes());
+
+// 键盘可达性：卡片/板块 chip 聚焦后，按 回车/空格 触发点击
+document.addEventListener('keydown', e => {
+  if (!(e.key === 'Enter' || (e.key === ' '))) return;
+  const el = document.activeElement;
+  if (!el) return;
+  if (el.matches('.clickable, .sector-chip, .sec-cell, .sec-hot-card, [role="button"]')) {
+    e.preventDefault();
+    el.click();
+  }
+});
 
 // 操作事件委托（删除 + 置顶，DOM 重建也不丢失）
 $('watch-list').addEventListener('click', e => {
