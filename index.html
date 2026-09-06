@@ -632,6 +632,112 @@
   }
   #toast.show { top: 24px; }
 
+  /* ============ 持仓股「突然上涨」玻璃态弹窗 ============ */
+  .rise-pop {
+    position: fixed; top: 20px; right: 24px; z-index: 1000;
+    opacity: 0; transform: translateX(140%) scale(.92);
+    pointer-events: none;
+    transition: opacity .35s var(--badge-slide-ease, cubic-bezier(.22,1,.36,1)),
+                transform .5s cubic-bezier(.34,1.45,.64,1);
+    -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+    background: rgba(30,34,42,.78);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 16px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.04) inset;
+  }
+  :root[data-theme="light"] .rise-pop { background: rgba(255,255,255,.82); border: 1px solid rgba(255,255,255,.7); box-shadow: 0 18px 50px rgba(60,80,120,.16); }
+  .rise-pop.show { opacity: 1; transform: translateX(0) scale(1); pointer-events: auto; }
+  .rise-pop .rp-body { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 22px 12px 14px; overflow: hidden; }
+  .rise-pop .rp-ico img { width: 34px; height: 34px; display: block; animation: floaty 2.4s ease-in-out infinite; filter: drop-shadow(0 3px 5px rgba(0,0,0,.3)); }
+  .rise-pop .rp-text { display: flex; flex-direction: column; gap: 3px; min-width: 140px; }
+  .rise-pop .rp-name { font-size: 14px; font-weight: 700; color: var(--text-main, #eef0f2); }
+  .rise-pop .rp-line { font-size: 12.5px; color: var(--text-sub, #9aa1a9); }
+  .rise-pop .rp-line b { color: var(--up, #ff7a5c); font-size: 13px; }
+  .rise-pop .rp-progress { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%;
+    background: linear-gradient(90deg, var(--up, #ff7a5c), #ffd25c);
+    transform-origin: left; transform: scaleX(0); animation: riseBar 2.6s linear forwards; }
+  @keyframes riseBar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+  /* ============ 涨停恭喜（全屏金色祝贺特效）============ */
+  .zt-overlay {
+    position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center;
+    background: rgba(8,8,12,.42);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    opacity: 0; pointer-events: none; transition: opacity .4s ease;
+  }
+  .zt-overlay.show { opacity: 1; pointer-events: auto; }
+  .zt-confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .zt-confetti i { position: absolute; top: -24px; display: block; border-radius: 3px;
+    animation: confettiFall linear infinite; }
+  @keyframes confettiFall {
+    0% { transform: translateY(0) rotate(0); opacity: 1; }
+    100% { transform: translateY(105vh) rotate(640deg); opacity: .7; }
+  }
+  .zt-card {
+    position: relative; padding: 46px 58px 40px; text-align: center; border-radius: 24px;
+    -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+    background: linear-gradient(160deg, rgba(255,246,214,.96), rgba(255,220,150,.94));
+    border: 1px solid rgba(255,255,255,.85);
+    box-shadow: 0 30px 90px rgba(0,0,0,.4), 0 0 50px rgba(255,190,80,.55), 0 0 0 1px rgba(255,220,150,.4) inset;
+    transform: scale(.6); opacity: 0;
+  }
+  .zt-overlay.show .zt-card {
+    animation: ztCardIn .55s cubic-bezier(.34,1.45,.64,1) .05s both;
+  }
+  @keyframes ztCardIn { to { transform: scale(1); opacity: 1; } }
+  .zt-card .zt-check {
+    width: 74px; height: 74px; margin: 0 auto 14px; border-radius: 50%;
+    background: linear-gradient(145deg, #ffd565, #ff9d3f); color: #fff; font-size: 40px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; line-height: 1;
+    box-shadow: 0 10px 26px rgba(255,140,40,.45), inset 0 2px 3px rgba(255,255,255,.5);
+    animation: ztPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes ztPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+  .zt-card .zt-star {
+    position: absolute; top: 20px; right: 30px; color: #ffcf3f; font-size: 30px;
+    animation: ztTwinkle 1.4s ease-in-out infinite;
+    text-shadow: 0 2px 8px rgba(255,190,40,.6);
+  }
+  @keyframes ztTwinkle { 0%,100% { opacity: .35; transform: scale(.85) rotate(0); } 50% { opacity: 1; transform: scale(1.25) rotate(14deg); } }
+  .zt-card .zt-title { font-size: 34px; font-weight: 900; letter-spacing: 2px; color: #b26900; text-shadow: 0 2px 6px rgba(255,255,255,.5); }
+  .zt-card .zt-sub { margin-top: 8px; font-size: 15px; color: #9a6a1a; }
+  .zt-card .zt-close {
+    position: absolute; top: 12px; left: 16px; cursor: pointer; font-size: 22px; color: #b26900;
+    opacity: .7; transition: transform .2s, opacity .2s; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+  }
+  .zt-card .zt-close:hover { opacity: 1; transform: rotate(90deg) scale(1.15); }
+
+  /* ============ 首页「持仓涨停」特别恭喜条 ============ */
+  .home-congrats {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding: 14px 20px;
+    border-radius: 16px;
+    -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+    background: linear-gradient(120deg, rgba(255,236,200,.92), rgba(255,205,130,.9), rgba(255,236,200,.92));
+    border: 1px solid rgba(255,255,255,.8);
+    box-shadow: 0 12px 38px rgba(180,120,30,.22), 0 0 0 1px rgba(255,220,150,.35) inset;
+    overflow: hidden; position: relative;
+  }
+  .home-congrats::after {
+    content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,.7), transparent);
+    animation: hcShine 2.8s ease-in-out infinite;
+  }
+  @keyframes hcShine { 0% { left: -60%; } 60%,100% { left: 130%; } }
+  .home-congrats .hc-emoji img { width: 34px; height: 34px; display: block; animation: floaty 2.6s ease-in-out infinite; }
+  .home-congrats .hc-text { display: flex; align-items: center; gap: 9px; font-size: 15px; color: #7a5310; flex: 1; }
+  .home-congrats .hc-text b { color: #b26900; }
+  .home-congrats .hc-check { width: 20px; height: 20px; stroke: #3ddc84; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .home-congrats .hc-close { cursor: pointer; font-size: 20px; color: #a06a10; opacity: .7; transition: opacity .2s, transform .2s; line-height: 1; }
+  .home-congrats .hc-close:hover { opacity: 1; transform: scale(1.2); }
+  .home-congrats[hidden] { display: none; }
+
+  /* 通用：尊重系统动效偏好（减动效） */
+  @media (prefers-reduced-motion: reduce) {
+    .rise-pop, .zt-overlay, .zt-card, .home-congrats,
+    .zt-confetti i, .zt-check, .zt-star { animation: none !important; transition: opacity .15s ease !important; }
+    .rise-pop { transform: none; }
+  }
+
   /* ============ 动效增强 ============ */
   .content { scrollbar-width: thin; scrollbar-color: #d8cfbe transparent; }
   .content::-webkit-scrollbar { width: 7px; }
@@ -1903,6 +2009,16 @@ try {
         </div>
       </div>
 
+      <!-- 首页「持仓涨停」特别恭喜条（有持仓涨停时显示，可关闭） -->
+      <div id="home-congrats" class="home-congrats" hidden>
+        <div class="hc-emoji"><img src="icons/openmoji/color/1F389.svg" alt=""></div>
+        <div class="hc-text">
+          <svg class="hc-check" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6.5"/></svg>
+          <span>恭喜！持仓股 <b id="hc-names">--</b> 涨停啦 🎉</span>
+        </div>
+        <span class="hc-close" id="hc-close" role="button" tabindex="0" aria-label="关闭恭喜提示">×</span>
+      </div>
+
       <!-- 核心指数 -->
       <div class="module">
         <div class="module-header">
@@ -2379,6 +2495,30 @@ try {
 </main>
 
 <div id="toast"></div>
+
+<!-- 持仓股「突然上涨」动效弹窗（玻璃态，居中偏上，右侧进度自动消失） -->
+<div id="rise-pop" class="rise-pop t-notif" aria-live="polite">
+  <div class="rp-body">
+    <span class="rp-ico"><img src="icons/openmoji/color/1F680.svg" alt=""></span>
+    <div class="rp-text">
+      <div class="rp-name" id="rp-name">--</div>
+      <div class="rp-line">快速拉升 <b id="rp-chg">--</b></div>
+    </div>
+    <span class="rp-progress"></span>
+  </div>
+</div>
+
+<!-- 涨停恭喜弹层（全屏金色祝贺特效） -->
+<div id="zt-overlay" class="zt-overlay t-celebrate" aria-hidden="true">
+  <div class="zt-confetti" id="zt-confetti"></div>
+  <div class="zt-card t-success-check">
+    <div class="zt-check">✓</div>
+    <div class="zt-star t-success-star">★</div>
+    <div class="zt-title">恭喜涨停！</div>
+    <div class="zt-sub" id="zt-sub">--</div>
+    <div class="zt-close" id="zt-close">×</div>
+  </div>
+</div>
 
 <script>
 /* ================= 配置 ================= */
@@ -3301,6 +3441,90 @@ let holdQuotes = {};  // secid -> {price,pct,chg}
 let posFormCtx = null; // {mode:'add'|'edit', secid}
 let pendingPos = null; // 待加入的股票信息
 
+// —— 持仓股价异动提醒状态 ——
+// prevHoldQuotes: 上一轮报价快照（用于判断"突然上涨"）；ztShown: 已弹出过涨停恭喜的 secid 集合
+let prevHoldQuotes = {};      // secid -> {price,pct}
+const ztShown = new Set();     // 涨停恭喜已触发
+const riseCool = {};           // secid -> 上次上涨弹窗时间戳（冷却，避免刷屏）
+let homeZtNames = new Set();   // 首页恭喜条累计的涨停持仓名
+let homeZtVisible = true;      // 用户是否手动关闭了首页恭喜条
+
+// 判断某持仓是否达到对应涨停阈值（主板10%，创业板/科创板20%，北交所30%）
+function isLimitUp(code, pct) {
+  const c = String(code);
+  if (/^(30|68)/.test(c)) return pct >= 19.5;       // 创业板30 / 科创板68
+  if (/^8/.test(c)) return pct >= 29.5;             // 北交所8
+  return pct >= 9.8;                                // 主板
+}
+// 随机生成一片彩纸落到 .zt-confetti
+function spawnConfetti(count) {
+  const box = $('zt-confetti'); box.innerHTML = '';
+  const colors = ['#ffd565', '#ff9d3f', '#3ddc84', '#4cc2ff', '#ff6fa5', '#b08cff', '#fff27a'];
+  for (let i = 0; i < count; i++) {
+    const s = document.createElement('i');
+    const size = 6 + Math.random() * 7;
+    s.style.cssText = `left:${Math.random()*100}%; width:${size}px; height:${size*(0.5+Math.random())}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      animation-duration:${2.6+Math.random()*2.4}s; animation-delay:${Math.random()*1.2}s;
+      transform:rotate(${Math.random()*360}deg); border-radius:${Math.random()>0.5?'50%':'2px'};`;
+    box.appendChild(s);
+  }
+}
+// 涨停全屏恭喜
+function showLimitUpCelebration(h) {
+  const q = holdQuotes[h.secid];
+  if (!q || ztShown.has(h.secid)) return;
+  ztShown.add(h.secid);
+  $('zt-sub').textContent = `${h.name}（${h.code}）现价 ${q.price == null ? '--' : fmtNum(q.price)} · 涨跌幅 ${q.pct == null ? '--' : '+' + fmtNum(q.pct) + '%'}`;
+  spawnConfetti(46);
+  $('zt-overlay').classList.add('show');
+  $('zt-overlay').setAttribute('aria-hidden', 'false');
+  // 同步点亮首页恭喜条
+  homeZtNames.add(h.name);
+  updateHomeCongrats();
+}
+// 首页恭喜条：有涨停且未手动关闭时显示
+function updateHomeCongrats() {
+  const bar = $('home-congrats');
+  if (!homeZtNames.size || !homeZtVisible) { bar.hidden = true; return; }
+  $('hc-names').textContent = Array.from(homeZtNames).join('、');
+  bar.hidden = false;
+}
+// 突然上涨弹窗（玻璃态，自动消失）
+function showRisePop(h, q) {
+  const now = Date.now();
+  if (now - (riseCool[h.secid] || 0) < 20000) return; // 20s 冷却
+  riseCool[h.secid] = now;
+  $('rp-name').textContent = h.name;
+  $('rp-chg').textContent = '+' + fmtNum(q.pct) + '%';
+  const pop = $('rise-pop');
+  pop.classList.remove('show');
+  void pop.offsetWidth;           // 强制 reflow 以重放动画
+  pop.classList.add('show');
+  clearTimeout(pop._timer);
+  pop._timer = setTimeout(() => pop.classList.remove('show'), 2600);
+  try { navigator.vibrate && navigator.vibrate(30); } catch (e) {}
+}
+
+// 关闭涨停恭喜弹层
+function bindClose(el, fn) {
+  if (!el) return;
+  const act = (e) => { e.stopPropagation(); fn(); };
+  el.addEventListener('click', act);
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(e); }
+  });
+}
+bindClose($('zt-close'), () => {
+  const o = $('zt-overlay');
+  o.classList.remove('show');
+  o.setAttribute('aria-hidden', 'true');
+});
+bindClose($('hc-close'), () => {
+  homeZtVisible = false;
+  updateHomeCongrats();
+});
+
 function loadHoldings() {
   try { holdings = JSON.parse(localStorage.getItem(LS_HOLD) || '[]'); }
   catch (e) { holdings = []; }
@@ -3619,6 +3843,8 @@ async function loadHoldQuotes() {
   if (!holdings.length) { renderHoldings(); return; }
   const hosts = ['push2.eastmoney.com', 'push2delay.eastmoney.com'];
   const allSecids = holdings.map(h => h.secid).join(',');
+  // 本轮拉取前快照上一轮报价，用于检测"突然上涨"
+  prevHoldQuotes = Object.assign({}, holdQuotes);
 
   // 一轮拉取，返回 { got:[...diff], host }；失败返回 null
   async function pull(secids, host, timeout) {
@@ -3662,6 +3888,16 @@ function updateHoldPrices() {
     const h = holdings.find(x => x.secid === row.dataset.secid);
     const q = holdQuotes[row.dataset.secid];
     if (!h || !q) return;
+    // 动效检测：涨停→全屏恭喜；未涨停但较上一轮快速拉升→玻璃态弹窗
+    const prevQ = prevHoldQuotes[row.dataset.secid];
+    if (h.qty > 0 && h.cost > 0 && !document.hidden) {
+      if (isLimitUp(h.code, q.pct) && !ztShown.has(h.secid)) {
+        showLimitUpCelebration(h);
+      } else if (prevQ && q.pct != null && prevQ.pct != null &&
+                 q.pct > 2 && (q.pct - prevQ.pct) > 1.5) {
+        showRisePop(h, q);
+      }
+    }
     const cls = clsOf(q.pct);
     const price = q.price;
     const mv = price * h.qty;
@@ -5491,4 +5727,3 @@ setInterval(() => loadBoardRank(), 300000); // 板块榜首每 5 分钟重试一
 </script>
 </body>
 </html>
-<!-- DEPLOY-MARKER 20260906231952 -->
