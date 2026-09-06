@@ -216,10 +216,13 @@
   .header { display: flex; align-items: flex-start; justify-content: space-between; }
   .header .title { font-size: 25px; font-weight: 700; letter-spacing: .5px; }
   #page-home .header .title {
-    background: linear-gradient(180deg, #f5e6c8 0%, #d4a574 58%, #a67b3f 100%);
+    display: inline-block;
+    background: linear-gradient(100deg, #f5e6c8 0%, #d4a574 30%, #e9b17c 50%, #d4a574 70%, #f5e6c8 100%);
+    background-size: 200% auto;
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+    animation: gradientWash 5s linear infinite;
   }
   .header .time-row {
     margin-top: 8px;
