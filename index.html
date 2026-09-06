@@ -175,6 +175,20 @@
   .nav-item.active::before { display: none; }
   .nav-item .icon { width: 20px; text-align: center; font-size: 17px; display: inline-flex; align-items: center; justify-content: center; }
   .nav-item .icon svg { width: 20px; height: 20px; display: block; stroke-width: 2; }
+  /* 页面内联 Lucide SVG 图标尺寸标准化 */
+  .btn .icon svg { width: 15px; height: 15px; display: block; stroke-width: 2; }
+  .module-header .m-ico svg { width: 17px; height: 17px; display: block; stroke-width: 2; }
+  .fun-banner .fb-emoji svg { width: 40px; height: 40px; display: block; stroke-width: 2; }
+  .fun-banner .spark svg { width: 18px; height: 18px; display: block; stroke-width: 2; }
+  .fun-banner .spark.s2 svg, .fun-banner .spark.s4 svg { width: 15px; height: 15px; }
+  .fun-banner .spark.s5 svg { width: 20px; height: 20px; }
+  .ov-icon svg { width: 26px; height: 26px; stroke-width: 2; }
+  .watch-empty .we-icon svg { width: 40px; height: 40px; display: block; stroke-width: 1.75; }
+  .placeholder .p-icon svg { width: 46px; height: 46px; stroke-width: 1.5; }
+  .fund-p-title svg, .sc-name svg { width: 16px; height: 16px; stroke-width: 2; vertical-align: -2px; }
+  .focus-block-title svg, .sec-hot-title svg { width: 16px; height: 16px; stroke-width: 2; flex-shrink: 0; }
+  .btn-add svg { width: 16px; height: 16px; stroke-width: 2; vertical-align: -2px; }
+  .w-pin svg, .w-del svg { width: 18px; height: 18px; stroke-width: 2; }
   .nav-badge {
     margin-left: auto;
     background: #e85d4e;
@@ -1345,7 +1359,7 @@
           </div>
         </div>
         <div class="header-actions">
-          <div class="btn btn-refresh" id="btn-refresh"><span class="icon">🔄</span>刷新</div>
+          <div class="btn btn-refresh" id="btn-refresh"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
           <div class="btn btn-primary" id="btn-report">＋ 日报</div>
         </div>
       </div>
@@ -1358,21 +1372,21 @@
       <!-- 趣味欢迎横幅（纯装饰） -->
       <div class="fun-banner">
         <div class="fb-left">
-          <span class="fb-emoji">📈</span>
+          <span class="fb-emoji"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg></span>
           <div class="fb-text">
             <div class="fb-title">祝你今天收益长虹！</div>
           </div>
         </div>
         <div class="fb-sparks">
-          <i class="spark s1">✨</i><i class="spark s2">🌱</i><i class="spark s3">🔥</i>
-          <i class="spark s4">💎</i><i class="spark s5">🚀</i>
+          <i class="spark s1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg></i><i class="spark s2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/></svg></i><i class="spark s3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></i>
+          <i class="spark s4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/></svg></i><i class="spark s5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg></i>
         </div>
       </div>
 
       <!-- 核心指数 -->
       <div class="module">
         <div class="module-header">
-          <span class="m-title"><span class="m-ico">📊</span>核心指数</span>
+          <span class="m-title"><span class="m-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>核心指数</span>
           <span class="m-sub">重点 · 全球市场实时行情</span>
           <a class="m-link" id="link-all-index">自选股 →</a>
         </div>
@@ -1382,7 +1396,7 @@
       <!-- 市场概览 -->
       <div class="module">
         <div class="module-header">
-          <span class="m-title"><span class="m-ico">🌏</span>市场概览</span>
+          <span class="m-title"><span class="m-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span>市场概览</span>
           <div class="tabs">
             <div class="tab active">两市成交</div>
             <div class="tab" data-wip>资金动向</div>
@@ -1391,7 +1405,7 @@
         </div>
         <div class="overview-grid">
           <div class="ov-card">
-            <div class="ov-icon purple">💵</div>
+            <div class="ov-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
             <div class="ov-body">
               <div class="ov-label">两市成交额</div>
               <div class="ov-value neutral" id="ov-amount">--</div>
@@ -1443,8 +1457,8 @@
           <div class="time-row"><span>输入股票名称或代码即可添加，行情实时同步刷新</span></div>
         </div>
         <div class="header-actions">
-          <div class="btn btn-refresh" id="btn-watch-refresh"><span class="icon">🔄</span>刷新</div>
-          <div class="btn btn-primary" id="btn-watch-add"><span class="icon">＋</span>添加</div>
+          <div class="btn btn-refresh" id="btn-watch-refresh"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
+          <div class="btn btn-primary" id="btn-watch-add"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></span>添加</div>
         </div>
       </div>
 
@@ -1486,7 +1500,7 @@
           <div class="time-row"><span id="pos-status">持仓盈亏实时计算 · 数据保存在本地浏览器，不会丢失</span></div>
         </div>
         <div class="header-actions">
-          <div class="btn btn-refresh" id="pos-refresh"><span class="icon">🔄</span>刷新</div>
+          <div class="btn btn-refresh" id="pos-refresh"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
         </div>
       </div>
       <div style="max-width:1080px">
@@ -1506,7 +1520,7 @@
           <span class="pf-name" id="pf-name">--</span>
           <label>总成本(元)</label><input id="pf-cost" type="number" min="0" step="0.001" placeholder="买入总成本，如 120000">
           <label>持股数</label><input id="pf-qty" type="number" min="1" step="1" placeholder="如 100">
-          <button class="btn-add" id="pf-ok">✓ 确认</button>
+          <button class="btn-add" id="pf-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> 确认</button>
           <button class="pf-cancel" id="pf-cancel">取消</button>
         </div>
 
@@ -1552,7 +1566,7 @@
           <div class="time-row"><span id="lhb-status">龙虎榜数据加载中…</span></div>
         </div>
         <div class="header-actions">
-          <div class="btn btn-refresh" id="lhb-refresh"><span class="icon">🔄</span>刷新</div>
+          <div class="btn btn-refresh" id="lhb-refresh"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
         </div>
       </div>
       <div class="lhb-wrap">
@@ -1585,7 +1599,7 @@
           <div class="time-row"><span>实时聚焦热门行业板块 · 一手快讯</span></div>
         </div>
         <div class="header-actions">
-          <div class="btn btn-primary" id="btn-news-refresh"><span class="icon">🔄</span>刷新</div>
+          <div class="btn btn-primary" id="btn-news-refresh"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
         </div>
       </div>
       <div class="news-wrap">
@@ -1607,16 +1621,16 @@
           <div class="time-row"><span id="focus-status">光纤 · 光通信 重点监控加载中…</span></div>
         </div>
         <div class="header-actions">
-          <div class="btn btn-primary" id="btn-focus-refresh"><span class="icon">🔄</span>刷新</div>
+          <div class="btn btn-primary" id="btn-focus-refresh"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
         </div>
       </div>
       <div class="focus-wrap">
         <div class="focus-block">
-          <div class="focus-block-title">🏢 光纤 / 光通信 相关板块（点击查看成分股）</div>
+          <div class="focus-block-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12h4"/><path d="M10 8h4"/><path d="M14 21v-3a2 2 0 0 0-4 0v3"/><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/></svg> 光纤 / 光通信 相关板块（点击查看成分股）</div>
           <div class="sec-grid" id="focus-sectors"><div class="news-empty">相关板块加载中…</div></div>
         </div>
         <div class="focus-block">
-          <div class="focus-block-title">📊 光纤 / 光通信 核心个股</div>
+          <div class="focus-block-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg> 光纤 / 光通信 核心个股</div>
           <div id="focus-stocks"><div class="news-empty">核心个股行情加载中…</div></div>
         </div>
         <!-- 板块成分股详情 -->
@@ -1629,7 +1643,7 @@
         </div>
         <div class="focus-cols">
           <div class="focus-col">
-            <div class="focus-block-title">⚡ 光纤 / 光通信 实时快讯</div>
+            <div class="focus-block-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg> 光纤 / 光通信 实时快讯</div>
             <div class="news-list" id="focus-news"><div class="news-empty">快讯加载中…</div></div>
           </div>
         </div>
@@ -1642,7 +1656,7 @@
           <div class="time-row"><span id="fut-status">商品期货实时行情加载中…</span></div>
         </div>
         <div class="header-actions">
-          <div class="btn btn-refresh" id="fut-refresh"><span class="icon">🔄</span>刷新</div>
+          <div class="btn btn-refresh" id="fut-refresh"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
         </div>
       </div>
       <div class="index-grid" id="fut-grid"></div>
@@ -1656,7 +1670,7 @@
           <div class="time-row"><span id="fund-status">主力资金实时监控加载中…</span></div>
         </div>
         <div class="header-actions">
-          <div class="btn btn-refresh" id="fund-refresh"><span class="icon">🔄</span>刷新</div>
+          <div class="btn btn-refresh" id="fund-refresh"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
         </div>
       </div>
       <div class="fund-wrap">
@@ -1667,29 +1681,29 @@
         </div>
         <div id="fund-body-a" class="fund-grid">
           <div class="fund-panel">
-            <div class="fund-p-title">📈 行业板块 · 主力净流入 TOP10</div>
+            <div class="fund-p-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg> 行业板块 · 主力净流入 TOP10</div>
             <div class="fund-list" id="fund-a-sec-in"></div>
           </div>
           <div class="fund-panel">
-            <div class="fund-p-title down">📉 行业板块 · 主力净流出 TOP10</div>
+            <div class="fund-p-title down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17 13.5 8.5 8.5 13.5 2 7"/><path d="M16 17h6v-6"/></svg> 行业板块 · 主力净流出 TOP10</div>
             <div class="fund-list" id="fund-a-sec-out"></div>
           </div>
           <div class="fund-panel">
-            <div class="fund-p-title">📈 个股 · 主力净流入 TOP15</div>
+            <div class="fund-p-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg> 个股 · 主力净流入 TOP15</div>
             <div class="fund-list" id="fund-a-stk-in"></div>
           </div>
           <div class="fund-panel">
-            <div class="fund-p-title down">📉 个股 · 主力净流出 TOP15</div>
+            <div class="fund-p-title down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17 13.5 8.5 8.5 13.5 2 7"/><path d="M16 17h6v-6"/></svg> 个股 · 主力净流出 TOP15</div>
             <div class="fund-list" id="fund-a-stk-out"></div>
           </div>
         </div>
         <div id="fund-body-us" class="fund-grid" style="display:none">
           <div class="fund-panel">
-            <div class="fund-p-title">📈 美股 · 主力净流入 TOP15</div>
+            <div class="fund-p-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg> 美股 · 主力净流入 TOP15</div>
             <div class="fund-list" id="fund-us-stk-in"></div>
           </div>
           <div class="fund-panel">
-            <div class="fund-p-title down">📉 美股 · 主力净流出 TOP15</div>
+            <div class="fund-p-title down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17 13.5 8.5 8.5 13.5 2 7"/><path d="M16 17h6v-6"/></svg> 美股 · 主力净流出 TOP15</div>
             <div class="fund-list" id="fund-us-stk-out"></div>
           </div>
         </div>
@@ -1704,7 +1718,7 @@
           <div class="time-row"><span id="senti-status">市场情绪指标加载中…</span></div>
         </div>
         <div class="header-actions">
-          <div class="btn btn-refresh" id="senti-refresh"><span class="icon">🔄</span>刷新</div>
+          <div class="btn btn-refresh" id="senti-refresh"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
         </div>
       </div>
       <div class="senti-wrap">
@@ -1724,24 +1738,24 @@
         <!-- 情绪指标卡 -->
         <div class="senti-cards">
           <div class="senti-card">
-            <div class="sc-name">📈 上涨 / 下跌家数</div>
+            <div class="sc-name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg> 上涨 / 下跌家数</div>
             <div class="sc-vals"><span class="up" id="st-up">--</span><span class="mid">/</span><span class="down" id="st-down">--</span></div>
             <div class="sc-bar"><i id="st-up-bar" style="width:50%"></i></div>
             <div class="sc-sub" id="st-flat">平盘 --</div>
           </div>
           <div class="senti-card">
-            <div class="sc-name">🔴 涨停 / 炸板</div>
+            <div class="sc-name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" fill="var(--up)" stroke="none"/></svg> 涨停 / 炸板</div>
             <div class="sc-vals"><span class="up" id="st-zt">--</span><span class="mid">/</span><span class="down" id="st-zb">--</span></div>
             <div class="sc-bar"><i id="st-zt-bar" style="width:50%"></i></div>
             <div class="sc-sub" id="st-fengban">封板率 --</div>
           </div>
           <div class="senti-card">
-            <div class="sc-name">⚡ 最高连板</div>
+            <div class="sc-name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg> 最高连板</div>
             <div class="sc-vals"><span class="up" id="st-lbc">--</span><span class="lbc-unit">板</span></div>
             <div class="sc-sub" id="st-lbc-sub">连板梯队加载中…</div>
           </div>
           <div class="senti-card">
-            <div class="sc-name">💰 两市成交额</div>
+            <div class="sc-name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><path d="M12 7v10"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 .5-.2.9-.5 1.2"/><path d="M14.5 15a2.5 2.5 0 0 1-5 0c0-.5.2-.9.5-1.2"/></svg> 两市成交额</div>
             <div class="sc-vals"><span id="st-amt">--</span></div>
             <div class="sc-sub" id="st-amt-sub">沪深两市合计</div>
           </div>
@@ -1750,19 +1764,19 @@
         <div class="senti-grid">
           <!-- 连板梯队 -->
           <div class="senti-panel">
-            <div class="fund-p-title">🔥 连板梯队 · 涨停结构</div>
+            <div class="fund-p-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg> 连板梯队 · 涨停结构</div>
             <div id="st-ladder" class="ladder-list"><div class="news-empty">加载中…</div></div>
           </div>
           <!-- 股吧人气榜 -->
           <div class="senti-panel">
-            <div class="fund-p-title">👥 股吧人气榜 TOP10 · 散户关注度</div>
+            <div class="fund-p-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> 股吧人气榜 TOP10 · 散户关注度</div>
             <div id="st-rank" class="fund-list"><div class="news-empty">加载中…</div></div>
           </div>
         </div>
 
         <!-- 大V/媒体言论流 -->
         <div class="senti-panel" style="margin-top:14px">
-          <div class="fund-p-title">🎙️ 大V / 媒体言论流 · 新浪财经直播 + 东财快讯 <span class="live-hint">30秒刷新</span></div>
+          <div class="fund-p-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/><line x1="8" x2="16" y1="22" y2="22"/></svg> 大V / 媒体言论流 · 新浪财经直播 + 东财快讯 <span class="live-hint">30秒刷新</span></div>
           <div id="st-feed" class="feed-list"><div class="news-empty">加载中…</div></div>
         </div>
       </div>
@@ -1776,7 +1790,7 @@
           <div class="time-row"><span id="sec-status">全部板块行情加载中…</span></div>
         </div>
         <div class="header-actions">
-          <div class="btn btn-refresh" id="sec-refresh"><span class="icon">🔄</span>刷新</div>
+          <div class="btn btn-refresh" id="sec-refresh"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
         </div>
       </div>
 
@@ -1784,7 +1798,7 @@
       <div id="sec-list-view" class="sec-wrap">
         <!-- 热点精选板块（置顶专区，独立拉取实时行情） -->
         <div class="sec-hot">
-          <div class="sec-hot-title"><span>🔥</span> 热点精选板块 <span class="sec-hot-sub">实时行情 · 点击查看成分股</span></div>
+          <div class="sec-hot-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg> 热点精选板块 <span class="sec-hot-sub">实时行情 · 点击查看成分股</span></div>
           <div class="sec-hot-grid" id="sec-hot-grid"></div>
         </div>
         <div class="sec-toolbar">
@@ -1832,10 +1846,10 @@
           <div class="title" id="ph-title">页面</div>
           <div class="time-row"><span>该功能正在建设中</span></div>
         </div>
-        <div class="header-actions"><div class="btn btn-primary" id="btn-gen-report">📝 立即生成</div></div>
+        <div class="header-actions"><div class="btn btn-primary" id="btn-gen-report"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> 立即生成</div></div>
       </div>
       <div class="placeholder">
-        <div class="p-icon">🛠️</div>
+        <div class="p-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
         <div class="p-title" id="ph-title2">功能建设中</div>
         <div class="p-desc">这里稍后开放，欢迎随时回来查看</div>
         <button class="btn-back" id="btn-back-home">返回工作台首页</button>
@@ -2465,8 +2479,8 @@ function refresh(manual) {
   loadNorth();
 }
 $('btn-refresh').addEventListener('click', () => refresh(true));
-$('btn-report').addEventListener('click', () => showToast('日报生成功能建设中，敬请期待 📝'));
-$('btn-gen-report').addEventListener('click', () => showToast('日报生成功能建设中，敬请期待 📝'));
+$('btn-report').addEventListener('click', () => showToast('日报生成功能建设中，敬请期待'));
+$('btn-gen-report').addEventListener('click', () => showToast('日报生成功能建设中，敬请期待'));
 document.querySelectorAll('[data-wip]').forEach(el =>
   el.addEventListener('click', () => showToast('该数据视图建设中，敬请期待')));
 $('link-all-index').addEventListener('click', () => switchPage('自选股票'));
@@ -2594,7 +2608,7 @@ function renderWatchlist() {
   const list = $('watch-list');
   if (!watchlist.length) {
     list.innerHTML = `<div class="watch-empty">
-      <div class="we-icon">⭐</div>
+      <div class="we-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg></div>
       <div class="we-tip">还没有自选股票</div>
       <div class="we-hint">在上方搜索框输入名称或代码添加，行情将实时同步刷新</div>
     </div>`;
@@ -2615,8 +2629,8 @@ function renderWatchlist() {
       <div class="watch-col w-hide"><b>${q ? fmtNum(q.open) : '--'}</b></div>
       <div class="watch-col w-hide">${q && q.amount > 0 ? (q.amount / 1e8).toFixed(0) + '亿' : '--'}</div>
       <div class="w-ops">
-        <button class="w-pin${pinActive}" title="置顶">📌</button>
-        <button class="w-del" title="删除">✕</button>
+        <button class="w-pin${pinActive}" title="置顶"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/></svg></button>
+        <button class="w-del" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
       </div>
     </div>`;
   }).join('');
@@ -2829,7 +2843,7 @@ $('pf-ok').addEventListener('click', () => {
     if (h) { h.cost = cost; h.qty = qty; saveHoldings(); showToast(`已更新 ${h.name} 持仓`); }
   } else if (pendingPos) {
     if (holdings.some(h => h.secid === pendingPos.secid)) {
-      showToast('该股票已在持仓中，可通过 ✎ 按钮修改');
+      showToast('该股票已在持仓中，可通过编辑按钮修改成本与数量');
     } else {
       holdings.push({ secid: pendingPos.secid, name: pendingPos.name, code: pendingPos.code, type: pendingPos.type, cost, qty });
       saveHoldings();
@@ -2853,7 +2867,7 @@ function renderHoldings() {
   const list = $('pos-list');
   if (!holdings.length) {
     list.innerHTML = `<div class="watch-empty">
-      <div class="we-icon">💼</div>
+      <div class="we-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg></div>
       <div class="we-tip">还没有持仓股票</div>
       <div class="we-hint">在上方搜索框输入名称或代码，设置成本价和持股数后加入持仓</div>
     </div>`;
@@ -2879,8 +2893,8 @@ function renderHoldings() {
       <div class="watch-col w-val ${pcls}" data-field="pnl">${pnl !== null ? (pnl > 0 ? '+' : '') + fmtPosAmt(pnl) : '--'}</div>
       <div class="watch-col w-val ${pcls}" data-field="rate">${rate !== null ? (rate > 0 ? '+' : '') + fmtNum(rate, 2) + '%' : '--'}</div>
       <div class="w-ops">
-        <button class="w-pin" title="编辑成本/数量" data-act="edit">✎</button>
-        <button class="w-del" title="删除">✕</button>
+        <button class="w-pin" title="编辑成本/数量" data-act="edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></button>
+        <button class="w-del" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
       </div>
     </div>`;
   }).join('');
