@@ -311,7 +311,7 @@
 
   /* 核心指数卡片 */
   /* ===== 重点指数（独立大卡）===== */
-  .index-focus { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .index-focus { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
   @media (max-width: 900px) { .index-focus { grid-template-columns: 1fr; } }
   /* 通用指数栅格（重点关注-全球股指、期货市场 复用） */
   .index-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
@@ -1825,6 +1825,7 @@
 const INDEXES = [
   { secid: '1.000001',  name: '上证指数',  code: 'sh000001', tx: 'sh000001', tz: 'sh000001', flag: 'A股',  amount: true  },
   { secid: '1.000688',  name: '科创50',    code: 'sh000688', tx: 'sh000688', tz: 'sh000688', flag: 'A股',  amount: true  },
+  { secid: '0.399006',  name: '创业板指数', code: 'sz399006', tx: 'sz399006', tz: 'sz399006', flag: 'A股',  amount: true  },
   { secid: '100.HSI',   name: '恒生指数',  code: 'hkHSI',    tx: 'hkHSI',    tz: 'hkHSI',    flag: '港股', amount: true  },
   { secid: '100.N225',  name: '日经225',   code: 'jpN225',   flag: '日本', amount: false },
   { secid: '100.KS11',  name: '韩国KOSPI', code: 'krKS11',   flag: '韩国', amount: false },
@@ -1833,7 +1834,7 @@ const INDEXES = [
   { secid: '100.SPX',   name: '标普500',   code: 'usSPX',    tx: 'usINX',    flag: '美股', volume: true  },
 ];
 // 聚焦(重点)指数：独立大卡展示
-const FOCUS_INDEX_NAMES = ['上证指数', '科创50'];
+const FOCUS_INDEX_NAMES = ['上证指数', '科创50', '创业板指数'];
 // 分区展示顺序
 const INDEX_REGIONS = [
   { key: 'ap',  title: '港股 · 亚太', names: ['恒生指数', '日经225', '韩国KOSPI'] },
@@ -1986,7 +1987,7 @@ async function fetchJson(url, timeout = 6000) {
 
 // 腾讯行情（script 直载 var 赋值，支持 A股/港股/美股）
 function fetchTencent() {
-  const codes = ['sh000001', 'sh000688', 'sz399106', 'hkHSI', 'usDJI', 'usIXIC', 'usINX'];
+  const codes = ['sh000001', 'sh000688', 'sz399006', 'sz399106', 'hkHSI', 'usDJI', 'usIXIC', 'usINX'];
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.referrerPolicy = 'no-referrer';
@@ -2098,6 +2099,8 @@ function updateCard(cfg, q) {
   const cls = clsOf(q.pct);
   // 价格变动时添加闪烁动效（先清空再赋值 className，最后追加动画类）
   c.price.className = 'ic-price';
+  // 大盘指数（聚焦大卡）根据当日实际涨跌上色：涨红 / 跌绿
+  if (c.root.classList.contains('focus-card') && cls !== 'flat') c.price.classList.add(cls);
   if (c.price.textContent && c.price.textContent !== priceStr) {
     c.price.classList.remove('flash-up', 'flash-down');
     void c.price.offsetWidth;
