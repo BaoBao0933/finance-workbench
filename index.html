@@ -406,6 +406,11 @@
   .ic-ohl .col { flex: 1; display: flex; flex-direction: column; gap: 2px; }
   .ic-ohl .col b { display: block; color: #444f61; font-weight: 600; font-variant-numeric: tabular-nums; }
   .ic-ohl .col.extra b { color: #7c66d6; font-weight: 700; }
+  .ic-ohl .col.extra .col-lab { color: var(--text-sub); }
+  .ic-ohl .col.extra .v-vol { display: block; margin-top: 3px; font-size: 12px; font-weight: 700; }
+  .ic-ohl .v-vol.up { color: var(--up); }
+  .ic-ohl .v-vol.down { color: var(--down); }
+  .ic-ohl .v-vol.flat { color: var(--text-sub); }
   /* 压力位 / 支撑位行 */
   .ic-zone {
     display: flex;
@@ -2068,8 +2073,8 @@ function buildCardNode(cfg, focus) {
       <div class="col">开<b class="v-open">--</b></div>
       <div class="col">高<b class="v-high">--</b></div>
       <div class="col">低<b class="v-low">--</b></div>
-      <div class="col extra"><b class="v-extra">--</b></div>
-    </div>
+      <div class="col extra"><span class="col-lab">成交额</span><b class="v-extra">--</b><span class="v-vol">--</span></div>
+    </div>`;</div>
     <div class="ic-zone">
       <div class="z z-r">压<b class="v-zr">--</b></div>
       <div class="z z-p">枢<b class="v-zp">--</b></div>
@@ -2085,6 +2090,7 @@ function buildCardNode(cfg, focus) {
     high: div.querySelector('.v-high'),
     low: div.querySelector('.v-low'),
     extra: div.querySelector('.v-extra'),
+    vol: div.querySelector('.v-vol'),
     zr: div.querySelector('.v-zr'),
     zp: div.querySelector('.v-zp'),
     zs: div.querySelector('.v-zs'),
@@ -2124,6 +2130,14 @@ function updateCard(cfg, q) {
   if (cfg.amount && q.amount > 0) extra = (q.amount / 1e8).toFixed(0) + '亿';
   else if (cfg.volume && q.volume > 0) extra = (q.volume / 1e8).toFixed(1) + '亿股';
   c.extra.textContent = extra;
+
+  // 放量 / 缩量：今日实时成交量 对比 前一交易日成交量（取自K线缓存）
+  const _zc = zoneCache[cfg.code];
+  if (c.vol && _zc && _zc.prevVol > 0 && q.volume > 0) {
+    const rr = (q.volume - _zc.prevVol) / _zc.prevVol * 100;
+    c.vol.className = 'v-vol ' + (rr >= 0 ? 'up' : 'down');
+    c.vol.textContent = (rr >= 0 ? '放量 ' : '缩量 ') + fmtNum(Math.abs(rr), 1) + '%';
+  } else if (c.vol) { c.vol.className = 'v-vol flat'; c.vol.textContent = '--'; }
 }
 
 function renderAll() {
@@ -2212,12 +2226,15 @@ async function loadZones() {
         const kl = src && (src.day || (src.qfqday && src.qfqday.length ? src.qfqday : null));
         if (!kl || !kl.length) return;
         // 每条 [date, open, close, high, low, volume]
-        const rows = kl.slice(-60).map(a => ({ high:+a[3], low:+a[4], close:+a[2] }));
+        const raw = kl.slice(-60);
+        const rows = raw.map(a => ({ high:+a[3], low:+a[4], close:+a[2] }));
         const high = Math.max(...rows.map(r => r.high));
         const low = Math.min(...rows.map(r => r.low));
         const last = rows[rows.length - 1];
         const pivot = Math.round((last.high + last.low + last.close) / 3 * 100) / 100;
-        zoneCache[cfg.code] = { t: Date.now(), high, low, pivot };
+        // prevVol：前一根（昨日）成交量，用于放量/缩量对比
+        const prevVol = raw.length > 1 ? (+raw[raw.length - 2][5] || 0) : 0;
+        zoneCache[cfg.code] = { t: Date.now(), high, low, pivot, prevVol };
         applyZones(cfg, zoneCache[cfg.code]);
       } catch (e) { /* 该指数K线暂不可得 */ }
     }));
