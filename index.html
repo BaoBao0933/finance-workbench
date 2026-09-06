@@ -1416,9 +1416,249 @@
       transition-duration: .001s !important;
     }
   }
+
+  /* ==================== 浅色主题：还原之前暖奶油 · 琥珀橙风格 ==================== */
+  /* 仅调整配色/背景，不改动文字内容、布局与涨跌配色逻辑 */
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --sidebar-bg: #f7f1e6;
+    --sidebar-hover: #efe6d3;
+    --accent: #e07a3f;
+    --accent-hover: #c9692f;
+    --up: #e85d4e;
+    --up-bg: #fdeee6;
+    --down: #0aa869;
+    --down-bg: #e4f5ec;
+    --text-main: #3a3327;
+    --text-sub: #6b6255;
+    --card-border: rgba(190,160,110,.16);
+    --bg: #f7f1e6;
+    --accent-soft: #f3e9d6;
+    --glass: rgba(255,253,247,.72);
+    --glass-border: rgba(255,252,244,.85);
+    --gold: #c9a86a;
+  }
+
+  /* 主题切换悬浮按钮（右上角，深浅两用） */
+  .theme-fab {
+    position: fixed; top: 16px; right: 18px; z-index: 1200;
+    width: 40px; height: 40px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; user-select: none;
+    border: 1px solid var(--glass-border);
+    background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.55));
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 4px 14px rgba(140,105,60,.16);
+    color: var(--text-sub);
+    transition: transform .15s, color .15s, box-shadow .15s;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .theme-fab:hover { color: var(--accent); box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 6px 18px rgba(140,105,60,.22); }
+  .theme-fab:active { transform: scale(.93); }
+  .theme-fab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .theme-fab svg { width: 21px; height: 21px; stroke-width: 2; display: block; }
+  .theme-fab .ico-moon { display: none; }
+  :root[data-theme="light"] .theme-fab .ico-sun { display: none; }
+  :root[data-theme="light"] .theme-fab .ico-moon { display: block; }
+
+  /* 为右上角的悬浮按钮预留空间，避免遮挡各页右上操作按钮 */
+  .header-actions { padding-right: 60px; }
+
+  /* 浅色主题：暖奶油玻璃卡片面（还原之前风格） */
+  :root[data-theme="light"] body {
+    background:
+      radial-gradient(900px 620px at 16% -8%, rgba(232,140,90,.12), transparent 62%),
+      radial-gradient(820px 560px at 92% -10%, rgba(224,170,110,.14), transparent 60%),
+      radial-gradient(760px 540px at 102% 64%, rgba(224,138,90,.10), transparent 64%),
+      radial-gradient(880px 600px at 4% 110%, rgba(84,78,64,.05), transparent 62%),
+      linear-gradient(150deg, #f7f1e6 0%, #faf6ec 26%, #f4ede0 54%, #f8f3e9 78%, #f6f0e4 100%);
+    background-attachment: fixed;
+  }
+  :root[data-theme="light"] .ov-card,
+  :root[data-theme="light"] .index-card,
+  :root[data-theme="light"] .live-bar,
+  :root[data-theme="light"] .sector-chip,
+  :root[data-theme="light"] .sec-hot-card,
+  :root[data-theme="light"] .search-input,
+  :root[data-theme="light"] .search-drop,
+  :root[data-theme="light"] .watch-row,
+  :root[data-theme="light"] .watch-empty,
+  :root[data-theme="light"] .news-tag,
+  :root[data-theme="light"] .fund-tab,
+  :root[data-theme="light"] .senti-thermo,
+  :root[data-theme="light"] .senti-card,
+  :root[data-theme="light"] .senti-panel,
+  :root[data-theme="light"] .lad-stock,
+  :root[data-theme="light"] .sec-cell,
+  :root[data-theme="light"] .sec-hot,
+  :root[data-theme="light"] .news-item,
+  :root[data-theme="light"] .focus-col .news-item,
+  :root[data-theme="light"] .pos-sum-card,
+  :root[data-theme="light"] .pos-row,
+  :root[data-theme="light"] .lhb-row {
+    background: linear-gradient(120deg, rgba(255,253,247,.78), rgba(255,252,244,.50) 48%, rgba(255,254,250,.66));
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border-color: rgba(255,253,246,.85);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 8px rgba(160,125,70,.10), 0 12px 30px rgba(145,108,60,.12);
+  }
+  :root[data-theme="light"] .ov-card:hover,
+  :root[data-theme="light"] .index-card:hover,
+  :root[data-theme="light"] .sector-chip:hover,
+  :root[data-theme="light"] .sec-hot-card:hover {
+    background: linear-gradient(120deg, rgba(255,254,250,.92), rgba(255,252,244,.58));
+    border-color: var(--accent) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 10px 26px rgba(150,112,62,.16);
+  }
+
+  /* 浅色主题：各分区/核心指数卡还原暖色玻璃 */
+  :root[data-theme="light"] .index-card.gr {
+    background: linear-gradient(160deg, rgba(255,254,250,.82), rgba(250,244,230,.55)) !important;
+    border: 1px solid rgba(200,168,115,.20);
+  }
+  :root[data-theme="light"] .index-card.focus-card {
+    background:
+      linear-gradient(120deg, rgba(255,253,247,.9), rgba(242,247,255,.66) 52%, rgba(255,252,244,.6)),
+      linear-gradient(90deg, rgba(201,168,106,.10), transparent 40%) !important;
+    border: 1px solid rgba(201,168,106,.40);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 18px 44px rgba(140,105,58,.14);
+  }
+  :root[data-theme="light"] .index-card.focus-card::before {
+    background: linear-gradient(90deg, var(--gold,#c9a86a), #f4e3c0 45%, var(--gold,#c9a86a)) !important;
+  }
+  :root[data-theme="light"] .index-card::before {
+    background: linear-gradient(115deg, rgba(255,255,255,.7), rgba(232,120,96,.08) 46%, transparent 72%) !important;
+  }
+  :root[data-theme="light"] .ic-badge.flat { background: #ece5d6; color: #6b6255; }
+  :root[data-theme="light"] .market-flag { color: #6b6255; background: #ece5d6; }
+
+  /* 浅色主题：激活态从珊瑚橙还原为暖色柔和药丸（琥珀文字） */
+  :root[data-theme="light"] .tab.active {
+    background: linear-gradient(180deg, #fffdf8, #f3ecdb) !important;
+    color: var(--accent) !important;
+    border-color: rgba(200,168,115,.25) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 6px rgba(150,112,62,.12) !important;
+  }
+  :root[data-theme="light"] .fund-tab.active {
+    background: linear-gradient(135deg, #fffdf8, #f3ecdb) !important;
+    color: var(--accent) !important;
+    border-color: rgba(200,168,115,.25) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 6px rgba(150,112,62,.12) !important;
+  }
+  :root[data-theme="light"] .news-tag.active {
+    background: linear-gradient(135deg, #fffdf8, #f3ecdb) !important;
+    color: var(--accent) !important;
+    border-color: rgba(200,168,115,.25) !important;
+    box-shadow: none !important;
+  }
+  :root[data-theme="light"] .btn-refresh {
+    background: linear-gradient(180deg, #fffdf8, #f3ecdb);
+    color: var(--accent) !important;
+    border-color: rgba(200,168,115,.25);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.95), inset 0 -2px 4px rgba(196,160,110,.12), 0 2px 6px rgba(150,112,62,.12);
+  }
+  :root[data-theme="light"] .btn-refresh:hover { background: linear-gradient(180deg, #fffefb, #f2ead8); }
+
+  /* 浅色主题：图标底片还原为暖色浅底 */
+  :root[data-theme="light"] .ov-icon.purple { background: #ece5d8 !important; color: #7a6b4e !important; }
+  :root[data-theme="light"] .ov-icon.blue { background: #f3e9d8 !important; color: #8a6b3a !important; }
+  :root[data-theme="light"] .ov-icon.red { background: rgba(232,109,94,.13) !important; color: #e85d4e !important; }
+  :root[data-theme="light"] .ov-icon.green { background: rgba(10,168,105,.12) !important; color: #0aa869 !important; }
+
+  /* 浅色主题：置顶自选 / 置灰标签 / 搜索输入 */
+  :root[data-theme="light"] .watch-row.pinned {
+    background: linear-gradient(90deg, #fbf4e4, #fffdf8 40%) !important;
+    border-color: #ecdcb8;
+  }
+  :root[data-theme="light"] .news-pin.dim { color: var(--text-sub); background: #f4f0e7 !important; border-color: rgba(200,168,115,.2); }
+  :root[data-theme="light"] .search-input,
+  :root[data-theme="light"] .search-drop { color: #3a3327 !important; }
+  :root[data-theme="light"] .search-input::placeholder { color: #9a8f7a; }
+  :root[data-theme="light"] .sector-chip .sc-rank { background: #f0e9db; color: #6b5b3e !important; }
+
+  /* 浅色主题：文字从白系还原为暖墨色系（恢复之前浅色版的可读配色） */
+  :root[data-theme="light"] .sidebar { color: #6b6255; }
+  :root[data-theme="light"] .logo-text .logo-title { color: #3a3327; }
+  :root[data-theme="light"] .logo-text .logo-sub { color: #8a8170; }
+  :root[data-theme="light"] .nav-group-title { color: #8a8170; }
+  :root[data-theme="light"] .nav-item:hover { background: rgba(120,95,50,.08); color: #3a3327; }
+  :root[data-theme="light"] .nav-item.active { background: linear-gradient(180deg, #ef8a6b, #d85f45); color: #fff; }
+  :root[data-theme="light"] .sidebar-footer { color: #8a8170; }
+  :root[data-theme="light"] .header .title { color: #3a3327; }
+  :root[data-theme="light"] .header .time-row { color: #8a8170; }
+  :root[data-theme="light"] .header .time-row #header-time { color: #3a3327; }
+  :root[data-theme="light"] .market-tag { background: rgba(120,95,50,.10); color: #6b6255; }
+  :root[data-theme="light"] .market-tag.closed { background: #ece5d6; color: #8a8170; }
+  :root[data-theme="light"] .market-tag.open { background: rgba(232,109,94,.14); color: #cf5630; }
+  :root[data-theme="light"] .market-tag.auction { background: rgba(224,160,80,.16); color: #b47020; }
+  :root[data-theme="light"] .module-header .m-sub { color: #8a8170; }
+  :root[data-theme="light"] .ic-ohl .col b { color: #4a443a; }
+  :root[data-theme="light"] .ic-zone .z b,
+  :root[data-theme="light"] .ic-zone .z.z-r b,
+  :root[data-theme="light"] .ic-zone .z.z-s b,
+  :root[data-theme="light"] .ic-zone .z.z-p b { color: #4a443a; }
+  :root[data-theme="light"] .ic-zone .z.pct b { color: #8a8170; }
+  :root[data-theme="light"] .ov-note { color: #8a8170; }
+  :root[data-theme="light"] .watch-row .w-name { color: #3a3327; }
+  :root[data-theme="light"] .watch-row .w-code { color: #8a8170; }
+  :root[data-theme="light"] .watch-row .w-flag { color: #6b6255; background: #ece5d6; }
+  :root[data-theme="light"] .watch-col { color: #3a3327; }
+  :root[data-theme="light"] .watch-col b { color: #3a3327; }
+  :root[data-theme="light"] .watch-head { color: #8a8170; }
+  :root[data-theme="light"] .pct-pill.flat { background: #ece5d6; color: #6b6255; }
+  :root[data-theme="light"] .watch-empty .we-hint { color: #8a8170; }
+  :root[data-theme="light"] .w-pin { color: #8a8170; }
+  :root[data-theme="light"] .w-pin:hover,
+  :root[data-theme="light"] .w-pin.active { background: #efe7d6; color: var(--accent); box-shadow: none; }
+  :root[data-theme="light"] .news-item .n-summary { color: #6b6255; }
+  :root[data-theme="light"] .news-item .n-meta { color: #8a8170; }
+  :root[data-theme="light"] .news-item .n-tag { background: #efe7d6; color: var(--accent); }
+  :root[data-theme="light"] .news-item.hot .n-title { color: #a23b28; }
+  :root[data-theme="light"] .focus-col .news-item .news-digest { color: #6b6255; }
+  :root[data-theme="light"] .focus-col .news-meta { color: #8a8170; }
+  :root[data-theme="light"] .focus-tag.neutral { background: #f0ebe0; color: #6b6255; }
+  :root[data-theme="light"] .fund-note { color: #8a8170; }
+  :root[data-theme="light"] .fund-row:hover { background: #f7f1e3; }
+  :root[data-theme="light"] .fund-rank { color: #6b6255; background: #f0ebe0; }
+  :root[data-theme="light"] .fund-row:nth-child(-n+3) .fund-rank { background: #fdeee6; color: #e85d4e; }
+  :root[data-theme="light"] .fund-name .fc { color: #8a8170; }
+  :root[data-theme="light"] .senti-card .sc-vals .mid { color: #8a7a60; }
+  :root[data-theme="light"] .senti-card .sc-sub { color: #8a8170; }
+  :root[data-theme="light"] .ladder-row { background: #f8f3e8; }
+  :root[data-theme="light"] .ladder-row:hover { background: #f2ebdb; }
+  :root[data-theme="light"] .sec-cell .scp.flat { color: #6b6255; }
+  :root[data-theme="light"] .sec-cell .scc { color: #8a8170; }
+  :root[data-theme="light"] .sec-hot-card .hp.flat { color: #6b6255; }
+  :root[data-theme="light"] .sec-hot-card .hc { color: #8a8170; }
+  :root[data-theme="light"] .pos-sum-card .lab { color: #6b6255; }
+  :root[data-theme="light"] .pos-chart-legend { color: #6b6255; }
+  :root[data-theme="light"] .pos-form label { color: #6b6255; }
+  :root[data-theme="light"] .pos-form .pf-cancel { color: #6b6255; }
+  :root[data-theme="light"] .pos-form .pf-cancel:hover { background: #ece5d6; color: var(--text-main); }
+  :root[data-theme="light"] .lhb-wrap .lhb-row .watch-head { color: #3a3327; }
+  :root[data-theme="light"] .lhb-wrap .lhb-row .sr-name small { color: #6b6255; }
+  :root[data-theme="light"] .lhb-wrap .lhb-row .watch-col,
+  :root[data-theme="light"] .lhb-row .watch-col { color: #4a443a; }
+  :root[data-theme="light"] .lhb-row:nth-child(-n+4) .sr-rank,
+  :root[data-theme="light"] .sec-row:nth-child(-n+4) .sr-rank { background: transparent; color: #e85d4e; }
 </style>
+<script>
+try {
+  var __t = localStorage.getItem('finance-theme');
+  document.documentElement.setAttribute('data-theme', __t === 'light' ? 'light' : 'dark');
+} catch (e) {
+  document.documentElement.setAttribute('data-theme', 'dark');
+}
+</script>
 </head>
 <body>
+
+<!-- 主题切换悬浮按钮（右上角） -->
+<div class="theme-fab" id="theme-toggle" role="button" tabindex="0" title="切换主题" aria-label="切换主题">
+  <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+  <svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</div>
 
 <!-- ============ 侧边栏 ============ -->
 <aside class="sidebar">
@@ -2578,6 +2818,21 @@ function refresh(manual) {
   }
   loadQuotes();
   loadNorth();
+}
+// 主题切换按钮
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('finance-theme', t); } catch (e) {}
+}
+const themeBtn = $('theme-toggle');
+if (themeBtn) {
+  themeBtn.addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    applyTheme(cur);
+  });
+  themeBtn.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); themeBtn.click(); }
+  });
 }
 $('btn-refresh').addEventListener('click', () => refresh(true));
 $('btn-report').addEventListener('click', () => showToast('日报生成功能建设中，敬请期待'));
