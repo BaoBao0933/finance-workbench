@@ -966,6 +966,23 @@
   .pos-sum-card .val { font-size: 24px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums; color: var(--text-main); }
   .pos-sum-card .val.up { color: var(--up); }
   .pos-sum-card .val.down { color: var(--down); }
+  .pos-chart-card {
+    margin: 4px 0 16px; padding: 14px 16px 16px;
+    border-radius: 18px; color: var(--text-main);
+    background: linear-gradient(135deg, rgba(40,47,58,.34), rgba(30,36,46,.22));
+    border: 1px solid rgba(255,255,255,.12);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 10px 24px rgba(40,55,78,.16);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .pos-chart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .pos-chart-title { font-size: 14.5px; font-weight: 700; letter-spacing: .5px; }
+  .pos-chart-legend { font-size: 12px; color: #8a94a6; display: flex; gap: 14px; }
+  .pos-chart-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .pos-chart-legend .l-up { background: linear-gradient(180deg, rgba(232,93,78,.95), rgba(232,93,78,.18)); }
+  .pos-chart-legend .l-down { background: linear-gradient(180deg, rgba(10,168,105,.18), rgba(10,168,105,.95)); }
+  .pos-chart-wrap { width: 100%; height: 150px; }
+  .pos-chart-wrap svg { width: 100%; height: 100%; display: block; overflow: visible; }
   .pos-form {
     background: rgba(255,255,255,.66); border: 1px solid var(--accent); border-radius: 13px;
     padding: 14px 18px; margin-bottom: 15px; display: none;
@@ -1494,6 +1511,14 @@
           <div class="pos-sum-card"><div class="lab">持仓总市值</div><div class="val" id="ps-mv">--</div></div>
           <div class="pos-sum-card"><div class="lab">持仓总盈亏</div><div class="val" id="ps-pnl">--</div></div>
           <div class="pos-sum-card"><div class="lab">综合收益率</div><div class="val" id="ps-rate">--</div></div>
+        </div>
+
+        <div class="pos-chart-card">
+          <div class="pos-chart-head">
+            <span class="pos-chart-title">持仓盈亏走势</span>
+            <span class="pos-chart-legend"><i class="l-up"></i>盈利 <i class="l-down"></i>亏损</span>
+          </div>
+          <div class="pos-chart-wrap" id="pos-chart"></div>
         </div>
 
         <div class="watch-legend">
@@ -2502,7 +2527,7 @@ function switchPage(page) {
   if (page === '资金流向') loadFunds();
   if (page === '走势分析') loadSenti();
   if (page === '行业板块') loadSectorPage();
-  if (page === '持仓股') { renderHoldings(); if (holdings.length) loadHoldQuotes(); }
+  if (page === '持仓股') { renderHoldings(); replayPosChart(); if (holdings.length) loadHoldQuotes(); }
   if (page === '龙虎榜') initLhb();
   if (page === '重点关注') loadFocus();
 }
@@ -2868,8 +2893,127 @@ function renderHoldings() {
   updatePosSummary();
 }
 
+// —— 持仓盈亏波浪图（按各持仓 pnl 平滑成波浪，盈利珊瑚橙 / 亏损墨绿）——
+let pcState = { n: -1 };
+function smoothPath(pts) {
+  if (!pts.length) return '';
+  let d = `M ${r(pts[0].x)},${r(pts[0].y)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${r(c1x)},${r(c1y)} ${r(c2x)},${r(c2y)} ${r(p2.x)},${r(p2.y)}`;
+  }
+  return d;
+}
+function buildPosChart(force) {
+  const wrap = $('pos-chart'); if (!wrap) return;
+  const H = 150, W = 600, PAD = 14, base = H / 2;
+  // 提取每只持仓的真实盈亏
+  const series = [];
+  for (const h of holdings) {
+    const q = holdQuotes[h.secid];
+    if (q && q.price !== null && h.cost > 0) {
+      series.push({ name: h.name, pnl: +(q.price * h.qty - h.cost * h.qty).toFixed(2) });
+    }
+  }
+  const n = series.length;
+
+  // 骨架（仅当数量变化或首次时重建；之后只更新路径，避免闪烁）
+  if (force || pcState.n !== n) {
+    pcState.n = n;
+    if (n < 2) { // 数据不足：仅显示零轴占位
+      wrap.innerHTML = `<svg viewBox="0 0 600 150" preserveAspectRatio="none">
+        <defs>${pcDefs(H)}</defs>
+        <line x1="14" y1="75" x2="586" y2="75" stroke="rgba(80,96,120,.3)" stroke-dasharray="4 7" stroke-width="1"/>
+        <text x="300" y="72" text-anchor="middle" font-size="13" fill="rgba(140,155,175,.6)">暂无盈亏数据</text>
+      </svg>`; return;
+    }
+    pcState.line = null;
+    wrap.innerHTML = `<svg viewBox="0 0 600 150" preserveAspectRatio="none">
+      <defs>${pcDefs(H)}</defs>
+      <line id="pcBase" x1="14" y1="75" x2="586" y2="75" stroke="rgba(80,96,120,.34)" stroke-dasharray="4 7" stroke-width="1"/>
+      <path id="pcArea" fill="url(#pcFill)"/>
+      <path id="pcLine" fill="none" stroke="rgba(255,255,255,.92)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+      <g id="pcDots"></g>
+    </svg>`;
+    pcState.line = document.getElementById('pcLine');
+    pcState.area = document.getElementById('pcArea');
+    pcState.dots = document.getElementById('pcDots');
+    if (pcState.reduce === undefined) pcState.reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    pcState.shouldAnim = !pcState.reduce; // 等路径 d 就绪后再触发iOS描边动画
+  }
+  if (n < 2) return;
+
+  // 更新路径（热度刷新只改 d，不重建）
+  const data = [...series].sort((a, b) => a.pnl - b.pnl);
+  const maxAbs = Math.max.apply(null, data.map(d => Math.abs(d.pnl))) || 1;
+  const stepX = n > 1 ? (W - 2 * PAD) / (n - 1) : 0;
+  const pts = data.map((d, i) => {
+    const ratio = Math.max(-1, Math.min(1, d.pnl / maxAbs));
+    return { x: PAD + i * stepX, y: base - ratio * (base - PAD) };
+  });
+  const line = smoothPath(pts);
+  const area = line + ` L ${r(pts[pts.length - 1].x)},${base} L ${r(pts[0].x)},${base} Z`;
+  if (pcState.line) pcState.line.setAttribute('d', line);
+  if (pcState.area) pcState.area.setAttribute('d', area);
+  pcDrawIn();
+
+  // 数据点（少于 12 只时显示，按正负着色）+ 末端亮点
+  if (pcState.dots) {
+    let dotsHtml = '';
+    if (n <= 12) {
+      pts.forEach(p => {
+        // 判断该点盈亏正负：用原始 series pnl 对应颜色
+        const sign = p.y <= base ? 1 : -1;
+        dotsHtml += `<circle cx="${r(p.x)}" cy="${r(p.y)}" r="3.2" fill="${sign >= 0 ? 'rgba(232,93,78,.85)' : 'rgba(10,168,105,.85)'}" stroke="rgba(255,255,255,.85)" stroke-width="1"/>`;
+      });
+    }
+    const last = pts[pts.length - 1];
+    const tipSign = last.y <= base ? '#e85d4e' : '#0aa869';
+    dotsHtml += `<circle cx="${r(last.x)}" cy="${r(last.y)}" r="8" fill="${tipSign}" opacity=".28"/>` +
+                `<circle cx="${r(last.x)}" cy="${r(last.y)}" r="4.5" fill="#fff" stroke="${tipSign}" stroke-width="2"/>`;
+    pcState.dots.innerHTML = dotsHtml;
+  }
+}
+function pcDefs(H) {
+  return `<linearGradient id="pcFill" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="${H}">
+    <stop offset="0" stop-color="#e85d4e" stop-opacity="0.52"/>
+    <stop offset="0.46" stop-color="#e85d4e" stop-opacity="0.05"/>
+    <stop offset="0.54" stop-color="#0aa869" stop-opacity="0.05"/>
+    <stop offset="1" stop-color="#0aa869" stop-opacity="0.52"/>
+  </linearGradient>`;
+}
+function r(num) { return Math.round(num * 100) / 100; }
+function pcDrawIn() {
+  if (!pcState.shouldAnim || !pcState.line || !pcState.area) return;
+  pcState.shouldAnim = false;
+  const len = pcState.line.getTotalLength();
+  if (len > 0) {
+    pcState.line.style.strokeDasharray = len;
+    pcState.line.style.strokeDashoffset = len;
+    requestAnimationFrame(() => {
+      pcState.line.animate(
+        [{ strokeDashoffset: len }, { strokeDashoffset: 0 }],
+        { duration: 950, easing: 'cubic-bezier(.22,1,.36,1)' }
+      ).onfinish = () => { pcState.line.style.strokeDasharray = 'none'; };
+      pcState.area.setAttribute('opacity', '0');
+      pcState.area.animate([{ opacity: 0 }, { opacity: 1 }],
+        { duration: 650, easing: 'cubic-bezier(.22,1,.36,1)' }).onfinish = () => pcState.area.removeAttribute('opacity');
+    });
+  }
+}
+// 进入持仓页时重播入场动画
+function replayPosChart() {
+  if (pcState.line && !pcState.reduce) pcState.shouldAnim = true;
+  if (pcState.shouldAnim) pcDrawIn();
+}
+function renderPosChart() { buildPosChart(false); }
+// —— 持仓盈亏波浪图 结束 ——
+
 // 顶部汇总（总市值 / 总盈亏 / 综合收益率）
 function updatePosSummary() {
+  renderPosChart();
   let mv = 0, cost = 0, hasQuote = false;
   holdings.forEach(h => {
     const q = holdQuotes[h.secid];
