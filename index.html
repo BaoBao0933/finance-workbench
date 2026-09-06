@@ -981,8 +981,13 @@
   .pos-chart-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
   .pos-chart-legend .l-up { background: linear-gradient(180deg, rgba(232,93,78,.95), rgba(232,93,78,.18)); }
   .pos-chart-legend .l-down { background: linear-gradient(180deg, rgba(10,168,105,.18), rgba(10,168,105,.95)); }
-  .pos-chart-wrap { width: 100%; height: 320px; }
+  .pos-chart-wrap { width: 100%; height: 320px; position: relative; }
   .pos-chart-wrap svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  #pcLabels { position: absolute; inset: 0; pointer-events: none; }
+  #pcLabels .pcl { position: absolute; transform: translate(-50%, -50%); font-weight: 800;
+    font-size: 13px; letter-spacing: .3px; font-variant-numeric: tabular-nums; white-space: nowrap;
+    text-shadow: 0 1px 3px rgba(255,255,255,.9), 0 0 6px rgba(255,255,255,.7); }
+  #pcLabels .pcl.up { color: #e85d4e; } #pcLabels .pcl.down { color: #0aa869; }
   .pos-form {
     background: rgba(255,255,255,.66); border: 1px solid var(--accent); border-radius: 13px;
     padding: 14px 18px; margin-bottom: 15px; display: none;
@@ -2914,7 +2919,7 @@ function buildPosChart(force) {
   for (const h of holdings) {
     const q = holdQuotes[h.secid];
     if (q && q.price !== null && h.cost > 0) {
-      series.push({ name: h.name, pnl: +(q.price * h.qty - h.cost * h.qty).toFixed(2) });
+      series.push({ name: h.name, pnl: +(q.price * h.qty - h.cost * h.qty).toFixed(2), rate: +(q.price / h.cost - 1) });
     }
   }
   const n = series.length;
@@ -2937,10 +2942,12 @@ function buildPosChart(force) {
       <path id="pcArea" fill="url(#pcFill)"/>
       <path id="pcLine" fill="none" stroke="url(#pcStroke)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
       <g id="pcDots"></g>
-    </svg>`;
+      </svg>
+      <div id="pcLabels"></div>`;
     pcState.line = document.getElementById('pcLine');
     pcState.area = document.getElementById('pcArea');
     pcState.dots = document.getElementById('pcDots');
+    pcState.labels = document.getElementById('pcLabels');
     if (pcState.reduce === undefined) pcState.reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     pcState.shouldAnim = !pcState.reduce; // 等路径 d 就绪后再触发iOS描边动画
   }
@@ -2955,12 +2962,16 @@ function buildPosChart(force) {
   const isSingle = n < 2;
   let pts;
   if (!isSingle) {
-    pts = data.map((d, i) => ({ x: PAD + i * stepX, y: base - rate(d.pnl) * (base - PAD) }));
+    pts = data.map((d, i) => ({ x: PAD + i * stepX, y: base - rate(d.pnl) * (base - PAD), rate: d.rate, name: d.name }));
   } else {
     // 单只：从零轴起，中间峰值＝该股盈亏方向，再回到零轴，形成单个波形
     const pnl = data[0].pnl;
     const humpY = base - Math.sign(pnl || 1) * (base - PAD);
-    pts = [ { x: PAD, y: base }, { x: W / 2, y: humpY }, { x: W - PAD, y: base } ];
+    pts = [
+      { x: PAD, y: base, rate: data[0].rate, name: data[0].name },
+      { x: W / 2, y: humpY, rate: data[0].rate, name: data[0].name },
+      { x: W - PAD, y: base, rate: data[0].rate, name: data[0].name }
+    ];
   }
   const line = smoothPath(pts);
   const area = line + ` L ${r(pts[pts.length - 1].x)},${base} L ${r(pts[0].x)},${base} Z`;
@@ -2968,7 +2979,7 @@ function buildPosChart(force) {
   if (pcState.area) pcState.area.setAttribute('d', area);
   pcDrawIn();
 
-  // 数据点（多只少于 12 时逐点；单只只高亮波峰）+ 极值亮点
+  // 数据点（多只少于 12 时逐点；单只只高亮波峰）+ 极值亮点 + 收益率标签
   if (pcState.dots) {
     const extreme = pts.reduce((a, b) => (Math.abs(b.y - base) > Math.abs(a.y - base) ? b : a));
     let dotsHtml = '';
@@ -2982,6 +2993,18 @@ function buildPosChart(force) {
     dotsHtml += `<circle cx="${r(extreme.x)}" cy="${r(extreme.y)}" r="8" fill="${tipSign}" opacity=".25"/>` +
                 `<circle cx="${r(extreme.x)}" cy="${r(extreme.y)}" r="4.5" fill="#fff" stroke="${tipSign}" stroke-width="2.5"/>`;
     pcState.dots.innerHTML = dotsHtml;
+  }
+  // 收益率百分比标签（叠加层，不被拉伸）
+  if (pcState.labels) {
+    const fmt = r => (r >= 0 ? '+' : '') + (r * 100).toFixed(2) + '%';
+    let lhtml = '';
+    const labelPts = isSingle ? [pts[1]] : (n <= 12 ? pts : []);
+    labelPts.forEach(p => {
+      const up = (p.rate || 0) >= 0;
+      lhtml += `<div class="pcl ${up ? 'up' : 'down'}" style="left:${(p.x / W * 100).toFixed(2)}%;top:${(p.y / H * 100).toFixed(2)}%">` +
+        `${fmt(p.rate)} <span style="font-weight:500;font-size:11px;opacity:.75">${p.name || ''}</span></div>`;
+    });
+    pcState.labels.innerHTML = lhtml;
   }
 }
 function pcDefs(H) {
