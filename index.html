@@ -639,6 +639,7 @@
   }
   .watch-count b { color: var(--text-main); }
   .watch-list { display: flex; flex-direction: column; gap: 10px; }
+  .watch-list-head { margin-bottom: 16px; }
   .watch-row {
     display: grid;
     grid-template-columns: 2fr 1.2fr 1fr 1fr 1fr 1fr 84px;
@@ -1437,7 +1438,7 @@
           <span id="w-status" style="color:#b0b9c8;font-size:12px"></span>
         </div>
 
-        <div class="watch-list-head watch-row" style="cursor:default;box-shadow:none;border-style:dashed">
+        <div class="watch-list-head watch-row" style="cursor:default;box-shadow:none;border:none">
           <span class="watch-head">名称 / 代码</span>
           <span class="watch-head">最新价</span>
           <span class="watch-head pct-h">涨跌幅</span>
