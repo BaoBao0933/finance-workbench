@@ -10,8 +10,8 @@
     --sidebar-hover: #37424f;
     --accent: #5b7fbf;
     --accent-hover: #4a6ca7;
-    --up: #e64545;
-    --up-bg: #fdecec;
+    --up: #e85d4e;
+    --up-bg: #fdeee6;
     --down: #0aa869;
     --down-bg: #e6f7ef;
     --text-main: #2f3a48;
@@ -177,7 +177,7 @@
   .nav-item .icon { width: 20px; text-align: center; font-size: 17px; }
   .nav-badge {
     margin-left: auto;
-    background: #e64545;
+    background: #e85d4e;
     color: #fff;
     font-size: 11px;
     min-width: 18px;
@@ -234,7 +234,7 @@
     border-radius: 11px;
   }
   .market-tag.closed { background: #eef1f5; color: #8a94a6; }
-  .market-tag.open { background: #fdecec; color: var(--up); }
+  .market-tag.open { background: #fdeee6; color: var(--up); }
   .market-tag.auction { background: #fff5e6; color: #d98514; }
   .header-actions { display: flex; gap: 10px; margin-top: 4px; }
   .btn {
@@ -277,7 +277,7 @@
     box-shadow: 0 0 0 0 rgba(35, 195, 77, .5);
     animation: pulse 2s infinite;
   }
-  .dot.err { background: #e64545; animation: none; }
+  .dot.err { background: #e85d4e; animation: none; }
   @keyframes pulse {
     0% { box-shadow: 0 0 0 0 rgba(35, 195, 77, .45); }
     70% { box-shadow: 0 0 0 7px rgba(35, 195, 77, 0); }
@@ -350,7 +350,7 @@
     padding: 4px 12px;
     border-radius: 8px;
   }
-  .ic-badge.up { background: linear-gradient(180deg, rgba(243,86,100,.4) 0%, rgba(255,231,234,0) 100%); color: var(--up); }
+  .ic-badge.up { background: linear-gradient(180deg, rgba(239,120,80,.4) 0%, rgba(255,240,232,0) 100%); color: var(--up); }
   .ic-badge.down { background: linear-gradient(135deg, rgba(114,154,147,.4) 0%, rgba(251,254,229,0) 100%); color: var(--down); }
   .ic-badge.flat { background: #eef1f5; color: #8a94a6; }
   /* 重点大卡价格更突出 */
@@ -469,7 +469,7 @@
     flex-shrink: 0;
   }
   .ov-icon.purple { background: #e9edf3; }
-  .ov-icon.red { background: linear-gradient(180deg, rgba(243,86,100,.4) 0%, rgba(255,231,234,0) 100%); }
+  .ov-icon.red { background: linear-gradient(180deg, rgba(239,120,80,.4) 0%, rgba(255,240,232,0) 100%); }
   .ov-icon.green { background: linear-gradient(135deg, rgba(114,154,147,.4) 0%, rgba(251,254,229,0) 100%); }
   .ov-icon.blue { background: #e8f1ff; }
   .ov-body { min-width: 0; }
@@ -587,7 +587,7 @@
   .sector-chip .sc-val.down { color: var(--down); }
   .sector-chip .sc-bar { height: 3px; border-radius: 2px; margin-top: 8px; background: #eef1f5; overflow: hidden; }
   .sector-chip .sc-bar i { display: block; height: 100%; border-radius: 2px; transition: width .6s ease; }
-  .sector-chip .sc-bar i.up { background: linear-gradient(90deg,#ff8a8a,var(--up)); }
+  .sector-chip .sc-bar i.up { background: linear-gradient(90deg,#ffb49a,var(--up)); }
   .sector-chip .sc-bar i.down { background: linear-gradient(90deg,#5ee0a0,var(--down)); }
   .sector-chip .sc-price { font-size: 11px; color: var(--text-sub); margin-top: 6px; font-variant-numeric: tabular-nums; }
 
@@ -662,7 +662,7 @@
   .watch-row .w-flag { font-size: 11px; color: #9aa4b6; background: #f5f7fa; border-radius: 4px; padding: 1px 6px; }
   .watch-row.w-name-col { display: flex; align-items: center; gap: 8px; }
   .w-dot { width: 8px; height: 8px; border-radius: 50%; background: #cdd5e0; flex: 0 0 auto; transition: background .3s; }
-  .w-dot.up { background: var(--up); box-shadow: 0 0 6px rgba(230,69,69,.5); }
+  .w-dot.up { background: var(--up); box-shadow: 0 0 6px rgba(232,93,78,.5); }
   .w-dot.down { background: var(--down); box-shadow: 0 0 6px rgba(10,168,105,.5); }
   .w-ops { display: flex; gap: 4px; justify-content: flex-end; }
   .w-pin { width: 34px; height: 34px; border: none; background: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #b6c0cf; transition: all .15s; font-size: 15px; filter: grayscale(1); opacity: .65; }
@@ -694,7 +694,7 @@
     transition: all .15s;
     font-size: 16px;
   }
-  .w-del:hover { background: #fdecec; color: var(--up); }
+  .w-del:hover { background: #fdeee6; color: var(--up); }
   .watch-empty {
     text-align: center;
     padding: 60px 20px;
@@ -763,12 +763,12 @@
     width: 23px; height: 23px; min-width: 23px; border-radius: 7px; font-size: 12.5px; font-weight: 700;
     display: flex; align-items: center; justify-content: center; color: #8a94a6; background: #f0f2f6;
   }
-  .fund-row:nth-child(-n+3) .fund-rank { background: #fff1f0; color: #e0413e; }
+  .fund-row:nth-child(-n+3) .fund-rank { background: #fff1f0; color: #e85d4e; }
   .fund-name { flex: 1; min-width: 0; }
   .fund-name .fn { font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fund-name .fc { font-size: 12px; color: #8a94a6; margin-top: 2px; }
   .fund-pct { width: 64px; text-align: center; font-size: 14px; font-weight: 600; border-radius: 8px; padding: 2px 6px; }
-  .fund-pct.up { color: var(--up); background: linear-gradient(180deg, rgba(243,86,100,.40) 0%, rgba(255,231,234,0) 100%); }
+  .fund-pct.up { color: var(--up); background: linear-gradient(180deg, rgba(239,120,80,.40) 0%, rgba(255,240,232,0) 100%); }
   .fund-pct.down { color: var(--down); background: linear-gradient(135deg, rgba(114,154,147,.40) 0%, rgba(251,254,229,0) 100%); }
   .fund-amt { width: 92px; text-align: right; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .fund-amt.up { color: var(--up); }
@@ -793,7 +793,7 @@
   .st-desc { font-size: 12px; color: var(--text-sub); margin-left: auto; }
   .st-track {
     position: relative; height: 30px; border-radius: 15px; display: flex; overflow: visible;
-    background: linear-gradient(90deg, #0aa869 0%, #7cc5a5 22%, #b9c1cc 50%, #e88 78%, #e0413e 100%);
+    background: linear-gradient(90deg, #0aa869 0%, #7cc5a5 22%, #b9c1cc 50%, #e88 78%, #e85d4e 100%);
   }
   .st-zone { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.92); text-shadow: 0 1px 2px rgba(0,0,0,.25); }
   .st-cursor {
@@ -814,7 +814,7 @@
   .senti-card .sc-vals .mid { color: #c3cad6; font-weight: 400; font-size: 20px; }
   .senti-card .lbc-unit { font-size: 15px; color: var(--text-sub); font-weight: 600; }
   .senti-card .sc-bar { height: 8px; border-radius: 4px; background: var(--down-bg); margin: 10px 0 8px; overflow: hidden; }
-  .senti-card .sc-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #ff9a8a, var(--up)); transition: width .6s ease; }
+  .senti-card .sc-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #ffb49a, var(--up)); transition: width .6s ease; }
   .senti-card .sc-sub { font-size: 13px; color: #98a2b3; }
   .senti-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   @media (max-width: 1100px) { .senti-grid { grid-template-columns: 1fr; } }
@@ -827,7 +827,7 @@
   .ladder-row:hover { background: #f2f4f9; }
   .lad-tag {
     min-width: 48px; text-align: center; font-size: 13px; font-weight: 800; border-radius: 8px;
-    padding: 5px 0; background: linear-gradient(135deg, #fff1f0, #ffe3e0); color: #e0413e;
+    padding: 5px 0; background: linear-gradient(135deg, #fff1f0, #ffe3e0); color: #e85d4e;
   }
   .lad-tag.hl { background: linear-gradient(135deg, #ffd24d, #ff9800); color: #fff; }
   .lad-stocks { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; }
@@ -921,7 +921,7 @@
     width: 28px; height: 28px; border-radius: 9px; font-size: 13px; font-weight: 700;
     display: flex; align-items: center; justify-content: center; color: #8a94a6; background: #f0f2f6;
   }
-  .sec-row:nth-child(-n+4) .sr-rank { background: #fff1f0; color: #e0413e; }
+  .sec-row:nth-child(-n+4) .sr-rank { background: #fff1f0; color: #e85d4e; }
   .sec-row .sr-name { font-weight: 600; font-size: 15.5px; }
   .sec-row .sr-name small { font-size: 12px; color: var(--text-sub); font-weight: 400; margin-left: 8px; }
   @media (max-width: 900px) { .sec-row { grid-template-columns: 46px 2fr 1.2fr 1fr; } .sec-row .w-hide { display: none; } }
@@ -946,7 +946,7 @@
     flex-shrink: 0; /* 禁止被 flex 压缩——超出列表高度时应滚动而不是挤扁卡片 */
   }
   .focus-col .news-item::before { content: ''; position: absolute; left: 0; top: 15px; bottom: 15px; width: 3px; border-radius: 3px; background: #cdd4df; }
-  .focus-col .news-item.bull::before { background: linear-gradient(var(--up), #ff9a8a); }
+  .focus-col .news-item.bull::before { background: linear-gradient(var(--up), #ffb49a); }
   .focus-col .news-item.bear::before { background: linear-gradient(var(--down), #7fd6aa); }
   .focus-col .news-item.neutral::before { background: linear-gradient(#c7cdd8, #e7eaef); }
   .focus-col .news-item:hover { box-shadow: 0 6px 18px rgba(30,44,62,.08); transform: translateY(-1px); }
@@ -955,7 +955,7 @@
   .focus-col .news-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; color: #98a2b3; }
   .focus-col .news-meta .n-time { font-variant-numeric: tabular-nums; }
   .focus-tag { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 700; margin-right: 7px; vertical-align: 1px; }
-  .focus-tag.bull { background: #fff1f0; color: #e0413e; }
+  .focus-tag.bull { background: #fff1f0; color: #e85d4e; }
   .focus-tag.bear { background: #e8f8ef; color: #0aa869; }
   .focus-tag.neutral { background: #f0f2f6; color: #8a94a6; }
   @media (max-width: 900px) { #focus-sectors .sec-cell { min-width: 120px; } }
@@ -1012,7 +1012,7 @@
     padding: 13px 17px; transition: all .18s; animation: fadeIn .35s ease both;
   }
   .lhb-row:hover { box-shadow: 0 5px 14px rgba(30,44,62,.07); }
-  .lhb-row:nth-child(-n+4) .sr-rank { background: transparent; color: #e0413e; }
+  .lhb-row:nth-child(-n+4) .sr-rank { background: transparent; color: #e85d4e; }
   .lhb-wrap .lhb-row .sr-name { font-weight: 700; font-size: 16px; color: var(--text-main); }
   .lhb-wrap .lhb-row .sr-name small { font-size: 12.5px; color: #5b6b7e; font-weight: 500; margin-left: 8px; }
   .lhb-wrap .lhb-row .sr-rank { font-size: 15px; font-weight: 700; }
@@ -1029,7 +1029,7 @@
     position: relative; overflow: hidden;
   }
   .news-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; }
-  .news-item.hot::before { background: linear-gradient(var(--up), #ff9a8a); }
+  .news-item.hot::before { background: linear-gradient(var(--up), #ffb49a); }
   .news-item:hover { box-shadow: 0 6px 18px rgba(30,44,62,.08); transform: translateY(-1px); }
   .news-item .n-title { font-size: 15.5px; font-weight: 600; line-height: 1.5; color: var(--text-main); }
   .news-item.hot .n-title { color: #c0392b; }
@@ -1389,7 +1389,7 @@
             </div>
           </div>
           <div class="ov-card clickable" id="ov-top-card">
-            <div class="ov-icon red"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#e64545" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 17 10 11 14 13 19 6"/><polyline points="14 6 19 6 19 11"/></svg></div>
+            <div class="ov-icon red"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#e85d4e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 17 10 11 14 13 19 6"/><polyline points="14 6 19 6 19 11"/></svg></div>
             <div class="ov-body">
               <div class="ov-label">板块涨幅榜首</div>
               <div class="ov-value up" id="ov-top">--</div>
@@ -3481,7 +3481,7 @@ function sentiLabel(score) {
   if (score < 58) return { t: '中性', c: '#5a6577', bg: '#eef1f5' };
   if (score < 70) return { t: '偏积极', c: '#c56a1e', bg: '#fdf3e7' };
   if (score < 85) return { t: '活跃', c: '#d9534f', bg: '#fff1f0' };
-  return { t: '亢奋', c: '#e0413e', bg: 'var(--up-bg)' };
+  return { t: '亢奋', c: '#e85d4e', bg: 'var(--up-bg)' };
 }
 
 let sentiLoading = false;
