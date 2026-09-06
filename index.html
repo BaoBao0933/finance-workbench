@@ -929,7 +929,6 @@
   .focus-wrap { max-width: 1280px; display: flex; flex-direction: column; gap: 20px; margin-top: 12px; }
   .focus-block-title { font-size: 16px; font-weight: 700; color: var(--text); margin: 2px 0 14px; display: flex; align-items: center; gap: 7px; }
   .focus-emo { margin-left: auto; font-size: 13.5px; font-weight: 700; color: #5a6577; letter-spacing: .3px; }
-  #focus-globals .index-card .ic-badge { font-size: 13px; }
   #focus-sectors .sec-cell { min-width: 158px; }
   /* 快讯 / 海外 —— 全宽上下排列，更透气 */
   .focus-cols { display: flex; flex-direction: column; gap: 22px; }
@@ -1613,10 +1612,6 @@
         </div>
       </div>
       <div class="focus-wrap">
-        <div class="focus-block">
-          <div class="focus-block-title">🌍 全球股指 · 外围市场情绪</div>
-          <div class="index-grid" id="focus-globals"><div class="news-empty">全球股指加载中…</div></div>
-        </div>
         <div class="focus-block">
           <div class="focus-block-title">🏢 光纤 / 光通信 相关板块（点击查看成分股）</div>
           <div class="sec-grid" id="focus-sectors"><div class="news-empty">相关板块加载中…</div></div>
@@ -4164,8 +4159,7 @@ setInterval(() => {
 }, 600000);
 
 /* ================= 重点关注（光纤/光通信） ================= */
-// 全球主要股指（外围市场情绪）
-const FOCUS_GLOBALS = ['100.DJIA', '100.NDX', '100.SPX', '100.HSI', '100.N225', '100.FTSE', '100.GDAXI'];
+
 // 光通信核心个股（secid 需用东财 0.深/1.沪 前缀）
 const FOCUS_STOCKS = [
   ['0.300308', '中际旭创'], ['0.300502', '新易盛'], ['0.300394', '天孚通信'],
@@ -4185,7 +4179,6 @@ const FOCUS_OVERSEAS_MARKET = ['美国', '美股', '北美', '欧洲', '英国',
 const FOCUS_BULL_WORDS = ['上涨', '涨停', '大涨', '上调', '突破', '创新高', '签署', '订单', '加码', '采购', '扩产', '受益', '合作', '增持', '回购', '中标', '利好', '获批', '落地', '超预期', '提速', '翻倍', '放量'];
 const FOCUS_BEAR_WORDS = ['下跌', '跌停', '大跌', '下调', '减持', '禁令', '限制', '推迟', '亏损', '裁员', '索赔', '调查', '出口管制', '利空', '反倾销', '下滑', '低于预期', '不及预期', '担忧', '承压', '砍单'];
 
-let focusGlobCache = {};   // code -> {root, badge, chg}
 let focusSecCache = {};    // code -> {root, pct, codeEl}
 let focusStockCache = {};  // secid -> {row, price, pct, chg, amt}
 let focusFdCache = {};     // 板块成分股 secid -> rowEl
@@ -4194,41 +4187,6 @@ let focusNewsCache = [];   // 光通信相关快讯
 let focusOverseas = [];    // 海外相关消息
 
 function fcKey(sid) { return (sid.split('.').pop() || '').toUpperCase(); }
-
-// 加载全球股指（局部刷新）
-async function loadFocusGlobals() {
-  const hosts = ['push2.eastmoney.com', 'push2delay.eastmoney.com'];
-  for (const host of hosts) {
-    try {
-      const res = await fetchJson(`https://${host}/api/qt/ulist.np/get?fltt=2&secids=${FOCUS_GLOBALS.join(',')}&fields=f2,f3,f4,f12,f14`, 6000);
-      const diff = res && res.data && res.data.diff;
-      if (!diff || !diff.length) continue;
-      const grid = $('focus-globals');
-      grid.querySelectorAll('.news-empty').forEach(el => el.remove());
-      const seen = new Set();
-      diff.forEach((d, i) => {
-        const key = fcKey(d.f12);
-        seen.add(key);
-        let card = focusGlobCache[key];
-        if (!card) {
-          const div = document.createElement('div');
-          div.className = 'index-card';
-          div.innerHTML = `<div class="ic-name">${d.f14 || d.f12}</div><div class="ic-price">--</div><div class="ic-badge flat">--</div><div class="ic-change flat">--</div>`;
-          card = focusGlobCache[key] = { root: div, badge: div.querySelector('.ic-badge'), chg: div.querySelector('.ic-change'), price: div.querySelector('.ic-price') };
-        }
-        const cls = clsOf(d.f3);
-        card.badge.textContent = (d.f3 > 0 ? '+' : '') + fmtNum(d.f3, 2) + '%';
-        card.badge.className = 'ic-badge ' + cls;
-        card.chg.textContent = (d.f4 > 0 ? '+' : '') + fmtNum(d.f4, 2);
-        card.chg.className = 'ic-change ' + cls;
-        card.price.textContent = fmtNum(d.f2);
-        grid.appendChild(card.root);
-      });
-      Object.keys(focusGlobCache).forEach(k => { if (!seen.has(k)) focusGlobCache[k].root.remove(); });
-      return;
-    } catch (e) { /* 换域名 */ }
-  }
-}
 
 // 加载光通信相关板块（t:3 概念板块全量，分页）
 async function loadFocusSectors() {
@@ -4455,7 +4413,6 @@ function renderFocusOverseas() {
 }
 
 function loadFocus() {
-  loadFocusGlobals();
   loadFocusSectors();
   loadFocusStocks();
   if (focusFdCode) loadFocusDetailStocks();
@@ -4467,7 +4424,6 @@ $('fd-back').addEventListener('click', closeFocusDetail);
 // 行情（股指/板块/个股/成分股）每 10 秒局部刷新；快讯每 30 秒
 setInterval(() => {
   if ($('page-focus').style.display === 'none') return;
-  loadFocusGlobals();
   loadFocusSectors();
   loadFocusStocks();
   if (focusFdCode) loadFocusDetailStocks();
