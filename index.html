@@ -207,6 +207,13 @@
   /* 页面内联 Lucide SVG 图标尺寸标准化 */
   .btn .icon svg { width: 15px; height: 15px; display: block; stroke-width: 2; }
   .module-header .m-ico svg { width: 17px; height: 17px; display: block; stroke-width: 2; }
+  /* 彩色动效图标（OpenMoji）：模块标题前的彩色 emoji + 轻浮动/缓转 */
+  .module-header .m-ico img { width: 22px; height: 22px; display: block; }
+  .module-header .m-ico.m-emoji-bob img { animation: floaty 2.8s ease-in-out infinite; }
+  .module-header .m-ico.m-emoji-swing img { animation: swayIco 3.4s ease-in-out infinite; }
+  .module-header .m-ico.m-emoji-spin img { animation: spinSlow 7s linear infinite; }
+  @keyframes swayIco { 0%,100% { transform: rotate(-9deg); } 50% { transform: rotate(9deg); } }
+  @keyframes spinSlow { from { transform: rotate(0); } to { transform: rotate(360deg); } }
   .fun-banner .fb-emoji svg { width: 40px; height: 40px; display: block; stroke-width: 2; }
   .fun-banner .fb-emoji img { width: 48px; height: 48px; display: block; }
   .fun-banner .spark svg { width: 18px; height: 18px; display: block; stroke-width: 2; }
@@ -1874,7 +1881,7 @@ try {
       <!-- 核心指数 -->
       <div class="module">
         <div class="module-header">
-          <span class="m-title"><span class="m-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>核心指数</span>
+          <span class="m-title"><span class="m-ico m-emoji-bob"><img src="icons/openmoji/color/1F4C8.svg" alt=""></span>核心指数</span>
           <span class="m-sub">重点 · 全球市场实时行情</span>
           <a class="m-link" id="link-all-index">自选股 →</a>
         </div>
@@ -1884,7 +1891,7 @@ try {
       <!-- 市场概览 -->
       <div class="module">
         <div class="module-header">
-          <span class="m-title"><span class="m-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span>市场概览</span>
+          <span class="m-title"><span class="m-ico m-emoji-spin"><img src="icons/openmoji/color/1F30D.svg" alt=""></span>市场概览</span>
           <div class="tabs">
             <div class="tab active">两市成交</div>
             <div class="tab" data-wip>资金动向</div>
