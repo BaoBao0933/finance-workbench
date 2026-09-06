@@ -616,10 +616,21 @@
   .index-card:nth-child(6){--card-anim:fadeIn .7s ease both;}
   .index-card:nth-child(7){--card-anim:fadeIn .75s ease both;}
   .index-card:nth-child(8){--card-anim:fadeIn .8s ease both;}
-  .flash-up { animation: flashUp .5s ease; }
-  .flash-down { animation: flashDown .5s ease; }
-  @keyframes flashUp { 0% { color: #c0392b; transform: translateY(2px) scale(1.05); filter: blur(1px); opacity: .7; } 50% { transform: translateY(0) scale(1.06); opacity: 1; } 100% { transform: translateY(0) scale(1); filter: blur(0); } }
-  @keyframes flashDown { 0% { color: #0e8f52; transform: translateY(2px) scale(1.05); filter: blur(1px); opacity: .7; } 50% { transform: translateY(0) scale(1.06); opacity: 1; } 100% { transform: translateY(0) scale(1); filter: blur(0); } }
+  .flash-up { animation: flashUp .6s cubic-bezier(.2,.7,.3,1.25) both; }
+  .flash-down { animation: flashDown .6s cubic-bezier(.2,.7,.3,1.25) both; }
+  /* 行情刷新动效：iOS 弹簧上浮 + 玻璃光晕反射（字体保持中性色，涨用珊瑚橙光、跌用翠绿光） */
+  @keyframes flashUp {
+    0%   { transform: translateY(3px) scale(.99);  filter: blur(1.6px); text-shadow: 0 0 0 transparent; }
+    42%  { transform: translateY(0)   scale(1.10); filter: blur(0);      text-shadow: 0 0 18px rgba(232,93,78,.62), 0 0 7px rgba(232,93,78,.40), 0 1px 2px rgba(0,0,0,.28); }
+    68%  { transform: translateY(0)   scale(1.03);                         text-shadow: 0 0 12px rgba(232,93,78,.42); }
+    100% { transform: translateY(0)   scale(1);    filter: blur(0);      text-shadow: 0 0 0 transparent; }
+  }
+  @keyframes flashDown {
+    0%   { transform: translateY(3px) scale(.99);  filter: blur(1.6px); text-shadow: 0 0 0 transparent; }
+    42%  { transform: translateY(0)   scale(1.10); filter: blur(0);      text-shadow: 0 0 18px rgba(11,160,107,.62), 0 0 7px rgba(11,160,107,.40), 0 1px 2px rgba(0,0,0,.26); }
+    68%  { transform: translateY(0)   scale(1.03);                         text-shadow: 0 0 12px rgba(11,160,107,.42); }
+    100% { transform: translateY(0)   scale(1);    filter: blur(0);      text-shadow: 0 0 0 transparent; }
+  }
   .ic-price { transition: color .25s; }
 
   /* 页面底部渐隐（视觉高级感） */
