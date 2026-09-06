@@ -983,7 +983,7 @@
   .pos-chart-wrap { width: 100%; height: 320px; position: relative; }
   .pos-chart-wrap svg { width: 100%; height: 100%; display: block; overflow: visible; }
   #pcLabels { position: absolute; inset: 0; pointer-events: none; }
-  #pcLabels .pcl { position: absolute; transform: translate(-50%, -50%); font-weight: 800;
+  #pcLabels .pcl { position: absolute; transform: translate(-50%, -115%); font-weight: 800;
     font-size: 13px; letter-spacing: .3px; font-variant-numeric: tabular-nums; white-space: nowrap;
     text-shadow: 0 1px 3px rgba(255,255,255,.9), 0 0 6px rgba(255,255,255,.7); }
   #pcLabels .pcl.up { color: #e85d4e; } #pcLabels .pcl.down { color: #0aa869; }
@@ -2996,7 +2996,7 @@ function buildPosChart(force) {
     labelPts.forEach(p => {
       const up = (p.rate || 0) >= 0;
       lhtml += `<div class="pcl ${up ? 'up' : 'down'}" style="left:${(p.x / W * 100).toFixed(2)}%;top:${(p.y / H * 100).toFixed(2)}%">` +
-        `${fmt(p.rate)} <span style="font-weight:500;font-size:11px;opacity:.75">${p.name || ''}</span></div>`;
+        `${fmt(p.rate)}</div>`;
     });
     pcState.labels.innerHTML = lhtml;
   }
