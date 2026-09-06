@@ -2258,27 +2258,31 @@ function setLive(ok, suffix) {
   const p = n => String(n).padStart(2, '0');
   const ts = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
   $('live-dot').classList.toggle('err', !ok);
-  $('live-text').textContent = ok ? `实时行情（API直连${suffix || ''} · ${ts}）` : '行情获取失败，稍后自动重试…';
+  $('live-text').textContent = ok ? `实时行情（API直连${suffix || ''} · ${ts}）` : '行情源连不通，自动重试中…';
   $('live-time').textContent = ok ? ts : '--';
 }
 
 async function loadQuotes() {
   const secids = [...INDEXES.map(i => i.secid), SZ_SECID].join(',');
   const fields = 'f2,f3,f4,f5,f6,f12,f13,f14,f15,f16,f17,f18';
+  // 东方财富多域名容灾：主域偶发不稳定，加入编号子域轮询，全部失败再走备用通道
+  const emHosts = ['push2.eastmoney.com', '20.push2.eastmoney.com', '21.push2.eastmoney.com'];
 
-  // —— 通道1：东方财富实时（fetch CORS） ——
-  try {
-    const res = await fetchJson(`https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&secids=${secids}&fields=${fields}`, 4500);
-    const diff = res && res.data && res.data.diff;
-    if (!diff || !diff.length) throw new Error('empty');
-    const map = {};
-    diff.forEach(d => { map[d.f13 + '.' + d.f12] = d; });
-    INDEXES.forEach(cfg => { if (map[cfg.secid]) lastQuotes[cfg.code] = emToQuote(map[cfg.secid]); });
-    setAmount(map['1.000001'] ? emToQuote(map['1.000001']) : null, map['0.399106'] ? emToQuote(map['0.399106']) : null);
-    renderAll();
-    setLive(true, '');
-    return;
-  } catch (e) { /* 下一通道 */ }
+  // —— 通道1：东方财富实时（多域名轮询，fetch CORS） ——
+  for (const host of emHosts) {
+    try {
+      const res = await fetchJson(`https://${host}/api/qt/ulist.np/get?fltt=2&secids=${secids}&fields=${fields}`, 4000);
+      const diff = res && res.data && res.data.diff;
+      if (!diff || !diff.length) throw new Error('empty');
+      const map = {};
+      diff.forEach(d => { map[d.f13 + '.' + d.f12] = d; });
+      INDEXES.forEach(cfg => { if (map[cfg.secid]) lastQuotes[cfg.code] = emToQuote(map[cfg.secid]); });
+      setAmount(map['1.000001'] ? emToQuote(map['1.000001']) : null, map['0.399106'] ? emToQuote(map['0.399106']) : null);
+      renderAll();
+      setLive(true, '');
+      return;
+    } catch (e) { /* 换下一域名 */ }
+  }
 
   // —— 通道2：腾讯(A股/港股/美股) + 新浪(日韩) 并行 ——
   const [txRes, sinaRes] = await Promise.allSettled([fetchTencent(), fetchSinaJpkr()]);
