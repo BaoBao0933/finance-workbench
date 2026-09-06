@@ -206,14 +206,18 @@
   .nav-item .icon svg { width: 20px; height: 20px; display: block; stroke-width: 2; }
   /* 页面内联 Lucide SVG 图标尺寸标准化 */
   .btn .icon svg { width: 15px; height: 15px; display: block; stroke-width: 2; }
+  .module-header .m-ico { display: inline-flex; align-items: center; }
   .module-header .m-ico svg { width: 17px; height: 17px; display: block; stroke-width: 2; }
-  /* 彩色动效图标（OpenMoji）：模块标题前的彩色 emoji + 轻浮动/缓转 */
-  .module-header .m-ico img { width: 22px; height: 22px; display: block; }
-  .module-header .m-ico.m-emoji-bob img { animation: floaty 2.8s ease-in-out infinite; }
-  .module-header .m-ico.m-emoji-swing img { animation: swayIco 3.4s ease-in-out infinite; }
-  .module-header .m-ico.m-emoji-spin img { animation: spinSlow 7s linear infinite; }
+  /* 彩色动效图标（OpenMoji）：模块标题/页标题前的彩色 emoji + 轻浮动/缓转/扑翼 */
+  .module-header .m-ico img, .title-ico img { width: 22px; height: 22px; display: block; }
+  .m-ico.m-emoji-bob img, .title-ico.m-emoji-bob img { animation: floaty 2.8s ease-in-out infinite; }
+  .m-ico.m-emoji-swing img, .title-ico.m-emoji-swing img { animation: swayIco 3.4s ease-in-out infinite; }
+  .m-ico.m-emoji-spin img, .title-ico.m-emoji-spin img { animation: spinSlow 7s linear infinite; }
+  .m-ico.m-emoji-wing img, .title-ico.m-emoji-wing img { animation: flapWing 1.6s ease-in-out infinite; transform-origin: 60% 50%; }
+  .title-ico { display: inline-block; vertical-align: -4px; margin-right: 8px; }
   @keyframes swayIco { 0%,100% { transform: rotate(-9deg); } 50% { transform: rotate(9deg); } }
   @keyframes spinSlow { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+  @keyframes flapWing { 0%,100% { transform: rotate(-16deg) scaleY(.94); } 50% { transform: rotate(10deg) scaleY(1.06); } }
   .fun-banner .fb-emoji svg { width: 40px; height: 40px; display: block; stroke-width: 2; }
   .fun-banner .fb-emoji img { width: 48px; height: 48px; display: block; }
   .fun-banner .spark svg { width: 18px; height: 18px; display: block; stroke-width: 2; }
@@ -1937,7 +1941,7 @@ try {
       <!-- 行业板块榜 -->
       <div class="module">
         <div class="sector-head">
-          <span class="sector-title">热门行业板块</span>
+          <span class="sector-title"><span class="title-ico m-emoji-swing"><img src="icons/openmoji/color/1F4CA.svg" alt=""></span>热门行业板块</span>
           <span class="sector-source" id="sector-source">概念板块 · 实时涨跌幅</span>
         </div>
         <div class="sector-strip" id="sector-strip"></div>
@@ -1948,7 +1952,7 @@ try {
     <div id="page-watch" style="display:none">
       <div class="header">
         <div>
-          <div class="title">自选股票</div>
+          <div class="title"><span class="title-ico m-emoji-bob"><img src="icons/openmoji/color/2B50.svg" alt=""></span>自选股票</div>
           <div class="time-row"><span>输入股票名称或代码即可添加，行情实时同步刷新</span></div>
         </div>
         <div class="header-actions">
@@ -1991,7 +1995,7 @@ try {
     <div id="page-holdings" style="display:none">
       <div class="header">
         <div>
-          <div class="title">我的持仓</div>
+          <div class="title"><span class="title-ico m-emoji-bob"><img src="icons/openmoji/color/1F4BC.svg" alt=""></span>我的持仓</div>
           <div class="time-row"><span id="pos-status">持仓盈亏实时计算 · 数据保存在本地浏览器，不会丢失</span></div>
         </div>
         <div class="header-actions">
@@ -2057,7 +2061,7 @@ try {
     <div id="page-lhb" style="display:none">
       <div class="header">
         <div>
-          <div class="title">龙虎榜</div>
+          <div class="title"><span class="title-ico m-emoji-swing"><img src="icons/openmoji/color/1F42F.svg" alt=""></span>龙虎榜</div>
           <div class="time-row"><span id="lhb-status">龙虎榜数据加载中…</span></div>
         </div>
         <div class="header-actions">
@@ -2090,7 +2094,7 @@ try {
     <div id="page-news" style="display:none">
       <div class="header">
         <div>
-          <div class="title">财经要闻</div>
+          <div class="title"><span class="title-ico m-emoji-swing"><img src="icons/openmoji/color/1F4F0.svg" alt=""></span>财经要闻</div>
           <div class="time-row"><span>实时聚焦热门行业板块 · 一手快讯</span></div>
         </div>
         <div class="header-actions">
@@ -2112,7 +2116,7 @@ try {
     <div id="page-focus" style="display:none">
       <div class="header">
         <div>
-          <div class="title">重点关注</div>
+          <div class="title"><span class="title-ico m-emoji-bob"><img src="icons/openmoji/color/1F50D.svg" alt=""></span>重点关注</div>
           <div class="time-row"><span id="focus-status">光纤 · 光通信 重点监控加载中…</span></div>
         </div>
         <div class="header-actions">
@@ -2147,7 +2151,7 @@ try {
     <div id="page-futures" style="display:none">
       <div class="header">
         <div>
-          <div class="title">期货市场</div>
+          <div class="title"><span class="title-ico m-emoji-swing"><img src="icons/openmoji/color/1F4C9.svg" alt=""></span>期货市场</div>
           <div class="time-row"><span id="fut-status">商品期货实时行情加载中…</span></div>
         </div>
         <div class="header-actions">
@@ -2161,7 +2165,7 @@ try {
     <div id="page-funds" style="display:none">
       <div class="header">
         <div>
-          <div class="title">资金流向</div>
+          <div class="title"><span class="title-ico m-emoji-wing"><img src="icons/openmoji/color/1F4B8.svg" alt=""></span>资金流向</div>
           <div class="time-row"><span id="fund-status">主力资金实时监控加载中…</span></div>
         </div>
         <div class="header-actions">
@@ -2209,7 +2213,7 @@ try {
     <div id="page-senti" style="display:none">
       <div class="header">
         <div>
-          <div class="title">走势分析 · 市场情绪</div>
+          <div class="title"><span class="title-ico m-emoji-bob"><img src="icons/openmoji/color/1F4C8.svg" alt=""></span>走势分析 · 市场情绪</div>
           <div class="time-row"><span id="senti-status">市场情绪指标加载中…</span></div>
         </div>
         <div class="header-actions">
@@ -2281,7 +2285,7 @@ try {
     <div id="page-sectors" style="display:none">
       <div class="header">
         <div>
-          <div class="title">行业板块</div>
+          <div class="title"><span class="title-ico m-emoji-bob"><img src="icons/openmoji/color/1F3E2.svg" alt=""></span>行业板块</div>
           <div class="time-row"><span id="sec-status">全部板块行情加载中…</span></div>
         </div>
         <div class="header-actions">
@@ -5466,3 +5470,4 @@ setInterval(() => loadBoardRank(), 300000); // 板块榜首每 5 分钟重试一
 </script>
 </body>
 </html>
+<!-- DEPLOY-MARKER 20260906230022 -->
