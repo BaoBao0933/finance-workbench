@@ -762,9 +762,9 @@
   .fund-name { flex: 1; min-width: 0; }
   .fund-name .fn { font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fund-name .fc { font-size: 12px; color: #8a94a6; margin-top: 2px; }
-  .fund-pct { width: 64px; text-align: right; font-size: 14px; font-weight: 600; }
-  .fund-pct.up { color: var(--up); }
-  .fund-pct.down { color: var(--down); }
+  .fund-pct { width: 64px; text-align: center; font-size: 14px; font-weight: 600; border-radius: 8px; padding: 2px 6px; }
+  .fund-pct.up { color: var(--up); background: linear-gradient(180deg, rgba(243,86,100,.40) 0%, rgba(255,231,234,0) 100%); }
+  .fund-pct.down { color: var(--down); background: linear-gradient(135deg, rgba(114,154,147,.40) 0%, rgba(251,254,229,0) 100%); }
   .fund-amt { width: 92px; text-align: right; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .fund-amt.up { color: var(--up); }
   .fund-amt.down { color: var(--down); }
@@ -773,8 +773,8 @@
   .fund-ratio.down { color: var(--down); }
   .fund-bar-col { width: 96px; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
   .fund-bar { height: 5px; border-radius: 3px; min-width: 2px; transition: width .4s ease; }
-  .fund-bar.up { background: linear-gradient(90deg, #ffd7d5, var(--up)); }
-  .fund-bar.down { background: linear-gradient(90deg, #d3f3e6, var(--down)); }
+  .fund-bar.up { background: var(--up); }
+  .fund-bar.down { background: var(--down); }
 
   /* ============ 走势情绪分析页 ============ */
   .senti-wrap { max-width: 1240px; }
