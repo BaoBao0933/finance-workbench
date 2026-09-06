@@ -2712,8 +2712,8 @@ function renderHoldings() {
     const cls = q ? clsOf(q.pct) : 'flat';
     const price = q ? q.price : null;
     const mv = price !== null ? price * h.qty : null;
-    const pnl = mv !== null ? mv - h.cost : null;
-    const rate = mv !== null && h.cost > 0 ? (mv / h.cost - 1) * 100 : null;
+    const pnl = mv !== null ? mv - h.cost * h.qty : null;
+    const rate = mv !== null && h.cost > 0 ? (mv / (h.cost * h.qty) - 1) * 100 : null;
     const pcls = pnl === null ? 'flat' : clsOf(pnl);
     const dot = q ? `<span class="w-dot ${cls}"></span>` : '<span class="w-dot"></span>';
     return `<div class="pos-row" data-secid="${h.secid}">
@@ -2740,7 +2740,7 @@ function updatePosSummary() {
   let mv = 0, cost = 0, hasQuote = false;
   holdings.forEach(h => {
     const q = holdQuotes[h.secid];
-    if (q && q.price) { mv += q.price * h.qty; cost += h.cost; hasQuote = true; }
+    if (q && q.price) { mv += q.price * h.qty; cost += h.cost * h.qty; hasQuote = true; }
   });
   if (!hasQuote || !holdings.length) {
     $('ps-mv').textContent = '--'; $('ps-mv').className = 'val';
@@ -2810,8 +2810,8 @@ function updateHoldPrices() {
     const cls = clsOf(q.pct);
     const price = q.price;
     const mv = price * h.qty;
-    const pnl = mv - h.cost;
-    const rate = h.cost > 0 ? (mv / h.cost - 1) * 100 : 0;
+    const pnl = mv - h.cost * h.qty;
+    const rate = h.cost > 0 ? (mv / (h.cost * h.qty) - 1) * 100 : 0;
     const pcls = clsOf(pnl);
 
     row.querySelectorAll('.w-val').forEach(elm => {
