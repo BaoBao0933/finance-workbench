@@ -2135,8 +2135,9 @@ function updateCard(cfg, q) {
   const _zc = zoneCache[cfg.code];
   if (c.vol && _zc && _zc.prevVol > 0 && q.volume > 0) {
     const rr = (q.volume - _zc.prevVol) / _zc.prevVol * 100;
+    const absYi = Math.abs((q.volume - _zc.prevVol) / 1e8);
     c.vol.className = 'v-vol ' + (rr >= 0 ? 'up' : 'down');
-    c.vol.textContent = (rr >= 0 ? '放量 ' : '缩量 ') + fmtNum(Math.abs(rr), 1) + '%';
+    c.vol.textContent = (rr >= 0 ? '放量 ' : '缩量 ') + (absYi >= 1 ? absYi.toFixed(1) : absYi.toFixed(2)) + '亿';
   } else if (c.vol) { c.vol.className = 'v-vol flat'; c.vol.textContent = '--'; }
 }
 
