@@ -1643,6 +1643,66 @@
   :root[data-theme="light"] .lhb-row .watch-col { color: #3a4152; }
   :root[data-theme="light"] .lhb-row:nth-child(-n+4) .sr-rank,
   :root[data-theme="light"] .sec-row:nth-child(-n+4) .sr-rank { background: transparent; color: #e85d4e; }
+
+  /* ============ 玻璃橙色渐变 · 统一悬浮态（所有交互面） ============
+     参考图：鼠标悬浮 → 橙色→珊瑚渐变玻璃，增透 + 上浮光晕。
+     仅表现层，不触碰文字内容、布局与涨跌配色逻辑。 */
+  .nav-item { transition: background .22s ease, color .22s ease, box-shadow .22s ease; }
+  .nav-item:not(.active):hover {
+    background: linear-gradient(135deg, rgba(255,150,110,.58) 0%, rgba(232,106,96,.66) 100%);
+    border-color: rgba(255,180,150,.32);
+    color: #fff;
+    backdrop-filter: blur(12px) saturate(170%);
+    -webkit-backdrop-filter: blur(12px) saturate(170%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.30), 0 6px 22px rgba(232,109,94,.32);
+  }
+  .nav-item:not(.active):hover .icon { color: #fff; filter: saturate(1.1); }
+
+  /* 卡片型交互面：橙色玻璃渐变 + 上浮光晕 */
+  .index-card:hover,
+  .ov-card.clickable:hover,
+  .sector-chip:hover,
+  .sec-hot-card:hover,
+  .sec-cell:hover {
+    background: linear-gradient(135deg, rgba(255,150,110,.30) 0%, rgba(232,106,96,.36) 100%);
+    border-color: rgba(255,180,155,.55);
+    backdrop-filter: blur(14px) saturate(170%);
+    -webkit-backdrop-filter: blur(14px) saturate(170%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.30), 0 12px 32px rgba(232,109,94,.22);
+  }
+
+  /* 数据行 / 新闻条目：轻薄橙色玻璃，保持文本可读与"透明玻璃"感 */
+  .watch-row:hover,
+  .pos-row:hover,
+  .ladder-row:hover,
+  .lhb-row:hover,
+  .fund-row:hover,
+  .sec-row:hover,
+  .news-item:hover,
+  .focus-col .news-item:hover {
+    background: linear-gradient(90deg, rgba(255,150,110,.12), rgba(255,150,110,.03) 46%);
+    border-color: transparent;
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    box-shadow: 0 8px 22px rgba(232,109,94,.12);
+  }
+
+  /* 浅色主题：同一橙色玻璃悬浮态（覆盖前面浅色主题的白色悬浮覆盖） */
+  :root[data-theme="light"] .nav-item:not(.active):hover {
+    background: linear-gradient(135deg, #ff9a70, #e85d4e);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.30), 0 6px 22px rgba(232,109,94,.26);
+  }
+  :root[data-theme="light"] .index-card:hover,
+  :root[data-theme="light"] .ov-card.clickable:hover,
+  :root[data-theme="light"] .sector-chip:hover,
+  :root[data-theme="light"] .sec-hot-card:hover,
+  :root[data-theme="light"] .sec-cell:hover {
+    background: linear-gradient(135deg, rgba(255,154,112,.42) 0%, rgba(232,106,96,.48) 100%);
+    border-color: rgba(232,106,96,.5) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 12px 32px rgba(232,109,94,.24);
+  }
 </style>
 <script>
 try {
