@@ -1451,6 +1451,22 @@
     }
   }
 
+  /* ============ 动效优化（transitions-dev）：交互元素 iOS 弹簧微交互 ============
+     带回弹缓动 cubic-bezier(.34,1.56,.64,1)；reduced-motion 用户由上方规则自动缩短时长 */
+  .index-card, .ov-card, .sector-chip, .sec-hot-card, .sec-cell,
+  .watch-row, .pos-row, .ladder-row, .lhb-row, .sec-row, .fund-row,
+  .focus-col .news-item, .news-item, .btn, .btn-primary, .btn-add, .btn-refresh,
+  .fund-tab, .news-tag, .w-pin, .w-del, .btn-back, .btn-back-sec, .pf-cancel,
+  .nav-item, .tab, .tab.active {
+    transition:
+      transform .34s cubic-bezier(.34,1.56,.64,1),
+      box-shadow .34s cubic-bezier(.34,1.56,.64,1),
+      background-color .22s ease,
+      background .22s ease,
+      border-color .22s ease,
+      color .2s ease;
+  }
+
   /* ==================== 浅色主题：还原之前暖奶油 · 琥珀橙风格 ==================== */
   /* 仅调整配色/背景，不改动文字内容、布局与涨跌配色逻辑 */
   :root[data-theme="light"] {
@@ -1492,9 +1508,14 @@
   .theme-fab:active { transform: scale(.93); }
   .theme-fab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .theme-fab svg { width: 21px; height: 21px; stroke-width: 2; display: block; }
-  .theme-fab .ico-moon { display: none; }
-  :root[data-theme="light"] .theme-fab .ico-sun { display: none; }
-  :root[data-theme="light"] .theme-fab .ico-moon { display: block; }
+  /* 主题图标：交叉淡入淡出 + 旋转缩放 + 微模糊（transitions-dev 图标切换） */
+  .theme-fab .ico-sun, .theme-fab .ico-moon {
+    position: absolute; top: 50%; left: 50%; margin: -10.5px 0 0 -10.5px; width: 21px; height: 21px;
+    transition: opacity .3s ease, transform .4s cubic-bezier(.34,1.56,.64,1), filter .3s ease;
+  }
+  .theme-fab .ico-moon { opacity: 0; transform: rotate(90deg) scale(.3); filter: blur(2px); }
+  :root[data-theme="light"] .theme-fab .ico-sun { opacity: 0; transform: rotate(-90deg) scale(.3); filter: blur(2px); }
+  :root[data-theme="light"] .theme-fab .ico-moon { opacity: 1; transform: none; filter: none; }
 
   /* 为右上角的悬浮按钮预留空间，避免遮挡各页右上操作按钮 */
   .header-actions { padding-right: 60px; }
