@@ -3750,9 +3750,8 @@ function openHotSector(b, pct) {
   curSector = { code: b.code, name: b.name, pct: pct || 0 };
   curSortPo = 1;
   document.querySelectorAll('#sec-detail-view .fund-tab[data-sort]').forEach(t => t.classList.toggle('active', t.dataset.sort === '1'));
-  $('sec-list-view').style.display = 'none';
-  $('sec-detail-view').style.display = '';
   $('sec-d-name').textContent = b.name;
+  showSecDetail();
   $('sec-stocks').innerHTML = '<div class="news-empty">成分股加载中…</div>';
   loadSectorStocks();
 }
@@ -3793,24 +3792,60 @@ function renderSecList() {
 }
 
 // 进入成分股视图
+const REDUCE_MOTION = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// —— 板块成分股视图（弹层）iOS 动效：scale + 上移 + blur 淡入 ——
+function showSecDetail() {
+  const list = $('sec-list-view'), detail = $('sec-detail-view');
+  list.style.display = 'none';
+  detail.style.display = '';
+  if ('animate' in detail && !REDUCE_MOTION()) {
+    detail.animate([
+      { opacity: 0, transform: 'scale(.97) translateY(12px)', filter: 'blur(3px)' },
+      { opacity: 1, transform: 'scale(1) translateY(0)', filter: 'blur(0)' }
+    ], { duration: 280, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+  }
+}
+function hideSecDetail() {
+  const list = $('sec-list-view'), detail = $('sec-detail-view');
+  if ('animate' in detail && detail.style.display !== 'none' && !REDUCE_MOTION()) {
+    const anim = detail.animate([
+      { opacity: 1, transform: 'scale(1) translateY(0)', filter: 'blur(0)' },
+      { opacity: 0, transform: 'scale(.97) translateY(12px)', filter: 'blur(3px)' }
+    ], { duration: 160, easing: 'cubic-bezier(0.4, 0, 0.74, 0.14)' });
+    anim.onfinish = () => { detail.style.display = 'none'; list.style.display = ''; };
+  } else {
+    detail.style.display = 'none';
+    list.style.display = '';
+  }
+}
+// —— 板块列表（下拉切换）iOS 动效：自顶部生长 + blur 淡入 ——
+function animateSecGrid() {
+  const grid = $('sec-grid');
+  if ('animate' in grid && !REDUCE_MOTION()) {
+    grid.animate([
+      { opacity: 0, transform: 'translateY(-10px) scale(.99)', filter: 'blur(2px)' },
+      { opacity: 1, transform: 'translateY(0) scale(1)', filter: 'blur(0)' }
+    ], { duration: 300, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+  }
+}
+
 function openSector(code) {
   const s = secAllList.find(x => x.code === code);
   if (!s) return;
   curSector = s;
   curSortPo = 1;
   document.querySelectorAll('#sec-detail-view .fund-tab[data-sort]').forEach(t => t.classList.toggle('active', t.dataset.sort === '1'));
-  $('sec-list-view').style.display = 'none';
-  $('sec-detail-view').style.display = '';
   $('sec-d-name').textContent = s.name;
   $('sec-stocks').innerHTML = '<div class="news-empty">成分股加载中…</div>';
+  showSecDetail();
   loadSectorStocks();
 }
 
 // 返回板块总览
 $('sec-back').addEventListener('click', () => {
   curSector = null;
-  $('sec-detail-view').style.display = 'none';
-  $('sec-list-view').style.display = '';
+  hideSecDetail();
   loadSectorBoard();
 });
 
@@ -3879,8 +3914,7 @@ function renderSecStocks(diff) {
 function loadSectorPage() {
   loadSecHot();
   if (curSector) {
-    $('sec-list-view').style.display = 'none';
-    $('sec-detail-view').style.display = '';
+    showSecDetail();
     loadSectorStocks();
   } else {
     loadSectorBoard();
@@ -3894,6 +3928,7 @@ document.querySelectorAll('#sec-list-view .fund-tab[data-btype]').forEach(tab =>
     document.querySelectorAll('#sec-list-view .fund-tab').forEach(t => t.classList.toggle('active', t === tab));
     secCellCache = {};
     $('sec-grid').innerHTML = '';
+    animateSecGrid();
     loadSectorBoard();
   });
 });
