@@ -675,6 +675,16 @@
     outline: none;
   }
   .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,127,191,.18); }
+  /* 错误提示：无效操作时输入框轻微抖动（transitions-dev 错误抖动用例） */
+  @keyframes errShake {
+    0%, 100% { transform: translateX(0); }
+    15% { transform: translateX(-6px); }
+    35% { transform: translateX(5px); }
+    55% { transform: translateX(-4px); }
+    75% { transform: translateX(3px); }
+    90% { transform: translateX(-2px); }
+  }
+  .search-input.is-shaking { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,109,94,.18); animation: errShake .45s cubic-bezier(.22,1,.36,1); }
   .btn-add { background: var(--accent); color: #fff; border: none; border-radius: 12px; padding: 0 22px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s; box-shadow: 0 3px 10px rgba(91,127,191,.30); white-space: nowrap; }
   .btn-add:hover { background: var(--accent-hover); transform: translateY(-1px); }
   .search-drop {
@@ -3190,8 +3200,10 @@ document.addEventListener('click', e => {
 });
 $('btn-search-add').addEventListener('click', () => {
   const item = $('search-drop').querySelector('.sd-item');
-  if (item) item.click();
-  else showToast('请先搜索并选择要添加的股票');
+  if (item) { item.click(); return; }
+  showToast('请先搜索并选择要添加的股票');
+  const inp = $('search-drop').closest('.search-box').querySelector('.search-input');
+  if (inp) { inp.classList.remove('is-shaking'); void inp.offsetWidth; inp.classList.add('is-shaking'); }
 });
 $('btn-watch-add').addEventListener('click', () => $('watch-search').focus());
 $('btn-watch-refresh').addEventListener('click', () => loadWatchQuotes());
