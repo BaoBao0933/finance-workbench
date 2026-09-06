@@ -551,8 +551,8 @@
   .index-card:nth-child(8){--card-anim:fadeIn .8s ease both;}
   .flash-up { animation: flashUp .5s ease; }
   .flash-down { animation: flashDown .5s ease; }
-  @keyframes flashUp { 0% { color: #c0392b; transform: scale(1.06); } 100% { transform: scale(1); } }
-  @keyframes flashDown { 0% { color: #0e8f52; transform: scale(1.06); } 100% { transform: scale(1); } }
+  @keyframes flashUp { 0% { color: #c0392b; transform: translateY(2px) scale(1.05); filter: blur(1px); opacity: .7; } 50% { transform: translateY(0) scale(1.06); opacity: 1; } 100% { transform: translateY(0) scale(1); filter: blur(0); } }
+  @keyframes flashDown { 0% { color: #0e8f52; transform: translateY(2px) scale(1.05); filter: blur(1px); opacity: .7; } 50% { transform: translateY(0) scale(1.06); opacity: 1; } 100% { transform: translateY(0) scale(1); filter: blur(0); } }
   .ic-price { transition: color .25s; }
 
   /* 页面底部渐隐（视觉高级感） */
@@ -2451,7 +2451,22 @@ function switchPage(page) {
   const isReal = !!targetId;
   ['page-home', 'page-watch', 'page-news', 'page-futures', 'page-funds', 'page-senti', 'page-sectors', 'page-holdings', 'page-lhb', 'page-focus', 'page-placeholder'].forEach(id => {
     const el = $(id);
-    if (el) el.style.display = (id === targetId) ? '' : 'none';
+    if (!el) return;
+    if (id === targetId) {
+      el.style.display = '';
+      // iOS 风格页面进入过渡：淡入 + 轻微上移 + 模糊还原
+      if ('animate' in el) {
+        el.animate(
+          [
+            { opacity: 0, transform: 'translateY(6px)', filter: 'blur(2px)' },
+            { opacity: 1, transform: 'translateY(0)', filter: 'blur(0)' }
+          ],
+          { duration: 300, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+        );
+      }
+    } else {
+      el.style.display = 'none';
+    }
   });
   if (!isReal || page === '财经要闻') {
     $('ph-title').textContent = page;
