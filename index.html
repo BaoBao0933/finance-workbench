@@ -16,11 +16,11 @@
     --down-bg: #e6f7ef;
     --text-main: #2f3a48;
     --text-sub: #4b5a6d;
-    --card-border: rgba(255, 255, 255, .7);
+    --card-border: rgba(255, 255, 255, 0);
     --bg: #eef2f8;
     --accent-soft: #e9eef7;
     --glass: rgba(255, 255, 255, .55);
-    --glass-border: rgba(255, 255, 255, .88);
+    --glass-border: rgba(255, 255, 255, 0);
     --gold: #9fb4d6;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -207,6 +207,17 @@
   .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .content { flex: 1; overflow-y: auto; padding: 26px 30px 12px; }
 
+  /* 无边界毛玻璃：卡片全部去除可见边框；仅交互控件保留轻微可辨描边 */
+  .search-input,
+  .search-drop,
+  .fund-tab,
+  .news-tag,
+  .news-pin,
+  .btn-back-sec,
+  .lad-stock,
+  .w-pin,
+  .sd-tag { border-color: rgba(255,255,255,.7); }
+
   .header { display: flex; align-items: flex-start; justify-content: space-between; }
   .header .title {
     display: inline-block;
@@ -335,7 +346,7 @@
     transition: box-shadow .2s, transform .2s, border-color .2s;
   }
   .index-card:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 12px 30px rgba(30, 44, 62, .12); transform: translateY(-2px); border-color: #bcd0ed; }
-  .index-card.gr { border-color: #c9dcf4; background: linear-gradient(160deg, rgba(235,244,255,.8), rgba(255,255,255,.55)); }
+  .index-card.gr { border-color: transparent; background: linear-gradient(160deg, rgba(235,244,255,.8), rgba(255,255,255,.55)); }
   .index-card.gr .ic-name { color: #2b4c88; }
   .ic-top { display: flex; align-items: center; gap: 9px; }
   .ic-name { font-size: 16px; font-weight: 600; }
@@ -1176,12 +1187,12 @@
   /* —— 热点精选板块（行业板块页置顶）：暖金光晕玻璃 —— */
   .sec-hot {
     border-radius: 20px;
-    border-color: rgba(175, 195, 220, .55);
+    border-color: transparent;
     box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 2px 6px rgba(60,76,100,.08), 0 14px 32px rgba(60,76,100,.10);
   }
   .sec-hot-card {
     border-radius: 16px;
-    border-color: rgba(200, 216, 236, .55);
+    border-color: transparent;
     background: linear-gradient(120deg,
       rgba(255,255,255,.46) 0%,
       rgba(255,255,255,.24) 46%,
