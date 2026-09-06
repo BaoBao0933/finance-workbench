@@ -981,7 +981,7 @@
   .pos-chart-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
   .pos-chart-legend .l-up { background: linear-gradient(180deg, rgba(232,93,78,.95), rgba(232,93,78,.18)); }
   .pos-chart-legend .l-down { background: linear-gradient(180deg, rgba(10,168,105,.18), rgba(10,168,105,.95)); }
-  .pos-chart-wrap { width: 100%; height: 150px; }
+  .pos-chart-wrap { width: 100%; height: 210px; }
   .pos-chart-wrap svg { width: 100%; height: 100%; display: block; overflow: visible; }
   .pos-form {
     background: rgba(255,255,255,.66); border: 1px solid var(--accent); border-radius: 13px;
@@ -2908,7 +2908,7 @@ function smoothPath(pts) {
 }
 function buildPosChart(force) {
   const wrap = $('pos-chart'); if (!wrap) return;
-  const H = 150, W = 600, PAD = 14, base = H / 2;
+  const H = 210, W = 600, PAD = 14, base = H / 2;
   // 提取每只持仓的真实盈亏
   const series = [];
   for (const h of holdings) {
@@ -2922,18 +2922,18 @@ function buildPosChart(force) {
   // 骨架（仅当数量变化或首次时重建；之后只更新路径，避免闪烁）
   if (force || pcState.n !== n) {
     pcState.n = n;
-    if (n < 2) { // 数据不足：仅显示零轴占位
-      const tip = holdings.length === 0 ? '暂无持仓' : (holdings.length === 1 ? '仅 1 只持仓，添加更多后显示盈亏波形' : '行情加载中…');
-      wrap.innerHTML = `<svg viewBox="0 0 600 150" preserveAspectRatio="none">
+    if (n === 0) { // 暂无数据：无持仓 / 行情加载中
+      const tip = holdings.length === 0 ? '暂无持仓' : '行情加载中…';
+      wrap.innerHTML = `<svg viewBox="0 0 600 ${H}" preserveAspectRatio="none">
         <defs>${pcDefs(H)}</defs>
-        <line x1="14" y1="75" x2="586" y2="75" stroke="rgba(80,96,120,.3)" stroke-dasharray="4 7" stroke-width="1"/>
-        <text x="300" y="72" text-anchor="middle" font-size="13" fill="rgba(140,155,175,.6)">${tip}</text>
+        <line x1="${PAD}" y1="${base}" x2="${W - PAD}" y2="${base}" stroke="rgba(80,96,120,.3)" stroke-dasharray="4 7" stroke-width="1"/>
+        <text x="300" y="${base - 3}" text-anchor="middle" font-size="13" fill="rgba(140,155,175,.6)">${tip}</text>
       </svg>`; return;
     }
     pcState.line = null;
-    wrap.innerHTML = `<svg viewBox="0 0 600 150" preserveAspectRatio="none">
+    wrap.innerHTML = `<svg viewBox="0 0 600 ${H}" preserveAspectRatio="none">
       <defs>${pcDefs(H)}</defs>
-      <line id="pcBase" x1="14" y1="75" x2="586" y2="75" stroke="rgba(80,96,120,.34)" stroke-dasharray="4 7" stroke-width="1"/>
+      <line id="pcBase" x1="${PAD}" y1="${base}" x2="${W - PAD}" y2="${base}" stroke="rgba(80,96,120,.34)" stroke-dasharray="4 7" stroke-width="1"/>
       <path id="pcArea" fill="url(#pcFill)"/>
       <path id="pcLine" fill="none" stroke="rgba(255,255,255,.92)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
       <g id="pcDots"></g>
@@ -2944,36 +2944,43 @@ function buildPosChart(force) {
     if (pcState.reduce === undefined) pcState.reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     pcState.shouldAnim = !pcState.reduce; // 等路径 d 就绪后再触发iOS描边动画
   }
-  if (n < 2) return;
+  if (n === 0) return;
 
-  // 更新路径（热度刷新只改 d，不重建）
+  // 构造波浪数据点：多只＝逐点；单只＝以该股盈亏画单个波峰/波谷
+  let maxAbs = 1;
   const data = [...series].sort((a, b) => a.pnl - b.pnl);
-  const maxAbs = Math.max.apply(null, data.map(d => Math.abs(d.pnl))) || 1;
+  if (n >= 2) maxAbs = Math.max.apply(null, data.map(d => Math.abs(d.pnl))) || 1;
+  const rate = v => Math.max(-1, Math.min(1, v / maxAbs));
   const stepX = n > 1 ? (W - 2 * PAD) / (n - 1) : 0;
-  const pts = data.map((d, i) => {
-    const ratio = Math.max(-1, Math.min(1, d.pnl / maxAbs));
-    return { x: PAD + i * stepX, y: base - ratio * (base - PAD) };
-  });
+  const isSingle = n < 2;
+  let pts;
+  if (!isSingle) {
+    pts = data.map((d, i) => ({ x: PAD + i * stepX, y: base - rate(d.pnl) * (base - PAD) }));
+  } else {
+    // 单只：从零轴起，中间峰值＝该股盈亏方向，再回到零轴，形成单个波形
+    const pnl = data[0].pnl;
+    const humpY = base - Math.sign(pnl || 1) * (base - PAD);
+    pts = [ { x: PAD, y: base }, { x: W / 2, y: humpY }, { x: W - PAD, y: base } ];
+  }
   const line = smoothPath(pts);
   const area = line + ` L ${r(pts[pts.length - 1].x)},${base} L ${r(pts[0].x)},${base} Z`;
   if (pcState.line) pcState.line.setAttribute('d', line);
   if (pcState.area) pcState.area.setAttribute('d', area);
   pcDrawIn();
 
-  // 数据点（少于 12 只时显示，按正负着色）+ 末端亮点
+  // 数据点（多只少于 12 时逐点；单只只高亮波峰）+ 极值亮点
   if (pcState.dots) {
+    const extreme = pts.reduce((a, b) => (Math.abs(b.y - base) > Math.abs(a.y - base) ? b : a));
     let dotsHtml = '';
-    if (n <= 12) {
+    if (!isSingle && n <= 12) {
       pts.forEach(p => {
-        // 判断该点盈亏正负：用原始 series pnl 对应颜色
         const sign = p.y <= base ? 1 : -1;
         dotsHtml += `<circle cx="${r(p.x)}" cy="${r(p.y)}" r="3.2" fill="${sign >= 0 ? 'rgba(232,93,78,.85)' : 'rgba(10,168,105,.85)'}" stroke="rgba(255,255,255,.85)" stroke-width="1"/>`;
       });
     }
-    const last = pts[pts.length - 1];
-    const tipSign = last.y <= base ? '#e85d4e' : '#0aa869';
-    dotsHtml += `<circle cx="${r(last.x)}" cy="${r(last.y)}" r="8" fill="${tipSign}" opacity=".28"/>` +
-                `<circle cx="${r(last.x)}" cy="${r(last.y)}" r="4.5" fill="#fff" stroke="${tipSign}" stroke-width="2"/>`;
+    const tipSign = extreme.y <= base ? '#e85d4e' : '#0aa869';
+    dotsHtml += `<circle cx="${r(extreme.x)}" cy="${r(extreme.y)}" r="8" fill="${tipSign}" opacity=".28"/>` +
+                `<circle cx="${r(extreme.x)}" cy="${r(extreme.y)}" r="4.5" fill="#fff" stroke="${tipSign}" stroke-width="2"/>`;
     pcState.dots.innerHTML = dotsHtml;
   }
 }
