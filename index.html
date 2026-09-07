@@ -3152,6 +3152,30 @@ function animeEntrance() {
     complete: () => clearTransform(regionCards) });
 }
 
+// 行情数值刷新：数字滚动 + 弹性放大（anime.js）
+const rollMaps = {};
+function rollPrice(el, code, fromStr, toStr, cls) {
+  const from = parseFloat(String(fromStr).replace(/,/g, ''));
+  const to = parseFloat(String(toStr).replace(/,/g, ''));
+  if (!isFinite(from) || !isFinite(to) || from === to) return;
+  if (rollMaps[code]) rollMaps[code].pause(); // 防止连续报价时动画堆积
+  const o = { v: from };
+  const anim = anime({
+    targets: o, v: to, duration: 560,
+    easing: 'easeOutCubic', round: false,
+    update: () => { el.textContent = fmtNum(o.v); },
+    complete: () => {
+      el.textContent = toStr;
+      if (rollMaps[code] === anim) delete rollMaps[code];
+    }
+  });
+  rollMaps[code] = anim;
+  // 数字随方向弹性放大，营造“跳数”提示（仅作用在数值本身，不影响卡片悬停动效）
+  anime({ targets: el, scale: [1, cls === 'down' ? 1.08 : 1.14, 1], duration: 440,
+    easing: 'easeOutElastic(1, .5)',
+    complete: () => { el.style.transform = ''; } });
+}
+
 /* ================= 数据加载（多通道容灾） ================= */
 // 东方财富字段 → 统一结构
 function emToQuote(d) {
@@ -3284,17 +3308,20 @@ function updateCard(cfg, q) {
   const chgStr = (q.chg > 0 ? '↑ ' : q.chg < 0 ? '↓ ' : '') + fmtNum(Math.abs(q.chg));
 
   const cls = clsOf(q.pct);
-  // 价格变动时添加闪烁动效（先清空再赋值 className，最后追加动画类）
+  // 价格变动时添加动效：anime.js 可用时做数字滚动+弹性放大，否则回退原 flash 闪烁
   c.price.className = 'ic-price';
   // 指数卡片按当日实际涨跌实时上色：涨红 / 跌绿（聚焦大卡与港股美股等分区指数一致变色）
   if (cls !== 'flat') c.price.classList.add(cls);
-  if (c.price.textContent && c.price.textContent !== priceStr) {
+  const prevText = c.price.textContent;
+  const priceChanged = !!prevText && prevText !== priceStr;
+  if (priceChanged && typeof anime === 'undefined') {
     c.price.classList.remove('flash-up', 'flash-down');
     void c.price.offsetWidth;
     if (cls === 'up') c.price.classList.add('flash-up');
     else if (cls === 'down') c.price.classList.add('flash-down');
   }
   c.price.textContent = priceStr;
+  if (priceChanged && typeof anime !== 'undefined') rollPrice(c.price, cfg.code, prevText, priceStr, cls);
   c.badge.textContent = pctStr;
   c.badge.className = 'ic-badge ' + cls;
   c.chg.textContent = chgStr;
