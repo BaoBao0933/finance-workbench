@@ -1455,7 +1455,7 @@
   .focus-col .news-item {
     position: relative; padding: 15px 18px 15px 22px; background: rgba(255,255,255,.66);
     border: 1px solid var(--card-border); border-radius: 13px;
-    display: flex; flex-direction: column; gap: 8px; animation: fadeIn .35s ease both; transition: all .18s;
+    display: flex; flex-direction: column; gap: 8px; transition: all .18s;
     flex-shrink: 0; /* 禁止被 flex 压缩——超出列表高度时应滚动而不是挤扁卡片 */
   }
   .focus-col .news-item::before { content: ''; position: absolute; left: 0; top: 15px; bottom: 15px; width: 3px; border-radius: 3px; background: #d6cab4; }
@@ -1473,7 +1473,39 @@
   .focus-tag.neutral { background: #f2ece1; color: #a09585; }
   @media (max-width: 900px) { #focus-sectors .sec-cell { min-width: 120px; } }
 
-  /* ============ 持仓股页 ============ */
+	  /* 重点关注页 - 面板 reveal 动效 */
+	#focus-detail.t-panel-slide {
+	  transform: translateY(var(--panel-translate-y));
+	  opacity: 0; filter: blur(var(--panel-blur)); pointer-events: none;
+	  transition: transform var(--panel-close-dur) var(--panel-ease), opacity var(--panel-close-dur) var(--panel-ease), filter var(--panel-close-dur) var(--panel-ease);
+	  will-change: transform, opacity, filter;
+	}
+	#focus-detail.t-panel-slide[data-open="true"] {
+	  transform: translateY(0); opacity: 1; filter: blur(0); pointer-events: auto;
+	  transition: transform var(--panel-open-dur) var(--panel-ease), opacity var(--panel-open-dur) var(--panel-ease), filter var(--panel-open-dur) var(--panel-ease);
+	}
+	@media (prefers-reduced-motion: reduce) {
+	  #focus-detail.t-panel-slide { transition: none !important; }
+	}
+
+	/* 重点关注页 - 快讯逐条错峰入场 */
+	@keyframes focus-news-stagger {
+	  0%   { opacity: 0; transform: translateY(10px); filter: blur(2px); }
+	  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+	}
+	.focus-col .news-item { animation: focus-news-stagger .42s cubic-bezier(.22,1,.36,1) both; }
+	.focus-col .news-item:nth-child(1)  { animation-delay: 0ms; }
+	.focus-col .news-item:nth-child(2)  { animation-delay: 30ms; }
+	.focus-col .news-item:nth-child(3)  { animation-delay: 60ms; }
+	.focus-col .news-item:nth-child(4)  { animation-delay: 90ms; }
+	.focus-col .news-item:nth-child(5)  { animation-delay: 120ms; }
+	.focus-col .news-item:nth-child(6)  { animation-delay: 150ms; }
+	.focus-col .news-item:nth-child(7)  { animation-delay: 180ms; }
+	.focus-col .news-item:nth-child(8)  { animation-delay: 210ms; }
+	.focus-col .news-item:nth-child(9)  { animation-delay: 240ms; }
+	.focus-col .news-item:nth-child(10) { animation-delay: 270ms; }
+
+	  /* ============ 持仓股页 ============ */
   .pos-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 4px 0 16px; }
   .pos-sum-card { background: rgba(255,255,255,.66); border: 1px solid var(--card-border); border-radius: 13px; padding: 16px 20px; box-shadow: 0 1px 2px rgba(150, 112, 62,.04); }
   .pos-sum-card .lab { font-size: 13.5px; color: #a09585; }
@@ -5652,8 +5684,9 @@ async function loadFocusSectors() {
         }
         cell.name.textContent = s.name;
         const pctTxt = (s.pct > 0 ? '+' : '') + fmtNum(s.pct, 2) + '%';
-        cell.pct.textContent = pctTxt;
         cell.pct.className = 'scp ' + clsOf(s.pct);
+        cell.pct.classList.add('t-digit-group');
+        setDigitAnim(cell.pct, pctTxt);
         cell.code.textContent = s.code + ' · ' + fmtNum(s.price);
         grid.appendChild(cell.root);
       });
@@ -5690,19 +5723,21 @@ async function loadFocusStocks() {
           div.className = 'sec-row';
           div.innerHTML = `<div class="sr-rank">${i + 1}</div>
             <div class="sr-name">${s[1]}<small>${key.split('.').pop()}</small></div>
-            <div class="sr-price" data-f="price"><b>--</b></div>
-            <div class="sr-pct" data-f="pct"><b>--</b></div>
-            <div class="sr-chg" data-f="chg"><b>--</b></div>
+            <div class="sr-price" data-f="price"><b class="t-digit-group">--</b></div>
+            <div class="sr-pct" data-f="pct"><b class="t-digit-group">--</b></div>
+            <div class="sr-chg" data-f="chg"><b class="t-digit-group">--</b></div>
             <div class="sr-amt w-hide">--</div>`;
           row = focusStockCache[key] = { root: div, price: div.querySelector('.sr-price b'), pct: div.querySelector('.sr-pct b'), chg: div.querySelector('.sr-chg b'), amt: div.querySelector('.sr-amt') };
         }
         if (d) {
           const cls = clsOf(d.f3);
-          row.price.textContent = fmtNum(d.f2);
-          row.pct.textContent = (d.f3 > 0 ? '+' : '') + fmtNum(d.f3, 2) + '%';
+          setDigitAnim(row.price, fmtNum(d.f2));
           row.pct.className = 'sr-pct ' + cls;
-          row.chg.textContent = (d.f4 > 0 ? '+' : '') + fmtNum(d.f4, 2);
+          row.pct.classList.add('t-digit-group');
+          setDigitAnim(row.pct, (d.f3 > 0 ? '+' : '') + fmtNum(d.f3, 2) + '%');
           row.chg.className = 'sr-chg ' + cls;
+          row.chg.classList.add('t-digit-group');
+          setDigitAnim(row.chg, (d.f4 > 0 ? '+' : '') + fmtNum(d.f4, 2));
           row.amt.textContent = fmtNum(d.f6 || 0) + '万';
         } else {
           row.price.textContent = '--'; row.pct.textContent = '--'; row.chg.textContent = '--'; row.amt.textContent = '--';
@@ -5722,11 +5757,21 @@ function openFocusDetail(code, name, pct) {
   focusFdPct = pct;
   $('fd-name').textContent = name;
   $('fd-pct').className = 'sec-d-pct ' + clsOf(pct);
-  $('focus-detail').style.display = '';
+  var detail = $('focus-detail');
+  detail.classList.add('t-panel-slide');
+  detail.style.display = '';
+  // 下一帧触发 reveal 入场动画
+  requestAnimationFrame(function() { detail.setAttribute('data-open', 'true'); });
   $('fd-list').innerHTML = '<div class="news-empty">成分股加载中…</div>';
   loadFocusDetailStocks();
 }
-function closeFocusDetail() { focusFdCode = null; $('focus-detail').style.display = 'none'; }
+function closeFocusDetail() {
+  focusFdCode = null;
+  var detail = $('focus-detail');
+  detail.setAttribute('data-open', 'false');
+  // 等关闭动画完成后再隐藏
+  setTimeout(function() { detail.style.display = 'none'; }, 400);
+}
 
 async function loadFocusDetailStocks() {
   if (!focusFdCode) return;
@@ -5748,18 +5793,20 @@ async function loadFocusDetailStocks() {
           div.className = 'sec-row';
           div.innerHTML = `<div class="sr-rank">${i + 1}</div>
             <div class="sr-name">${d.f14}<small>${d.f12}</small></div>
-            <div class="sr-price"><b>--</b></div>
-            <div class="sr-pct"><b>--</b></div>
-            <div class="sr-chg"><b>--</b></div>
+            <div class="sr-price"><b class="t-digit-group">--</b></div>
+            <div class="sr-pct"><b class="t-digit-group">--</b></div>
+            <div class="sr-chg"><b class="t-digit-group">--</b></div>
             <div class="sr-amt w-hide">--</div>`;
           row = focusFdCache[key] = { root: div, price: div.querySelector('.sr-price b'), pct: div.querySelector('.sr-pct b'), chg: div.querySelector('.sr-chg b'), amt: div.querySelector('.sr-amt') };
         }
         const cls = clsOf(d.f3);
-        row.price.textContent = fmtNum(d.f2);
-        row.pct.textContent = (d.f3 > 0 ? '+' : '') + fmtNum(d.f3, 2) + '%';
+        setDigitAnim(row.price, fmtNum(d.f2));
         row.pct.className = 'sr-pct ' + cls;
-        row.chg.textContent = (d.f4 > 0 ? '+' : '') + fmtNum(d.f4, 2);
+        row.pct.classList.add('t-digit-group');
+        setDigitAnim(row.pct, (d.f3 > 0 ? '+' : '') + fmtNum(d.f3, 2) + '%');
         row.chg.className = 'sr-chg ' + cls;
+        row.chg.classList.add('t-digit-group');
+        setDigitAnim(row.chg, (d.f4 > 0 ? '+' : '') + fmtNum(d.f4, 2));
         row.amt.textContent = fmtNum(d.f6 || 0) + '万';
         list.appendChild(row.root);
       });
