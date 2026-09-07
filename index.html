@@ -1089,6 +1089,88 @@
   .watch-empty .we-hint { margin-top: 6px; font-size: 12.5px; color: #b0a48f; }
   @media (max-width: 900px) { .watch-row { grid-template-columns: 2fr 1.2fr 1fr 1fr 44px; } .watch-row .w-hide { display: none; } }
 
+  /* ============ 自选股·突然拉升动效（纯装饰，不影响局部刷新）============ */
+  .watch-row { position: relative; }
+  .watch-surge {
+    --surge-blue: #6aa7ff;
+    position: absolute;
+    right: 108px; top: 50%;
+    width: 74px; height: 58px;
+    transform: translateY(-50%) scale(.7);
+    opacity: 0; pointer-events: none; z-index: 6;
+    background: color-mix(in srgb, var(--glass) 84%, transparent);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    box-shadow: 0 10px 26px rgba(0,0,0,.20);
+    transition: opacity .25s ease, transform .35s cubic-bezier(.22,1,.36,1);
+  }
+  .watch-surge.on { opacity: 1; transform: translateY(-50%) scale(1); }
+  /* 浮动云 */
+  .ws-clouds { position: absolute; top: 3px; left: 0; width: 100%; height: 12px; overflow: hidden; }
+  .ws-clouds i {
+    position: absolute; top: 4px; width: 15px; height: 7px; border-radius: 8px;
+    background:
+      radial-gradient(circle at 30% 70%, rgba(160,180,215,.9) 12%, transparent 13%),
+      radial-gradient(circle at 55% 40%, rgba(170,188,220,.9) 16%, transparent 17%),
+      linear-gradient(90deg, rgba(150,172,210,.55), rgba(150,172,210,.9));
+    opacity: 0; filter: blur(.4px);
+  }
+  .ws-c1 { left: -14%; top: 2px; animation: wsCloud 4.6s linear infinite; }
+  .ws-c2 { left: -22%; top: 8px; animation: wsCloud 6s linear .7s infinite; }
+  .ws-c3 { left: -8%; top: 1px; animation: wsCloud 7s linear 1.4s infinite; }
+  @keyframes wsCloud {
+    0% { opacity: 0; transform: translateX(0) scale(.8); }
+    18% { opacity: .75; }
+    80% { opacity: .45; }
+    100% { opacity: 0; transform: translateX(96px) scale(1); }
+  }
+  /* 环绕加载点环 + 弹跳小球 */
+  .ws-loader { position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; transform: translate(-50%, -50%); }
+  .ws-ring { position: absolute; inset: 0; animation: wsSpin 1.15s linear infinite; }
+  .ws-ring b { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; }
+  .ws-ring b:nth-child(1) { transform: rotate(0deg)    translateY(-15px); }
+  .ws-ring b:nth-child(2) { transform: rotate(45deg)   translateY(-15px); }
+  .ws-ring b:nth-child(3) { transform: rotate(90deg)   translateY(-15px); }
+  .ws-ring b:nth-child(4) { transform: rotate(135deg)  translateY(-15px); }
+  .ws-ring b:nth-child(5) { transform: rotate(180deg)  translateY(-15px); }
+  .ws-ring b:nth-child(6) { transform: rotate(225deg)  translateY(-15px); }
+  .ws-ring b:nth-child(7) { transform: rotate(270deg)  translateY(-15px); }
+  .ws-ring b:nth-child(8) { transform: rotate(315deg)  translateY(-15px); }
+  .ws-ring b:nth-child(even) { background: var(--up); box-shadow: 0 0 8px var(--up); }
+  .ws-ring b:nth-child(odd)  { background: var(--surge-blue); box-shadow: 0 0 8px var(--surge-blue); }
+  @keyframes wsSpin { to { transform: rotate(360deg); } }
+  .ws-ball {
+    position: absolute; left: 50%; bottom: 1px; width: 9px; height: 9px; margin-left: -4.5px;
+    border-radius: 50%; background: var(--up);
+    box-shadow: 0 0 10px var(--up);
+    animation: wsBall .5s ease-in-out infinite;
+  }
+  @keyframes wsBall {
+    0%, 100% { transform: translateY(0) scaleY(1); }
+    50%      { transform: translateY(-10px) scaleY(.8); }
+  }
+  /* 背后扫光线 */
+  .ws-fazers { position: absolute; inset: 0; overflow: hidden; }
+  .ws-fazers i {
+    position: absolute; width: 24px; height: 2px; border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--up)); opacity: 0;
+  }
+  .ws-fazers i:nth-child(1) { top: 20%; left: 16%; transform: rotate(-30deg); animation: wsFaze 1.5s linear .25s infinite; }
+  .ws-fazers i:nth-child(2) { bottom: 22%; right: 14%; transform: rotate(-30deg); animation: wsFaze 1.5s linear .85s infinite; }
+  @keyframes wsFaze {
+    0%   { opacity: 0; transform: rotate(-30deg) translateX(0); }
+    35%  { opacity: .75; }
+    100% { opacity: 0; transform: rotate(-30deg) translateX(-40px); }
+  }
+  :root[data-theme="light"] .watch-surge { --surge-blue: #4a6a9b; background: rgba(255,255,255,.88); border-color: rgba(255,255,255,.85); box-shadow: 0 12px 32px rgba(60,80,120,.16); }
+  @media (max-width: 900px) {
+    .watch-surge { right: 58px; width: 66px; height: 52px; transform: translateY(-50%) scale(.62); }
+    .watch-surge.on { transform: translateY(-50%) scale(.9); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .watch-surge .ws-ring, .watch-surge .ws-ball, .watch-surge .ws-clouds i, .watch-surge .ws-fazers i { animation: none; opacity: .5; }
+  }
+
   /* ============ 财经要闻页 ============ */
   .news-wrap { max-width: 1080px; }
   .news-topbar { display: flex; align-items: center; justify-content: space-between; margin-top: 22px; margin-bottom: 14px; }
@@ -3628,6 +3710,8 @@ document.addEventListener('visibilitychange', () => {
 const LS_WATCH = 'fw_watchlist_v1';
 let watchlist = [];   // [{secid,name,code,type}]
 let watchQuotes = {}; // secid -> quote
+let prevWatchQuotes = {};   // secid -> {pct} 上一轮自选行情快照（用于检测"突然拉升"）
+const watchRiseCool = {};   // secid -> 上次拉升动效时间戳（冷却，避免刷屏）
 
 function loadWatchlist() {
   try { watchlist = JSON.parse(localStorage.getItem(LS_WATCH) || '[]'); }
@@ -3717,8 +3801,15 @@ function renderWatchlist() {
 function updateWatchPrices() {
   const list = $('watch-list');
   list.querySelectorAll('.watch-row').forEach(row => {
-    const q = watchQuotes[row.dataset.secid];
+    const secid = row.dataset.secid;
+    const q = watchQuotes[secid];
     if (!q) return;
+    // 突然拉升动效：较上一轮涨幅快速抬升（涨幅>2% 且 单轮抬升>1.5%）→ 在行旁闪出动效
+    const prevQ = prevWatchQuotes[secid];
+    if (!document.hidden && q.pct != null && prevQ && prevQ.pct != null &&
+        q.pct > 2 && (q.pct - prevQ.pct) > 1.5) {
+      showWatchSurge(row, q);
+    }
     const cls = clsOf(q.pct);
     const priceTxt = fmtNum(q.price);
     const pctTxt = (q.pct > 0 ? '+' : '') + fmtNum(q.pct) + '%';
@@ -3754,6 +3845,8 @@ function updateWatchPrices() {
 // —— 自选行情（东财批量实时）——
 async function loadWatchQuotes() {
   if (!watchlist.length) { renderWatchlist(); return; }
+  // 本轮拉取前快照上一轮报价，用于检测"突然拉升"
+  prevWatchQuotes = Object.assign({}, watchQuotes);
   const secids = watchlist.map(w => w.secid).join(',');
   const fields = 'f2,f3,f4,f17,f15,f16,f6,f12,f13';
   const hosts = ['push2.eastmoney.com', 'push2delay.eastmoney.com'];
@@ -3774,6 +3867,32 @@ async function loadWatchQuotes() {
     } catch (e) { /* 下一域名 */ }
   }
   $('w-status').textContent = '行情获取失败，稍后自动重试…';
+}
+
+// 在自选股行旁闪出"突然拉升"动效（云 + 环绕加载点 + 弹跳小球 + 扫光线）
+function showWatchSurge(row, q) {
+  const secid = row.dataset.secid;
+  const now = Date.now();
+  if (now - (watchRiseCool[secid] || 0) < 20000) return; // 20s 冷却，避免刷屏
+  watchRiseCool[secid] = now;
+  let badge = row.querySelector('.watch-surge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.className = 'watch-surge';
+    badge.setAttribute('aria-hidden', 'true');
+    badge.innerHTML = `
+      <div class="ws-clouds"><i class="ws-c1"></i><i class="ws-c2"></i><i class="ws-c3"></i></div>
+      <div class="ws-loader"><span class="ws-ring"><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></span><i class="ws-ball"></i></div>
+      <div class="ws-fazers"><i></i><i></i></div>`;
+    row.appendChild(badge);
+  }
+  // 重放进入动画
+  badge.classList.remove('on');
+  void badge.offsetWidth;
+  badge.classList.add('on');
+  clearTimeout(badge._t);
+  badge._t = setTimeout(() => badge.classList.remove('on'), 4200);
+  try { navigator.vibrate && navigator.vibrate([15, 40, 20]); } catch (e) {}
 }
 
 // 事件绑定
@@ -3819,6 +3938,8 @@ $('watch-list').addEventListener('click', e => {
     watchlist.splice(idx, 1);
     saveWatchlist();
     delete watchQuotes[removed.secid];
+    delete prevWatchQuotes[removed.secid];
+    delete watchRiseCool[removed.secid];
     renderWatchlist();
     loadWatchQuotes();
     showToast('已移除 ' + removed.name);
