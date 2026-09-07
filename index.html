@@ -426,7 +426,7 @@
   .w-pin,
   .sd-tag { border-color: rgba(255,255,255,.7); }
 
-  .header { display: flex; align-items: center; justify-content: space-between; }
+  .header { display: flex; align-items: flex-start; justify-content: space-between; }
   .header .title {
     display: inline-block;
     font-size: 25px;
@@ -454,7 +454,7 @@
   .market-tag { background: rgba(255,255,255,.08); color: #c9ced6; }
   .market-tag.open { background: rgba(255,122,92,.16); color: #ffa68c; }
   .market-tag.auction { background: rgba(224,160,80,.16); color: #f0c481; }
-  .header-actions { display: flex; align-items: center; gap: 12px; margin-top: 0; }
+  .header-actions { display: flex; gap: 10px; margin-top: 4px; }
   .btn {
     display: inline-flex;
     align-items: center;
@@ -480,60 +480,6 @@
   .btn-refresh:hover { background: linear-gradient(180deg, #fffcf6, #f3ecdd); }
   .btn-refresh.spinning .icon { animation: spin .8s linear; }
   @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
-  /* ============ “刷新”按钮 → 盒式加载动效（Uiverse Shoh2008，所有页面统一） ============ */
-  .loader-btn {
-    width: 52px; height: 60px;
-    display: inline-flex; align-items: center; justify-content: center;
-    margin: 0; padding: 0; cursor: pointer;
-    background: transparent; border: 0; box-shadow: none !important; border-radius: 12px;
-  }
-  .loader-btn:hover { filter: drop-shadow(0 4px 10px rgba(0,0,0,.18)); }
-  .loader-btn .ldr-wrap { display: block; width: 120px; height: 150px; transform: scale(.4); transform-origin: 50% 50%; }
-  .loader-btn .loader {
-    width: 120px; height: 150px;
-    background-color: #fff;
-    background-repeat: no-repeat;
-    background-image: linear-gradient(#ddd 50%, #bbb 51%),
-      linear-gradient(#ddd, #ddd), linear-gradient(#ddd, #ddd),
-      radial-gradient(ellipse at center, #aaa 25%, #eee 26%, #eee 50%, #0000 55%),
-      radial-gradient(ellipse at center, #aaa 25%, #eee 26%, #eee 50%, #0000 55%),
-      radial-gradient(ellipse at center, #aaa 25%, #eee 26%, #eee 50%, #0000 55%);
-    background-position: 0 20px, 45px 0, 8px 6px, 55px 3px, 75px 3px, 95px 3px;
-    background-size: 100% 4px, 1px 23px, 30px 8px, 15px 15px, 15px 15px, 15px 15px;
-    position: relative; border-radius: 6%;
-    animation: ldr-shake 3s ease-in-out infinite;
-    transform-origin: 60px 180px; box-sizing: border-box;
-  }
-  .loader-btn .loader:before {
-    content: ""; position: absolute; left: 5px; top: 100%;
-    width: 7px; height: 5px; background: #aaa; border-radius: 0 0 4px 4px; box-shadow: 102px 0 #aaa;
-  }
-  .loader-btn .loader:after {
-    content: ""; position: absolute; width: 95px; height: 95px;
-    left: 0; right: 0; margin: auto; bottom: 20px;
-    background-color: #bbdefb;
-    background-image: linear-gradient(to right, #0004 0%, #0004 49%, #0000 50%, #0000 100%),
-      linear-gradient(135deg, #64b5f6 50%, #607d8b 51%);
-    background-size: 30px 100%, 90px 80px; border-radius: 50%;
-    background-repeat: repeat, no-repeat; background-position: 0 0;
-    box-sizing: border-box; border: 10px solid #DDD;
-    box-shadow: 0 0 0 4px #999 inset, 0 0 6px 6px #0004 inset;
-    animation: ldr-spin 3s ease-in-out infinite;
-  }
-  @keyframes ldr-shake {
-    65%, 80%, 88%, 96% { transform: rotate(0.5deg); }
-    50%, 75%, 84%, 92% { transform: rotate(-0.5deg); }
-    0%, 50%, 100% { transform: rotate(0); }
-  }
-  @keyframes ldr-spin {
-    0% { transform: rotate(0deg); }
-    50% { transform: rotate(360deg); }
-    75% { transform: rotate(750deg); }
-    100% { transform: rotate(1800deg); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .loader-btn .loader, .loader-btn .loader:after { animation: none; }
-  }
   .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 3px 10px rgba(108, 75, 232, .3); }
   .btn-primary:hover { background: var(--accent-hover); }
 
@@ -3788,16 +3734,6 @@ document.addEventListener('pointermove', e => {
   card.style.setProperty('--my', (e.clientY - r.top).toFixed(1) + 'px');
 }, { passive: true });
 $('btn-refresh').addEventListener('click', () => refresh(true));
-// 所有“刷新”按钮 → 盒式加载动效（仅在视觉层替换，保留各自原有刷新功能）
-['btn-refresh','btn-watch-refresh','pos-refresh','lhb-refresh','btn-news-refresh','btn-focus-refresh','fut-refresh','fund-refresh','senti-refresh','sec-refresh'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) {
-    el.className = 'loader-btn';
-    el.title = '刷新';
-    el.setAttribute('aria-label', '刷新');
-    el.innerHTML = '<span class="ldr-wrap"><span class="loader"></span></span>';
-  }
-});
 $('btn-report').addEventListener('click', () => showToast('日报生成功能建设中，敬请期待'));
 $('btn-gen-report').addEventListener('click', () => showToast('日报生成功能建设中，敬请期待'));
 document.querySelectorAll('[data-wip]').forEach(el =>
