@@ -1607,35 +1607,85 @@
 
   .news-item {
     background: rgba(255,255,255,.66); border: 1px solid var(--card-border); border-radius: 13px;
-    padding: 15px 18px; transition: all .25s cubic-bezier(.22,1,.36,1);
+    padding: 15px 18px; transition: all .25s cubic-bezier(.16,1,.3,1);
     position: relative; overflow: hidden;
-    animation: news-item-in .45s cubic-bezier(.22,1,.36,1) both;
+    animation: news-item-in .55s cubic-bezier(.16,1,.3,1) both;
   }
   .news-item:nth-child(1)  { animation-delay: 0ms; }
-  .news-item:nth-child(2)  { animation-delay: 30ms; }
-  .news-item:nth-child(3)  { animation-delay: 60ms; }
-  .news-item:nth-child(4)  { animation-delay: 90ms; }
-  .news-item:nth-child(5)  { animation-delay: 120ms; }
-  .news-item:nth-child(6)  { animation-delay: 150ms; }
+  .news-item:nth-child(2)  { animation-delay: 50ms; }
+  .news-item:nth-child(3)  { animation-delay: 90ms; }
+  .news-item:nth-child(4)  { animation-delay: 120ms; }
+  .news-item:nth-child(5)  { animation-delay: 145ms; }
+  .news-item:nth-child(6)  { animation-delay: 165ms; }
   .news-item:nth-child(7)  { animation-delay: 180ms; }
-  .news-item:nth-child(8)  { animation-delay: 210ms; }
-  .news-item:nth-child(9)  { animation-delay: 240ms; }
-  .news-item:nth-child(10) { animation-delay: 270ms; }
+  .news-item:nth-child(8)  { animation-delay: 195ms; }
+  .news-item:nth-child(9)  { animation-delay: 205ms; }
+  .news-item:nth-child(10) { animation-delay: 215ms; }
   @keyframes news-item-in {
-    0%   { opacity: 0; transform: translateY(14px); filter: blur(2px); }
+    0%   { opacity: 0; transform: translateY(18px); filter: blur(4px); }
+    60%  { filter: blur(1px); }
     100% { opacity: 1; transform: translateY(0); filter: blur(0); }
   }
-  .news-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; }
-  .news-item.hot::before { background: linear-gradient(var(--up), #ffb49a); }
-  .news-item:hover { box-shadow: 0 6px 18px rgba(150, 112, 62,.08); transform: translateY(-1px); }
+  /* 热点新闻卡片：使用渐变内发光替代 3px 左边框（craft-floor 指引） */
+  .news-item.hot {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--up) 5%, rgba(255,255,255,.66)), rgba(255,255,255,.66) 40%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--up) 18%, transparent);
+  }
+  .news-item.hot .n-title { color: var(--up); }
+  .news-item.hot .n-title::before {
+    content: '🔥 ';
+    font-size: 14px;
+  }
+  .news-item:hover { box-shadow: 0 10px 30px rgba(150, 112, 62,.10), 0 2px 6px rgba(150, 112, 62,.06); transform: translateY(-2px); }
   .news-item .n-title { font-size: 15.5px; font-weight: 600; line-height: 1.5; color: var(--text-main); }
-  .news-item.hot .n-title { color: #c0392b; }
   .news-item .n-summary { font-size: 14px; color: #c2c8d0; line-height: 1.68; margin-top: 7px; }
   .news-item .n-meta { display: flex; align-items: center; gap: 10px; margin-top: 11px; font-size: 12.5px; color: #8f959d; }
   .news-item .n-tag { background: #ece5d8; color: var(--accent); padding: 2px 9px; border-radius: 6px; font-weight: 600; }
   .news-item .n-time { font-variant-numeric: tabular-nums; }
   .news-item .n-tag-alt { background: #eef3fb; color: #4a7abf; }
   .news-empty { text-align: center; padding: 46px 20px; color: var(--text-sub); font-size: 14px; }
+
+  /* 财经要闻列表自定义滚动条（craft-floor 浏览器表面主题化） */
+  .news-list::-webkit-scrollbar { width: 5px; }
+  .news-list::-webkit-scrollbar-track { background: transparent; }
+  .news-list::-webkit-scrollbar-thumb { background: rgba(232, 106, 78, .25); border-radius: 3px; }
+  .news-list::-webkit-scrollbar-thumb:hover { background: rgba(232, 106, 78, .40); }
+
+  /* 加载占位闪动（shimmer） */
+  @keyframes news-shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .news-list.is-loading .news-item {
+    pointer-events: none;
+    animation: none;
+    background: linear-gradient(90deg, rgba(255,255,255,.66) 20%, rgba(232,106,78,.08) 48%, rgba(255,255,255,.66) 80%);
+    background-size: 200% 100%;
+    animation: news-shimmer 1.6s ease-in-out infinite;
+  }
+  .news-list.is-loading .news-item > * { opacity: .4; }
+
+  /* 实时更新脉冲指示器 */
+  .news-live-dot {
+    display: inline-block;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--up);
+    margin-right: 5px;
+    vertical-align: middle;
+    animation: live-pulse 2s ease-in-out infinite;
+  }
+  @keyframes live-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .4; transform: scale(.65); }
+  }
+
+  /* 键盘焦点环（可访问性） */
+  .news-tag:focus-visible,
+  .n-summary-expand:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 
   /* ===== 财经要闻 · 高级交互增强 ===== */
 
@@ -1748,16 +1798,12 @@
     to { transform: scale(4); opacity: 0; }
   }
 
-  /* 热点新闻卡片增强 */
-  .news-item.hot {
-    border-left: 3px solid var(--up);
-  }
-  .news-item.hot::before {
-    display: none;
-  }
-  .news-item.hot .n-title::before {
-    content: '🔥 ';
-    font-size: 14px;
+  /* 热点新闻卡片增强（补充：hover 时热力感更强） */
+  .news-item.hot:hover {
+    box-shadow:
+      0 10px 30px rgba(232, 93, 78, .12),
+      0 2px 8px rgba(232, 93, 78, .06);
+    transform: translateY(-2px);
   }
 
   /* 关联板块标签增强 */
@@ -3013,7 +3059,7 @@ try {
       <div class="news-wrap">
         <div class="news-topbar">
           <div class="news-tags" id="news-tags"></div>
-          <span class="news-refresh" id="news-refresh-info">实时 · 加载中…</span>
+          <span class="news-refresh" id="news-refresh-info"><span class="news-live-dot"></span>实时 · 加载中…</span>
         </div>
         <div class="news-list" id="news-list">
           <div class="news-empty">正在加载热门板块快讯…</div>
@@ -5021,15 +5067,20 @@ function attachNewsInteractions() {
 }
 
 async function loadNews() {
+  // 加载时显示 shimmer 占位效果
+  const listEl = $('news-list');
+  if (listEl) listEl.classList.add('is-loading');
   const list = await fetchNews();
   if (list) {
     newsCache = list;
     renderNewsList();
+    if (listEl) listEl.classList.remove('is-loading');
     const now = new Date();
     const p = n => String(n).padStart(2, '0');
     const next = `实时 · 已更新 ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
     swapRefreshTime(next);
   } else {
+    if (listEl) listEl.classList.remove('is-loading');
     swapRefreshTime('快讯获取失败，稍后自动重试…');
   }
 }
@@ -5038,20 +5089,22 @@ async function loadNews() {
 function swapRefreshTime(next) {
   const el = $('news-refresh-info');
   if (!el) return;
+  // 提取纯文本内容用于比较（忽略 live-dot 的 HTML）
+  const currentText = el.textContent.replace('实时 · 加载中…', '').replace('快讯获取失败，稍后自动重试…', '').trim();
   // 首次直接设置
   if (!el.dataset.initialized) {
     el.dataset.initialized = '1';
-    el.textContent = next;
+    el.innerHTML = `<span class="news-live-dot"></span>${next}`;
     return;
   }
-  if (el.textContent === next) return;
+  if (currentText === next) return;
   el.classList.add('t-text-swap');
   const dur = parseFloat(
     getComputedStyle(document.documentElement).getPropertyValue('--text-swap-dur')
   ) || 200;
   el.classList.add('is-exit');
   setTimeout(() => {
-    el.textContent = next;
+    el.innerHTML = `<span class="news-live-dot"></span>${next}`;
     el.classList.remove('is-exit');
     el.classList.add('is-enter-start');
     void el.offsetHeight; // force reflow
