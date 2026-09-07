@@ -6470,8 +6470,8 @@ setInterval(() => loadBoardRank(), 300000); // 板块榜首每 5 分钟重试一
 
   // 需要跟随鼠标转动的所有卡片
   var SEL = '.index-card, .ov-card, .pos-sum-card, .pos-chart-card, .senti-card, .senti-panel, .zt-card, .sec-hot-card, .fund-panel';
-  var MAX_ANGLE = 6;   // 最大倾斜角度（度）
-  var LIFT = -4;       // 悬停上浮位移（px）
+  var MAX_ANGLE = 14;  // 最大倾斜角度（度）
+  var LIFT = -6;       // 悬停上浮位移（px）
   var cur = null, curRect = null, raf = null;
 
   function ensureFx(card) {
