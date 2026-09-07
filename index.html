@@ -472,18 +472,61 @@
     color: var(--text-sub);
   }
   .live-bar .left { display: flex; align-items: center; gap: 9px; }
-  .dot {
-    width: 9px; height: 9px;
-    border-radius: 50%;
-    background: #23c34d;
-    box-shadow: 0 0 0 0 rgba(35, 195, 77, .5);
-    animation: pulse 2s infinite;
+  /* 行情直连加载动效（Uiverse abrahamcalsin 灵感，尺寸对齐行内字体，不突兀） */
+  .dot-spinner {
+    --uib-size: 15px;
+    --uib-speed: .9s;
+    --uib-color: #7f9bd6;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    vertical-align: -2px;
+    width: var(--uib-size);
+    height: var(--uib-size);
   }
-  .dot.err { background: #e85d4e; animation: none; }
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(35, 195, 77, .45); }
-    70% { box-shadow: 0 0 0 7px rgba(35, 195, 77, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(35, 195, 77, 0); }
+  .dot-spinner__dot {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .dot-spinner__dot::before {
+    content: '';
+    width: 24%; height: 24%;
+    border-radius: 50%;
+    background-color: var(--uib-color);
+    box-shadow: 0 0 6px rgba(127, 155, 214, .5);
+    opacity: 0;
+    animation: dotSpinPulse var(--uib-speed) ease-in-out infinite;
+  }
+  .dot-spinner__dot:nth-child(1) { transform: rotate(0deg); }
+  .dot-spinner__dot:nth-child(2) { transform: rotate(45deg); }
+  .dot-spinner__dot:nth-child(3) { transform: rotate(90deg); }
+  .dot-spinner__dot:nth-child(4) { transform: rotate(135deg); }
+  .dot-spinner__dot:nth-child(5) { transform: rotate(180deg); }
+  .dot-spinner__dot:nth-child(6) { transform: rotate(225deg); }
+  .dot-spinner__dot:nth-child(7) { transform: rotate(270deg); }
+  .dot-spinner__dot:nth-child(8) { transform: rotate(315deg); }
+  .dot-spinner__dot:nth-child(1)::before { animation-delay: calc(var(--uib-speed) * -0.875); }
+  .dot-spinner__dot:nth-child(2)::before { animation-delay: calc(var(--uib-speed) * -0.75); }
+  .dot-spinner__dot:nth-child(3)::before { animation-delay: calc(var(--uib-speed) * -0.625); }
+  .dot-spinner__dot:nth-child(4)::before { animation-delay: calc(var(--uib-speed) * -0.5); }
+  .dot-spinner__dot:nth-child(5)::before { animation-delay: calc(var(--uib-speed) * -0.375); }
+  .dot-spinner__dot:nth-child(6)::before { animation-delay: calc(var(--uib-speed) * -0.25); }
+  .dot-spinner__dot:nth-child(7)::before { animation-delay: calc(var(--uib-speed) * -0.125); }
+  .dot-spinner__dot:nth-child(8)::before { animation-delay: 0s; }
+  @keyframes dotSpinPulse {
+    0%, 100% { transform: scale(0); opacity: .4; }
+    50% { transform: scale(1); opacity: 1; }
+  }
+  /* 行情断连：转珊瑚橙警示色 */
+  .dot-spinner.err { --uib-color: #e85d4e; }
+  .dot-spinner.err .dot-spinner__dot::before { box-shadow: 0 0 6px rgba(232, 93, 78, .5); }
+  :root[data-theme="light"] .dot-spinner { --uib-color: #4a6a9b; }
+  :root[data-theme="light"] .dot-spinner__dot::before { box-shadow: 0 0 6px rgba(74, 106, 155, .5); }
+  :root[data-theme="light"] .dot-spinner.err { --uib-color: #e85d4e; }
+  @media (prefers-reduced-motion: reduce) {
+    .dot-spinner__dot::before { animation: none !important; opacity: .6; }
   }
 
   /* ============ 模块 ============ */
@@ -2327,7 +2370,7 @@ try {
       </div>
 
       <div class="live-bar">
-        <div class="left"><span class="dot" id="live-dot"></span><span id="live-text">实时行情（API直连 · 加载中…）</span></div>
+        <div class="left"><span class="dot-spinner" id="live-dot" role="status" aria-label="行情加载中"><span class="dot-spinner__dot"></span><span class="dot-spinner__dot"></span><span class="dot-spinner__dot"></span><span class="dot-spinner__dot"></span><span class="dot-spinner__dot"></span><span class="dot-spinner__dot"></span><span class="dot-spinner__dot"></span><span class="dot-spinner__dot"></span></span><span id="live-text">实时行情（API直连 · 加载中…）</span></div>
         <span id="live-time">--</span>
       </div>
 
