@@ -426,7 +426,7 @@
   .w-pin,
   .sd-tag { border-color: rgba(255,255,255,.7); }
 
-  .header { display: flex; align-items: flex-start; justify-content: space-between; }
+  .header { display: flex; align-items: center; justify-content: space-between; }
   .header .title {
     display: inline-block;
     font-size: 25px;
@@ -454,7 +454,7 @@
   .market-tag { background: rgba(255,255,255,.08); color: #c9ced6; }
   .market-tag.open { background: rgba(255,122,92,.16); color: #ffa68c; }
   .market-tag.auction { background: rgba(224,160,80,.16); color: #f0c481; }
-  .header-actions { display: flex; gap: 10px; margin-top: 4px; }
+  .header-actions { display: flex; align-items: center; gap: 12px; margin-top: 0; }
   .btn {
     display: inline-flex;
     align-items: center;
@@ -482,13 +482,13 @@
   @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
   /* ============ “刷新”按钮 → 盒式加载动效（Uiverse Shoh2008，所有页面统一） ============ */
   .loader-btn {
-    width: 66px; height: 82px;
+    width: 52px; height: 60px;
     display: inline-flex; align-items: center; justify-content: center;
     margin: 0; padding: 0; cursor: pointer;
     background: transparent; border: 0; box-shadow: none !important; border-radius: 12px;
   }
   .loader-btn:hover { filter: drop-shadow(0 4px 10px rgba(0,0,0,.18)); }
-  .loader-btn .ldr-wrap { display: block; width: 120px; height: 150px; transform: scale(.55); transform-origin: 50% 50%; }
+  .loader-btn .ldr-wrap { display: block; width: 120px; height: 150px; transform: scale(.4); transform-origin: 50% 50%; }
   .loader-btn .loader {
     width: 120px; height: 150px;
     background-color: #fff;
