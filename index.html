@@ -271,6 +271,95 @@
   .fun-banner .spark.s1 img { width: 20px; height: 20px; }
   .fun-banner .spark.s2 img, .fun-banner .spark.s4 img { width: 18px; height: 18px; }
   .fun-banner .spark.s5 img { width: 24px; height: 24px; }
+
+  /* ============ 顶部天气 · 东莞（实时天气卡片，毛玻璃质感与页面一致）============ */
+  .wx-card {
+    position: relative;
+    display: flex; align-items: center; justify-content: space-between; gap: 18px;
+    flex-wrap: wrap;
+    padding: 16px 24px; margin-bottom: 22px;
+    border-radius: 22px; overflow: hidden;
+    color: #fdfeff;
+    background:
+      radial-gradient(520px 220px at 6% -55%, rgba(120,172,240,.22), transparent 62%),
+      radial-gradient(400px 190px at 100% 140%, rgba(224,150,95,.14), transparent 58%),
+      linear-gradient(120deg, rgba(42,42,50,.78), rgba(49,49,58,.66) 52%, rgba(38,38,46,.76));
+    backdrop-filter: blur(20px) saturate(170%);
+    -webkit-backdrop-filter: blur(20px) saturate(170%);
+    border: 1px solid rgba(150,170,210,.16);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -1px 0 rgba(255,255,255,.05), 0 18px 40px rgba(0,0,0,.30);
+  }
+  .wx-left { display: flex; align-items: center; gap: 16px; min-width: 0; }
+  .wx-ico { width: 68px; height: 68px; flex-shrink: 0; }
+  .wx-ico svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 5px 12px rgba(110,140,200,.28)); }
+  .wx-info-temp { font-size: 42px; font-weight: 700; line-height: 1; letter-spacing: .5px; color: #fdfeff; }
+  .wx-info-temp small { font-size: 22px; font-weight: 500; vertical-align: 6px; color: rgba(240,244,250,.85); }
+  .wx-info-desc { margin-top: 5px; font-size: 14px; font-weight: 600; color: rgba(240,244,250,.85); }
+  .wx-loc { margin-top: 3px; font-size: 12.5px; color: rgba(228,234,244,.72); display: flex; align-items: center; gap: 5px; }
+  .wx-details { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .wx-d {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    min-width: 74px; padding: 10px 12px; border-radius: 14px;
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.08);
+  }
+  .wx-d .wx-lab { display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(226,231,242,.74); }
+  .wx-d .wx-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .wx-d b { font-size: 15px; font-weight: 600; color: #f6f8fc; font-variant-numeric: tabular-nums; }
+  .wx-refresh {
+    width: 36px; height: 36px; flex-shrink: 0; border-radius: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(235,240,250,.85);
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.08);
+    transition: color .2s, background .2s, transform .2s;
+  }
+  .wx-refresh:hover { color: #fff; background: rgba(255,255,255,.14); }
+  .wx-refresh:active { transform: scale(.92); }
+  .wx-refresh svg { width: 18px; height: 18px; }
+  .wx-refresh.spin svg { animation: wxSpin .7s linear; }
+  /* 浅色主题：浅霜玻璃 + 暖橙光晕，深色文字保证可读 */
+  :root[data-theme="light"] .wx-card {
+    color: #22273a;
+    background:
+      radial-gradient(520px 220px at 6% -55%, rgba(120,170,240,.20), transparent 62%),
+      radial-gradient(400px 190px at 100% 140%, rgba(255,150,118,.18), transparent 58%),
+      linear-gradient(120deg, rgba(255,255,255,.74), rgba(242,246,252,.86) 52%, rgba(255,255,255,.72));
+    border: 1px solid rgba(255,255,255,.9);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 16px 40px rgba(90,120,180,.16);
+  }
+  :root[data-theme="light"] .wx-info-temp { color: #1d222b; }
+  :root[data-theme="light"] .wx-info-temp small { color: #48506a; }
+  :root[data-theme="light"] .wx-info-desc { color: #48506a; }
+  :root[data-theme="light"] .wx-loc { color: #6a6f7e; }
+  :root[data-theme="light"] .wx-d { background: rgba(255,255,255,.56); border-color: rgba(140,160,210,.16); }
+  :root[data-theme="light"] .wx-d .wx-lab { color: #6a7384; }
+  :root[data-theme="light"] .wx-d b { color: #1d222b; }
+  :root[data-theme="light"] .wx-refresh { color: #5a6476; background: rgba(255,255,255,.6); border-color: rgba(140,160,210,.18); }
+  :root[data-theme="light"] .wx-refresh:hover { color: #22273a; background: rgba(255,255,255,.9); }
+  /* 天气图标动效 */
+  .wx-rays { transform-box: view-box; transform-origin: 50% 50%; animation: wxSpin 22s linear infinite; }
+  .wx-star { animation: wxTw 2.4s ease-in-out infinite; }
+  .wx-star.s2 { animation-delay: .9s; }
+  .wx-sun-apex { animation: wxPulse 4s ease-in-out infinite; }
+  .wx-cloud-drift { animation: wxDrift 6s ease-in-out infinite; }
+  .wx-rays-mini { transform-box: view-box; transform-origin: 60% 34%; animation: wxSpin 26s linear infinite; }
+  .wx-drop { animation: wxFall 1.3s ease-in infinite; }
+  .wx-drop.d2 { animation-delay: .5s; } .wx-drop.d3 { animation-delay: .85s; }
+  .wx-flake { animation: wxFall 2.4s ease-in infinite; }
+  .wx-flake.f2 { animation-delay: 1s; } .wx-flake.f3 { animation-delay: 1.6s; }
+  .wx-bolt { animation: wxFlash 2.6s ease-in-out infinite; }
+  .wx-fog-l { display: block; animation: wxDrift 6s ease-in-out infinite; }
+  .wx-fog-l.l2 { animation-delay: .6s; } .wx-fog-l.l3 { animation-delay: 1.2s; }
+  @keyframes wxSpin { to { transform: rotate(360deg); } }
+  @keyframes wxTw { 0%,100% { opacity:.3; } 50% { opacity:1; } }
+  @keyframes wxPulse { 0%,100% { opacity:.95; } 50% { opacity:.68; } }
+  @keyframes wxDrift { 0%,100% { transform: translateX(-2px); } 50% { transform: translateX(4px); } }
+  @keyframes wxFall { 0% { transform: translateY(0); opacity:0; } 25% { opacity:1; } 100% { transform: translateY(28px); opacity:0; } }
+  @keyframes wxFlash { 0%,78%,100% { opacity:1; } 82%,90% { opacity:.15; } }
+  @media (prefers-reduced-motion: reduce) {
+    .wx-rays, .wx-star, .wx-sun-apex, .wx-cloud-drift, .wx-rays-mini,
+    .wx-drop, .wx-flake, .wx-bolt, .wx-fog-l, .wx-refresh svg { animation: none !important; }
+  }
+
   .ov-icon svg { width: 26px; height: 26px; stroke-width: 2; }
   .watch-empty .we-icon svg { width: 40px; height: 40px; display: block; stroke-width: 1.75; }
   .placeholder .p-icon svg { width: 46px; height: 46px; stroke-width: 1.5; }
@@ -2210,6 +2299,30 @@ try {
         <div class="header-actions">
           <div class="btn btn-refresh" id="btn-refresh"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
           <div class="btn btn-primary" id="btn-report">＋ 日报</div>
+        </div>
+      </div>
+
+      <!-- 顶部天气：广东 · 东莞（实时数据，毛玻璃质感与页面一致） -->
+      <div class="wx-card">
+        <div class="wx-left">
+          <div class="wx-ico" id="wx-ico" aria-hidden="true">
+            <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="19" fill="#ffb84d" stroke="#ffd27a" stroke-width="2"/></svg>
+          </div>
+          <div class="wx-info">
+            <div class="wx-info-temp"><span id="wx-temp">--</span><small>°C</small></div>
+            <div class="wx-info-desc" id="wx-desc">天气加载中…</div>
+            <div class="wx-loc"><span aria-hidden="true">📍</span>广东 · 东莞</div>
+          </div>
+        </div>
+        <div class="wx-details">
+          <div class="wx-d"><span class="wx-lab"><i class="wx-dot" style="background:#7fb0ff"></i>湿度</span><b id="wx-humi">--</b></div>
+          <div class="wx-d"><span class="wx-lab"><i class="wx-dot" style="background:#a0b4ff"></i>风力</span><b id="wx-wind">--</b></div>
+          <div class="wx-d"><span class="wx-lab"><i class="wx-dot" style="background:#ffb45c"></i>体感</span><b id="wx-feel">--</b></div>
+          <div class="wx-d"><span class="wx-lab"><i class="wx-dot" style="background:#8fe0b0"></i>气压</span><b id="wx-pres">--</b></div>
+          <div class="wx-d"><span class="wx-lab"><i class="wx-dot" style="background:#7fd0ff"></i>AQI</span><b id="wx-aqi">--</b></div>
+          <div class="wx-refresh" id="wx-refresh" role="button" tabindex="0" title="刷新天气" aria-label="刷新天气">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+          </div>
         </div>
       </div>
 
@@ -5974,6 +6087,140 @@ setInterval(() => refresh(false), REFRESH_MS);
 setInterval(() => loadWatchQuotes(), 2000); // 自选行情每 2 秒同步刷新
 setInterval(() => loadSectors(), 5000);   // 板块每 5 秒刷新
 setInterval(() => loadBoardRank(), 300000); // 板块榜首每 5 分钟重试一次
+
+/* ================= 顶部天气：东莞（Open-Meteo 实时 + AQI，无密钥） ================= */
+(function () {
+  // 东莞坐标
+  const LX = 23.0389, LN = 113.7518;
+  const wxTemp = document.getElementById('wx-temp');
+  if (!wxTemp) return; // 页面无天气节点则跳过
+
+  const wxIco = document.getElementById('wx-ico');
+  const wxDesc = document.getElementById('wx-desc');
+  const wxHumi = document.getElementById('wx-humi');
+  const wxWind = document.getElementById('wx-wind');
+  const wxFeel = document.getElementById('wx-feel');
+  const wxPres = document.getElementById('wx-pres');
+  const wxAqi = document.getElementById('wx-aqi');
+  const wxRefresh = document.getElementById('wx-refresh');
+
+  // WMO 天气代码 → 图标 + 中文描述
+  const META = [
+    { code: [0],            k: 'sun',      t: '晴' },
+    { code: [1],            k: 'cloud-sun', t: '大致晴朗' },
+    { code: [2],            k: 'cloud-sun', t: '多云' },
+    { code: [3],            k: 'cloud',    t: '阴' },
+    { code: [45, 48],       k: 'fog',      t: '雾' },
+    { code: [51, 53, 55, 56, 57], k: 'rain', t: '毛毛雨' },
+    { code: [61, 63, 65, 66, 67], k: 'rain', t: '雨' },
+    { code: [80, 81, 82],   k: 'rain',     t: '阵雨' },
+    { code: [71, 73, 75, 77, 85, 86], k: 'snow', t: '雪' },
+    { code: [95],           k: 'thunder',  t: '雷暴' },
+    { code: [96, 99],       k: 'thunder',  t: '雷暴' }
+  ];
+  function meta(code) {
+    const hit = META.find(function (m) { return m.code.indexOf(code) > -1; });
+    return hit || { k: 'cloud', t: '多云' };
+  }
+  // 风向 → 中文
+  const DIR8 = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
+  function windDir(deg) {
+    if (deg == null || isNaN(deg)) return '';
+    return DIR8[Math.round(((deg % 360) + 360) % 360 / 45) % 8] + '风';
+  }
+  // 天气图标（内联 SVG，带动效类）
+  function wxIcon(k) {
+    const cloudShape =
+      '<path class="wx-cloud-drift" d="M28 58 h44 a14 14 0 0 0 0-28 c-.6 0-1.1 0-1.7 .2 a20 20 0 0 0-38 8 a12 12 0 0 0-.3 19.8z" fill="#dfe7f2" stroke="#b8c6da" stroke-width="2"/>';
+    const icons = {
+      sun:
+        '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+        '<g class="wx-rays" fill="#ffc76f">' +
+        '<rect x="47" y="6" width="6" height="17" rx="3"/><rect x="47" y="77" width="6" height="17" rx="3"/>' +
+        '<rect x="6" y="47" width="17" height="6" rx="3"/><rect x="77" y="47" width="17" height="6" rx="3"/>' +
+        '<rect x="8" y="17" width="6" height="17" rx="3" transform="rotate(45 11 25)"/>' +
+        '<rect x="86" y="17" width="6" height="17" rx="3" transform="rotate(45 89 25)"/>' +
+        '<rect x="8" y="67" width="6" height="17" rx="3" transform="rotate(-45 11 75)"/>' +
+        '<rect x="86" y="67" width="6" height="17" rx="3" transform="rotate(-45 89 75)"/>' +
+        '</g><circle cx="50" cy="50" r="19" fill="#ffb84d" stroke="#ffd27a" stroke-width="2"/></svg>',
+      moon:
+        '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+        '<path d="M70 16 a34 34 0 1 0 14 50 a28 28 0 0 1-14-50z" fill="#e8eefb" stroke="#c3d0ea" stroke-width="2"/>' +
+        '<circle class="wx-star" cx="26" cy="28" r="3.2" fill="#ffedb6"/>' +
+        '<circle class="wx-star s2" cx="20" cy="48" r="2.4" fill="#ffedb6"/></svg>',
+      cloud:
+        '<svg viewBox="0 0 100 100" aria-hidden="true">' + cloudShape + '</svg>',
+      'cloud-sun':
+        '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+        '<circle class="wx-sun-apex" cx="70" cy="32" r="15" fill="#ffcf7e"/>' +
+        '<path class="wx-cloud-drift" d="M22 66 h48 a15 15 0 0 0 0-30 c-.6 0-1.2 0-1.8 .2 a21 21 0 0 0-40 8 a13 13 0 0 0-.2 21.8z" fill="#eef2f8" stroke="#cfd8e6" stroke-width="2"/></svg>',
+      rain:
+        '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+        '<g class="wx-cloud-drift"><path d="M28 54 h44 a14 14 0 0 0 0-28 c-.6 0-1.1 0-1.7 .2 a20 20 0 0 0-38 8 a12 12 0 0 0-.3 19.8z" fill="#dfe7f2" stroke="#b8c6da" stroke-width="2"/></g>' +
+        '<g fill="#7fb0ff"><rect class="wx-drop" x="33" y="60" width="4" height="16" rx="2"/>' +
+        '<rect class="wx-drop d2" x="48" y="60" width="4" height="16" rx="2"/>' +
+        '<rect class="wx-drop d3" x="63" y="60" width="4" height="16" rx="2"/></g></svg>',
+      thunder:
+        '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+        '<g class="wx-cloud-drift"><path d="M26 54 h44 a14 14 0 0 0 0-28 c-.6 0-1.1 0-1.7 .2 a20 20 0 0 0-38 8 a12 12 0 0 0-.3 19.8z" fill="#454e60" stroke="#5a6478" stroke-width="2"/></g>' +
+        '<path class="wx-bolt" d="M56 62 40 84 h12 l-5 16 24-29 h-13 l8-9z" fill="#ffd27a"/></svg>',
+      snow:
+        '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+        '<g class="wx-cloud-drift"><path d="M28 54 h44 a14 14 0 0 0 0-28 c-.6 0-1.1 0-1.7 .2 a20 20 0 0 0-38 8 a12 12 0 0 0-.3 19.8z" fill="#dfe7f2" stroke="#b8c6da" stroke-width="2"/></g>' +
+        '<g fill="#ffffff" stroke="#cfe0ff" stroke-width="1.5">' +
+        '<circle class="wx-flake" cx="36" cy="64" r="4"/><circle class="wx-flake f2" cx="50" cy="64" r="4"/>' +
+        '<circle class="wx-flake f3" cx="64" cy="64" r="4"/></g></svg>',
+      fog:
+        '<svg viewBox="0 0 100 100" aria-hidden="true">' +
+        '<g stroke="#cfd8e6" stroke-width="7" stroke-linecap="round">' +
+        '<line class="wx-fog-l" x1="26" y1="34" x2="74" y2="34"/>' +
+        '<line class="wx-fog-l l2" x1="20" y1="50" x2="80" y2="50"/>' +
+        '<line class="wx-fog-l l3" x1="30" y1="66" x2="70" y2="66"/></g></svg>'
+    };
+    return icons[k] || icons.cloud;
+  }
+
+  function refresh() {
+    if (wxRefresh) wxRefresh.classList.add('spin');
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + LX +
+      '&longitude=' + LN +
+      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,is_day&timezone=auto';
+    fetch(url).then(function (r) { return r.json(); }).then(function (d) {
+      const c = d.current;
+      const m = meta(c.weather_code);
+      wxIco.innerHTML = wxIcon(m.k);
+      wxTemp.textContent = Math.round(c.temperature_2m);
+      wxDesc.textContent = m.t + (isNaN(c.wind_direction_10m) ? '' : ' · ' + windDir(c.wind_direction_10m));
+      wxHumi.textContent = Math.round(c.relative_humidity_2m) + '%';
+      wxWind.textContent = Math.round(c.wind_speed_10m) + ' km/h';
+      wxFeel.textContent = Math.round(c.apparent_temperature) + '°';
+      wxPres.textContent = Math.round(c.surface_pressure) + ' hPa';
+      // 空气质量（二级接口，失败不影响主天气）
+      fetch('https://air-quality-api.open-meteo.com/v1/air-quality?latitude=' + LX +
+        '&longitude=' + LN + '&current=us_aqi').then(function (r) { return r.json(); }).then(function (ad) {
+        const a = ad.current ? ad.current.us_aqi : null;
+        if (a == null) { wxAqi.textContent = '--'; return; }
+        const lvl = a <= 50 ? '优' : a <= 100 ? '良' : a <= 150 ? '轻度' : a <= 200 ? '中度' : '重度';
+        wxAqi.textContent = lvl + ' · ' + Math.round(a);
+      }).catch(function () { if (wxAqi) wxAqi.textContent = '--'; });
+    }).catch(function (e) {
+      // 保留占位，不报错
+      wxTemp.textContent = '--';
+      wxDesc.textContent = '天气暂不可用';
+    }).finally(function () {
+      if (wxRefresh) wxRefresh.classList.remove('spin');
+    });
+  }
+
+  refresh();
+  setInterval(refresh, 10 * 60 * 1000); // 每 10 分钟刷新
+  if (wxRefresh) {
+    wxRefresh.addEventListener('click', refresh);
+    wxRefresh.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); refresh(); }
+    });
+  }
+})();
 </script>
 </body>
 </html>
