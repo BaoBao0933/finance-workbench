@@ -1570,6 +1570,37 @@
     border: 1px solid rgba(180, 198, 236, .16);
   }
 
+  /* ============ 聚光灯卡片 Spotlight（深色版）============
+     transitions-dev 动效：光标在卡面上移动时，冷调光斑与边缘高光随之点亮，
+     采用 iOS 弹簧缓动淡入；跟随采用 1:1 无延迟（不做位置补间以保证跟手）。*/
+  .fb-spot { position: relative; }
+  .fb-spot .sp-glow, .fb-spot .sp-edge { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
+  :root[data-theme="dark"] .sp-glow {
+    overflow: hidden;
+    background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%),
+        rgba(142, 164, 246, .28), rgba(114, 136, 226, .12) 36%, transparent 64%);
+    opacity: 0;
+    transition: opacity 240ms var(--badge-pop-ease, cubic-bezier(0.34, 1.45, 0.64, 1));
+    mix-blend-mode: screen;
+    will-change: opacity;
+  }
+  :root[data-theme="dark"] .fb-spot:hover .sp-glow { opacity: 1; }
+  :root[data-theme="dark"] .sp-edge {
+    border: 1.2px solid transparent;
+    background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(158, 180, 250, .55), transparent 70%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 240ms ease-out;
+    will-change: opacity;
+  }
+  :root[data-theme="dark"] .fb-spot:hover .sp-edge { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) {
+    .fb-spot .sp-glow, .fb-spot .sp-edge { opacity: 0 !important; }
+  }
+
   /* 核心指数普通卡与顶部折射高光 */
   .index-card::before {
     background: linear-gradient(115deg, rgba(255,255,255,.09), rgba(232,120,96,.14) 46%, transparent 72%) !important;
@@ -3182,6 +3213,26 @@ if (themeBtn) {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); themeBtn.click(); }
   });
 }
+
+// 聚光灯卡片（深色版）：光标移动时冷调光斑 + 边缘高光跟随
+const FB_SPOT_SEL = '.index-card, .ov-card, .pos-sum-card, .pos-chart-card, .sector-chip';
+const spotDone = new WeakSet();
+function ensureSpotlight(card) {
+  if (spotDone.has(card)) return;
+  spotDone.add(card);
+  card.classList.add('fb-spot');
+  const glow = document.createElement('i'); glow.className = 'sp-glow';
+  const edge = document.createElement('i'); edge.className = 'sp-edge';
+  card.prepend(edge); card.prepend(glow);
+}
+document.addEventListener('pointermove', e => {
+  if (e.target.closest ? !e.target.closest(FB_SPOT_SEL) : true) return;
+  const card = e.target.closest(FB_SPOT_SEL);
+  ensureSpotlight(card);
+  const r = card.getBoundingClientRect();
+  card.style.setProperty('--mx', (e.clientX - r.left).toFixed(1) + 'px');
+  card.style.setProperty('--my', (e.clientY - r.top).toFixed(1) + 'px');
+}, { passive: true });
 $('btn-refresh').addEventListener('click', () => refresh(true));
 $('btn-report').addEventListener('click', () => showToast('日报生成功能建设中，敬请期待'));
 $('btn-gen-report').addEventListener('click', () => showToast('日报生成功能建设中，敬请期待'));
