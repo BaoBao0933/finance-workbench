@@ -28,12 +28,12 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     background:
-      radial-gradient(900px 620px at 16% -8%, rgba(232, 109, 94, .16), transparent 62%),
-      radial-gradient(820px 560px at 92% -10%, rgba(224, 138, 95, .10), transparent 60%),
-      radial-gradient(760px 540px at 102% 64%, rgba(224, 118, 88, .13), transparent 64%),
-      radial-gradient(880px 600px at 4% 110%, rgba(58, 58, 66, .5), transparent 62%),
-      radial-gradient(1200px 780px at 50% -20%, rgba(70, 70, 82, .34), transparent 72%),
-      linear-gradient(150deg, #2a2a2a 0%, #303036 26%, #26262b 54%, #2c2c31 78%, #2f2f35 100%);
+      radial-gradient(900px 640px at 14% -8%, rgba(96, 132, 222, .14), transparent 60%),
+      radial-gradient(820px 560px at 92% -12%, rgba(130, 104, 224, .13), transparent 60%),
+      radial-gradient(760px 540px at 102% 60%, rgba(74, 150, 202, .11), transparent 64%),
+      radial-gradient(880px 620px at 2% 112%, rgba(124, 94, 204, .11), transparent 62%),
+      radial-gradient(1200px 800px at 50% -24%, rgba(98, 118, 172, .20), transparent 72%),
+      linear-gradient(150deg, #22252d 0%, #2b2f3a 26%, #252933 54%, #2b2f39 78%, #282d36 100%);
     background-attachment: fixed;
     color: var(--text-main);
     display: flex;
@@ -1532,21 +1532,43 @@
   .fund-tab, .senti-thermo, .senti-card, .senti-panel, .lad-stock,
   .sec-cell, .sec-hot, .news-item, .focus-col .news-item, .pos-sum-card,
   .pos-row, .lhb-row, .fund-panel, .ladder-row, .sec-row {
-    background: linear-gradient(150deg, #3a3a40 0%, #2e2e33 55%, #333338 100%);
-    backdrop-filter: blur(18px) saturate(150%);
-    -webkit-backdrop-filter: blur(18px) saturate(150%);
-    border-color: rgba(255, 255, 255, .10);
+    background: linear-gradient(150deg, #363b47 0%, #2b2f3a 55%, #313642 100%);
+    backdrop-filter: blur(20px) saturate(170%);
+    -webkit-backdrop-filter: blur(20px) saturate(170%);
+    border-color: rgba(168, 184, 224, .14);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, .07),
-      0 8px 24px rgba(0, 0, 0, .30);
+      inset 0 1px 0 rgba(255, 255, 255, .10),
+      0 6px 18px rgba(0, 0, 0, .26),
+      0 22px 50px rgba(92, 120, 196, .13);
   }
 
   .ov-card:hover, .index-card:hover, .sector-chip:hover, .sec-hot-card:hover {
-    background: linear-gradient(150deg, #414147 0%, #343439 55%, #3b3b41 100%);
+    background: linear-gradient(150deg, #3c4150 0%, #303540 55%, #363b48 100%);
     border-color: rgba(255, 138, 107, .55) !important;
-    box-shadow: 0 0 0 1px rgba(255, 138, 107, .28), inset 0 1px 0 rgba(255,255,255,.09), 0 14px 36px rgba(0,0,0,.42);
+    box-shadow: 0 0 0 1px rgba(255, 138, 107, .22), inset 0 1px 0 rgba(255,255,255,.12), 0 14px 34px rgba(0,0,0,.30), 0 30px 64px rgba(104, 138, 220, .16);
   }
   .ov-card.clickable:hover { border-color: var(--accent) !important; }
+
+  /* ============ 悬浮卡片系统（新拟态 × 毛玻璃）：大圆角 + 悬浮层次 ============
+     清冷新拟态深化：所有主要卡片拉大圆角，制造"漂浮纸张"的柔和、现代感 */
+  .fun-banner, .index-card, .ov-card, .sector-chip, .sec-hot-card,
+  .pos-sum-card, .pos-chart-card, .fund-panel, .senti-card, .senti-panel {
+    border-radius: 22px;
+  }
+  .watch-row, .pos-row, .sec-row, .lhb-row, .news-item, .ladder-row,
+  .lad-stock, .sec-cell, .sec-hot, .watch-item {
+    border-radius: 18px;
+  }
+  /* 数据区数字统一等宽，专业感（对非数字/中文无害） */
+  .watch-row, .pos-row, .sec-row, .lhb-row, .news-item, .fund-panel, .ladder-row {
+    font-variant-numeric: tabular-nums;
+  }
+  /* 冷色毛玻璃：半通透底 + 细白描边 + 冷调柔和投影（深色） */
+  .ov-card, .index-card, .sector-chip, .sec-hot-card, .news-item, .watch-row,
+  .pos-row, .sec-row, .lhb-row, .pos-sum-card, .pos-chart-card, .fund-panel,
+  .ladder-row, .senti-card, .senti-panel, .lad-stock, .sec-cell, .sec-hot {
+    border: 1px solid rgba(180, 198, 236, .16);
+  }
 
   /* 核心指数普通卡与顶部折射高光 */
   .index-card::before {
