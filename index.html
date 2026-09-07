@@ -6470,6 +6470,11 @@ setInterval(() => loadBoardRank(), 300000); // 板块榜首每 5 分钟重试一
     if (card) {
       ensureFx(card);
       if (card !== cur) {
+        // 复位前一张卡片，避免鼠标移开后遗留倾斜 transform
+        if (cur) {
+          cur.classList.remove('fx-on');
+          cur.style.transform = '';
+        }
         cur = card;
         curRect = card.getBoundingClientRect();
       }
