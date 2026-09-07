@@ -555,6 +555,42 @@
     .earth-loader, .earth-loader svg { animation: none !important; }
   }
 
+  /* ============ 卡片悬停动效：跟随鼠标 3D 倾斜 + 珊瑚橙光晕（Uiverse kennyotsu 灵感） ============ */
+  .fx-tilt {
+    position: relative;
+    transform-style: preserve-3d;
+    transform: perspective(900px) rotateX(var(--fxrx, 0deg)) rotateY(var(--fxry, 0deg)) translateY(var(--fxtrans, 0px));
+    transition: transform .25s cubic-bezier(.22, 1, .36, 1);
+    will-change: transform;
+  }
+  .fx-tilt .fx-glow {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity .3s ease;
+    background:
+      radial-gradient(140px circle at var(--fxmx, 50%) var(--fxmy, 50%), rgba(232, 106, 96, .22), rgba(232, 121, 96, .06) 46%, transparent 72%),
+      radial-gradient(60px circle at var(--fxmx, 50%) var(--fxmy, 50%), rgba(255, 214, 170, .35), transparent 78%);
+    mix-blend-mode: screen;
+  }
+  .fx-tilt.fx-on .fx-glow { opacity: 1; }
+  :root[data-theme="light"] .fx-tilt .fx-glow {
+    mix-blend-mode: normal;
+  }
+  :root[data-theme="light"] .fx-tilt.fx-on {
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 14px 34px rgba(90,120,180,.16);
+  }
+  .fx-tilt.fx-on {
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 18px 40px rgba(0,0,0,.30);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fx-tilt { transform: none; transition: none; }
+    .fx-tilt .fx-glow { display: none; }
+  }
+
   /* ============ 模块 ============ */
   .module { margin-top: 26px; }
   .module-header { display: flex; align-items: baseline; gap: 13px; margin-bottom: 16px; }
@@ -6362,6 +6398,76 @@ setInterval(() => loadBoardRank(), 300000); // 板块榜首每 5 分钟重试一
 
   refresh();
   setInterval(refresh, 10 * 60 * 1000); // 每 10 分钟刷新
+})();
+
+/* ============ 卡片鼠标悬停跟随转动动效（Uiverse kennyotsu 灵感） ============ */
+(function () {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  // 需要跟随鼠标转动的所有卡片
+  var SEL = '.index-card, .ov-card, .pos-sum-card, .pos-chart-card, .senti-card, .senti-panel, .zt-card, .sec-hot-card, .fund-panel';
+  var MAX_ANGLE = 6;   // 最大倾斜角度（度）
+  var LIFT = -4;       // 悬停上浮位移（px）
+  var cur = null, curRect = null, raf = null;
+
+  function ensureFx(card) {
+    if (!card.classList.contains('fx-tilt')) {
+      card.classList.add('fx-tilt');
+      // 清除入场动画的 fill-mode，避免其 transform 压制倾斜效果
+      card.style.animation = 'none';
+    }
+    if (!card.querySelector('.fx-glow')) {
+      var g = document.createElement('div');
+      g.className = 'fx-glow';
+      card.appendChild(g);
+    }
+  }
+
+  function apply() {
+    raf = null;
+    if (!cur) return;
+    var card = cur, rect = curRect;
+    if (!rect || !rect.width || !rect.height) return;
+    var x = cur.mx - rect.left, y = cur.my - rect.top;
+    var xPct = (x / rect.width) * 100, yPct = (y / rect.height) * 100;
+    var rx = (yPct - 50) / 100 * MAX_ANGLE;  // 垂直方向倾斜
+    var ry = (xPct - 50) / 100 * -MAX_ANGLE; // 水平方向倾斜
+    card.classList.add('fx-on');
+    card.style.setProperty('--fxmx', xPct.toFixed(2) + '%');
+    card.style.setProperty('--fxmy', yPct.toFixed(2) + '%');
+    card.style.transform = 'perspective(900px) rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg) translateY(' + LIFT + 'px)';
+  }
+
+  function reset() {
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    if (cur) {
+      cur.classList.remove('fx-on');
+      cur.style.transform = '';
+      cur = null; curRect = null;
+    }
+  }
+
+  // 事件委托：动态/静态卡片都能生效
+  document.addEventListener('mousemove', function (e) {
+    var card = e.target && e.target.closest ? e.target.closest(SEL) : null;
+    if (card) {
+      ensureFx(card);
+      if (card !== cur) {
+        cur = card;
+        curRect = card.getBoundingClientRect();
+      }
+      cur.mx = e.clientX;
+      cur.my = e.clientY;
+      if (!raf) raf = requestAnimationFrame(apply);
+    } else {
+      reset();
+    }
+  }, true);
+
+  // 移出窗口时复位
+  document.addEventListener('mouseout', function (e) {
+    if (!e.relatedTarget && cur) reset();
+  }, true);
 })();
 </script>
 </body>
