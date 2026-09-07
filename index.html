@@ -319,72 +319,6 @@
   .fun-banner .spark.s2 img, .fun-banner .spark.s4 img { width: 18px; height: 18px; }
   .fun-banner .spark.s5 img { width: 24px; height: 24px; }
 
-  /* ============ 顶部天气 · 广东东莞（天气卡片毛玻璃动效组件，深浅主题适配） ============ */
-  .cardContainer {
-    width: fit-content; margin: 0 auto 24px;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .card {
-    position: relative;
-    width: 220px; height: 250px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 10px;
-    border-radius: 20px;
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    background-color: rgba(38,38,46,.62);
-    border: 1px solid rgba(160,180,230,.16);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.10), inset 0 -1px 0 rgba(255,255,255,.05), 0 16px 36px rgba(0,0,0,.26);
-    cursor: pointer;
-  }
-  .card .city { font-weight: 700; font-size: .95em; letter-spacing: 1.4px; color: #fdfeff; }
-  .card .weather { font-weight: 500; font-size: .72em; letter-spacing: 1.2px; color: rgba(226,231,242,.80); text-align: center; }
-  .card .temp { position: relative; margin: 0; font-size: 2em; font-weight: 700; letter-spacing: .5px; color: #fdfeff; }
-  .card .temp span { font-variant-numeric: tabular-nums; }
-  .minmaxContainer { width: 100%; display: flex; align-items: center; justify-content: space-between; }
-  .card .min, .card .max {
-    width: 50%; display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
-    padding: 0 20px; gap: 4px;
-  }
-  .card .max { align-items: flex-start; border-left: 2px solid rgba(255,255,255,.35); }
-  .card .maxHeading, .card .minHeading { font-size: .72em; font-weight: 600; letter-spacing: .5px; color: #fff; }
-  .card .maxTemp, .card .minTemp { font-size: .62em; font-weight: 500; color: rgba(226,231,242,.80); font-variant-numeric: tabular-nums; }
-  /* 悬停动效：底部圆点随悬停轻轻移动 */
-  .cardContainer::before {
-    width: 100px; height: 100px; content: ""; position: absolute;
-    background: radial-gradient(circle at 30% 30%, #aeb8ff, rgba(144,161,255,.28));
-    z-index: -1; border-radius: 50%; left: 100px; top: 50px;
-    filter: blur(2px);
-    transition: transform 1s ease;
-  }
-  .cardContainer:hover::before { transform: translate(-50px, 50px); }
-  /* 浅色主题：浅霜玻璃 + 深色文字保证可读 */
-  :root[data-theme="light"] .card {
-    background-color: rgba(255,255,255,.62);
-    border-color: rgba(255,255,255,.9);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 16px 36px rgba(90,120,180,.16);
-  }
-  :root[data-theme="light"] .card .city,
-  :root[data-theme="light"] .card .temp,
-  :root[data-theme="light"] .card .maxHeading,
-  :root[data-theme="light"] .card .minHeading { color: #1d222b; }
-  :root[data-theme="light"] .card .weather,
-  :root[data-theme="light"] .card .maxTemp,
-  :root[data-theme="light"] .card .minTemp { color: #48506a; }
-  :root[data-theme="light"] .card .max { border-left-color: rgba(29,34,43,.30); }
-  :root[data-theme="light"] .cardContainer::before {
-    background: radial-gradient(circle at 30% 30%, #d9e0ff, rgba(144,161,255,.45));
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .cardContainer::before { transition: none; }
-  }
-
   .ov-icon svg { width: 26px; height: 26px; stroke-width: 2; }
   .watch-empty .we-icon svg { width: 40px; height: 40px; display: block; stroke-width: 1.75; }
   .placeholder .p-icon svg { width: 46px; height: 46px; stroke-width: 1.5; }
@@ -2476,42 +2410,6 @@ try {
         <div class="header-actions">
           <div class="btn btn-refresh" id="btn-refresh"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
           <div class="btn btn-primary" id="btn-report">＋ 日报</div>
-        </div>
-      </div>
-
-      <!-- 顶部天气 · 广东东莞（天气卡片毛玻璃动效组件，底部圆点随悬停移动） -->
-      <div class="cardContainer">
-        <div class="card">
-          <p class="city" id="wxc-city">东莞 · 广东</p>
-          <p class="weather" id="wxc-weather">实时加载中…</p>
-          <svg
-            class="weather"
-            version="1.1"
-            id="Layer_1"
-            x="0px" y="0px"
-            width="50px" height="50px"
-            viewBox="0 0 100 100"
-            xml:space="preserve"
-            aria-hidden="true"
-          >
-            <image
-              id="image0"
-              width="100" height="100"
-              x="0" y="0"
-              href="data:image/png;base64,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"
-            />
-          </svg>
-          <p class="temp"><span id="wxc-temp">--</span>°</p>
-          <div class="minmaxContainer">
-            <div class="min">
-              <p class="minHeading">Min</p>
-              <p class="minTemp" id="wxc-minTemp">--°</p>
-            </div>
-            <div class="max">
-              <p class="maxHeading">Max</p>
-              <p class="maxTemp" id="wxc-maxTemp">--°</p>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -6348,57 +6246,6 @@ setInterval(() => refresh(false), REFRESH_MS);
 setInterval(() => loadWatchQuotes(), 2000); // 自选行情每 2 秒同步刷新
 setInterval(() => loadSectors(), 5000);   // 板块每 5 秒刷新
 setInterval(() => loadBoardRank(), 300000); // 板块榜首每 5 分钟重试一次
-
-/* ================= 顶部天气 · 广东东莞（实时数据 → 天气卡片组件，无密钥） ================= */
-(function () {
-  // 东莞坐标
-  const LX = 23.0389, LN = 113.7518;
-  const wxcTemp = document.getElementById('wxc-temp');
-  if (!wxcTemp) return; // 页面无天气节点则跳过
-  const wxcWeather = document.getElementById('wxc-weather');
-  const wxcMin = document.getElementById('wxc-minTemp');
-  const wxcMax = document.getElementById('wxc-maxTemp');
-
-  // WMO 天气代码 → 中文描述
-  const META = [
-    { code: [0], t: '晴' },
-    { code: [1], t: '大致晴朗' },
-    { code: [2], t: '多云' },
-    { code: [3], t: '阴' },
-    { code: [45, 48], t: '雾' },
-    { code: [51, 53, 55, 56, 57], t: '毛毛雨' },
-    { code: [61, 63, 65, 66, 67], t: '雨' },
-    { code: [80, 81, 82], t: '阵雨' },
-    { code: [71, 73, 75, 77, 85, 86], t: '雪' },
-    { code: [95, 96, 99], t: '雷暴' }
-  ];
-  function meta(code) {
-    const hit = META.find(function (m) { return m.code.indexOf(code) > -1; });
-    return hit ? hit.t : '多云';
-  }
-
-  function refresh() {
-    const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + LX +
-      '&longitude=' + LN +
-      '&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1';
-    fetch(url).then(function (r) { return r.json(); }).then(function (d) {
-      const c = d.current, dd = d.daily;
-      wxcTemp.textContent = Math.round(c.temperature_2m);
-      wxcWeather.textContent = meta(c.weather_code);
-      if (dd && dd.temperature_2m_max && dd.temperature_2m_max[0] != null)
-        wxcMax.textContent = Math.round(dd.temperature_2m_max[0]) + '°';
-      if (dd && dd.temperature_2m_min && dd.temperature_2m_min[0] != null)
-        wxcMin.textContent = Math.round(dd.temperature_2m_min[0]) + '°';
-    }).catch(function () {
-      // 保留占位，不报错
-      wxcTemp.textContent = '--';
-      wxcWeather.textContent = '天气暂不可用';
-    });
-  }
-
-  refresh();
-  setInterval(refresh, 10 * 60 * 1000); // 每 10 分钟刷新
-})();
 
 /* ============ 卡片鼠标悬停跟随转动动效（Uiverse kennyotsu 灵感） ============ */
 (function () {
