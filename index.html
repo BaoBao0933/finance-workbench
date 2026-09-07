@@ -905,6 +905,9 @@
   .index-card:nth-child(6){--card-anim:fadeIn .7s ease both;}
   .index-card:nth-child(7){--card-anim:fadeIn .75s ease both;}
   .index-card:nth-child(8){--card-anim:fadeIn .8s ease both;}
+  /* anime.js 弹性入场就绪时：关闭 CSS fadeIn，交由 anime 控制（避免双重动画闪烁） */
+  #index-areas.anime-ready .index-card,
+  #index-areas.anime-ready .ir-head { animation: none !important; opacity: 0; will-change: opacity, transform; }
   .flash-up { animation: flashUp .6s cubic-bezier(.2,.7,.3,1.25) both; }
   .flash-down { animation: flashDown .6s cubic-bezier(.2,.7,.3,1.25) both; }
   /* 行情刷新动效：iOS 弹簧上浮 + 玻璃光晕反射（字体保持中性色，涨用珊瑚橙光、跌用翠绿光） */
@@ -3106,6 +3109,7 @@ function renderIndexCard(cfg, q) {
 
 function renderSkeleton() {
   const wrap = $('index-areas');
+  if (typeof anime !== 'undefined') wrap.classList.add('anime-ready'); // 由 anime.js 控制入场
   wrap.innerHTML = `
     <div class="index-focus" data-slot="focus"></div>
     <div class="index-regions">
@@ -3120,6 +3124,32 @@ function renderSkeleton() {
     const slot = slotFor(cfg, wrap);
     if (slot) slot.appendChild(buildCardNode(cfg, focus));
   });
+  animeEntrance();
+}
+
+// 核心指数区域：用 anime.js 弹性动画替代 CSS fadeIn（依次弹入卡片）
+function animeEntrance() {
+  if (typeof anime === 'undefined') return;
+  const wrap = document.getElementById('index-areas');
+  if (!wrap) return;
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const heads = Array.from(wrap.querySelectorAll('.ir-head'));
+  const focusCards = Array.from(wrap.querySelectorAll('.index-focus .index-card'));
+  const regionCards = Array.from(wrap.querySelectorAll('.index-region .index-card'));
+  if (reduced) {
+    [...heads, ...focusCards, ...regionCards].forEach(el => { el.style.opacity = '1'; });
+    return;
+  }
+  const clearTransform = els => els.forEach(el => (el.style.transform = '')); // 结束后释放内联 transform，避免压制悬停动效
+  anime({ targets: heads, translateY: [10, 0], opacity: [0, 1], duration: 420,
+    easing: 'easeOutQuad', delay: anime.stagger(35, { start: 0 }),
+    complete: () => clearTransform(heads) });
+  anime({ targets: focusCards, scale: [0.88, 1], translateY: [16, 0], opacity: [0, 1], duration: 600,
+    easing: 'easeOutElastic(1, .6)', delay: anime.stagger(45, { start: 150 }),
+    complete: () => clearTransform(focusCards) });
+  anime({ targets: regionCards, scale: [0.9, 1], translateY: [16, 0], opacity: [0, 1], duration: 600,
+    easing: 'easeOutElastic(1, .62)', delay: anime.stagger(60, { start: 240 }),
+    complete: () => clearTransform(regionCards) });
 }
 
 /* ================= 数据加载（多通道容灾） ================= */
