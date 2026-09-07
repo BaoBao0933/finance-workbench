@@ -1928,7 +1928,7 @@
     overflow: hidden;
   }
   /* 玻璃高光折射层：斜向 118° 渐变亮带，模拟光线在玻璃中的折射 */
-  .ov-card::before, .index-card::before, .live-bar::before {
+  .index-card::before, .live-bar::before {
     content: ''; position: absolute; left: 0; top: 0; right: 0; bottom: 0;
     background: linear-gradient(115deg,
       rgba(255,255,255,.0) 0%,
@@ -2520,7 +2520,6 @@
   }
 
   /* 浅色主题：玻璃高光折射层（冷白透蓝，匹配浅色毛玻璃背景） */
-  :root[data-theme="light"] .ov-card::before,
   :root[data-theme="light"] .index-card::before,
   :root[data-theme="light"] .live-bar::before {
     background: linear-gradient(115deg,
