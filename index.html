@@ -505,18 +505,12 @@
     z-index: 1;
     opacity: 0;
     transition: opacity .3s ease;
+    /* 统一：鼠标附近的淡淡小光斑，跟随移动，不铺满整卡 */
     background:
-      radial-gradient(140px circle at var(--fxmx, 50%) var(--fxmy, 50%), rgba(232, 106, 96, .22), rgba(232, 121, 96, .06) 46%, transparent 72%),
-      radial-gradient(60px circle at var(--fxmx, 50%) var(--fxmy, 50%), rgba(255, 214, 170, .35), transparent 78%);
+      radial-gradient(40px circle at var(--fxmx, 50%) var(--fxmy, 50%), rgba(232, 106, 96, .13), rgba(232, 121, 96, .03) 55%, transparent 78%);
     mix-blend-mode: screen;
   }
   .fx-tilt.fx-on .fx-glow { opacity: 1; }
-  /* 小尺寸板块卡（涨幅/跌幅榜首）：光晕收敛为跟随鼠标的小光斑，避免铺满整卡泛橙 */
-  .sec-hot-card .fx-glow {
-    background:
-      radial-gradient(36px circle at var(--fxmx, 50%) var(--fxmy, 50%), rgba(232, 106, 96, .16), rgba(232, 121, 96, .04) 55%, transparent 72%);
-    mix-blend-mode: normal;
-  }
   :root[data-theme="light"] .fx-tilt .fx-glow {
     mix-blend-mode: normal;
   }
