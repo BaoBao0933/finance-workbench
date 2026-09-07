@@ -1352,9 +1352,14 @@
   }
   .sec-cell {
     background: rgba(255,255,255,.66); border: 1px solid var(--card-border); border-radius: 12px;
-    padding: 13px 15px; cursor: pointer; transition: all .18s; animation: fadeIn .35s ease both;
+    padding: 13px 15px; cursor: pointer; transition: all .18s;
+    animation: secRise .45s cubic-bezier(0.22,1,0.36,1) backwards;
+    animation-delay: var(--sec-in, 0ms);
   }
   .sec-cell:hover { border-color: var(--accent); box-shadow: 0 5px 14px rgba(91,127,191,.14); transform: translateY(-2px); }
+  /* 板块列表错峰入场：backwards 填充让每格在自身延迟前保持隐藏，动画结束后释放 transform 以兼容 hover 上浮 */
+  @keyframes secRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .sec-cell { animation: none !important; } }
   .sec-cell .scn { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sec-cell .scp { font-size: 17px; font-weight: 800; margin-top: 5px; font-variant-numeric: tabular-nums; }
   .sec-cell .scp.up { color: var(--up); }
@@ -5360,6 +5365,8 @@ function renderSecList() {
       div.className = 'sec-cell';
       div.innerHTML = `<div class="scn"></div><div class="scp">--</div><div class="scc">--</div>`;
       div.addEventListener('click', () => openSector(s.code));
+      // 错峰入场：新格按序递增延迟（封顶约 1s），尊重减少动效偏好
+      if (!REDUCE_MOTION()) div.style.setProperty('--sec-in', Math.min(grid.childElementCount * 45, 1000) + 'ms');
       cell = secCellCache[s.code] = { root: div, nameEl: div.querySelector('.scn'), pctEl: div.querySelector('.scp'), codeEl: div.querySelector('.scc') };
     }
     cell.root.dataset.name = s.name;
