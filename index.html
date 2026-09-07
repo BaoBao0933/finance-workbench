@@ -1624,6 +1624,44 @@
     .fb-spot .sp-glow, .fb-spot .sp-edge { opacity: 0 !important; }
   }
 
+  /* ============ 核心指数小图标：波形跳动 + 弹跳球（Uiverse Nawsome 灵感）============
+     示意"实时数据流动"，原生CSS实现，无外部依赖 */
+  .idx-loader {
+    position: relative; display: inline-flex; align-items: flex-end;
+    column-gap: 2.5px; width: 28px; height: 15px; flex: 0 0 28px;
+    vertical-align: middle; transform: translateY(-1px);
+  }
+  .idx-loader .loader__bar {
+    width: 4px; border-radius: 2px; transform-origin: center bottom;
+    animation: idxBarPulse 1.6s ease-in-out infinite;
+    background: linear-gradient(180deg, #86a6f2, #5d7fe0);
+    box-shadow: 0 0 4px rgba(100,132,224,.5);
+  }
+  .idx-loader .loader__bar:nth-child(1) { height: 7px;  animation-delay: .0s; }
+  .idx-loader .loader__bar:nth-child(2) { height: 11px; animation-delay: .12s; }
+  .idx-loader .loader__bar:nth-child(3) { height: 13px; animation-delay: .24s; }
+  .idx-loader .loader__bar:nth-child(4) { height: 9px;  animation-delay: .36s; }
+  .idx-loader .loader__bar:nth-child(5) { height: 6px;  animation-delay: .48s; }
+  .idx-loader .loader__ball {
+    position: absolute; left: 0; bottom: 0; width: 5px; height: 5px; border-radius: 50%;
+    background: linear-gradient(135deg, #ffb28c, #ff7a5c);
+    box-shadow: 0 0 5px rgba(255,122,92,.6);
+    animation: idxBall 1.6s cubic-bezier(.45,0,.55,1) infinite;
+  }
+  @keyframes idxBarPulse { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(.35); } }
+  @keyframes idxBall {
+    0%   { transform: translate(0,0); }
+    20%  { transform: translate(6px,-6px); }
+    37%  { transform: translate(12px,0); }
+    54%  { transform: translate(18px,-7px); }
+    68%  { transform: translate(24px,0); }
+    84%  { transform: translate(12px,-6px); }
+    100% { transform: translate(0,0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .idx-loader .loader__bar, .idx-loader .loader__ball { animation: none; }
+  }
+
   /* 核心指数普通卡与顶部折射高光 */
   .index-card::before {
     background: linear-gradient(115deg, rgba(255,255,255,.09), rgba(232,120,96,.14) 46%, transparent 72%) !important;
@@ -2207,7 +2245,7 @@ try {
       <!-- 核心指数 -->
       <div class="module">
         <div class="module-header">
-          <span class="m-title"><span class="m-ico m-emoji-bob"><img src="icons/openmoji/color/1F4C8.svg" alt=""></span>核心指数</span>
+          <span class="m-title"><span class="idx-loader" aria-hidden="true"><i class="loader__bar"></i><i class="loader__bar"></i><i class="loader__bar"></i><i class="loader__bar"></i><i class="loader__bar"></i><i class="loader__ball"></i></span>核心指数</span>
           <span class="m-sub">重点 · 全球市场实时行情</span>
           <a class="m-link" id="link-all-index">自选股 →</a>
         </div>
