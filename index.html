@@ -23,6 +23,14 @@
     --glass: rgba(46, 46, 52, .55);
     --glass-border: rgba(255, 255, 255, .10);
     --gold: #e0a15b;
+    /* transitions-dev: 数字弹入动效 */
+    --digit-dur: 500ms;
+    --digit-distance: 8px;
+    --digit-stagger: 70ms;
+    --digit-blur: 2px;
+    --digit-ease: cubic-bezier(0.34, 1.45, 0.64, 1);
+    --digit-dir-x: 0;
+    --digit-dir-y: -1;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -1340,6 +1348,22 @@
   .feed-text { font-size: 14.5px; line-height: 1.65; color: var(--text-main); }
   .feed-text kw { color: var(--accent); font-weight: 700; }
   .feed-time { font-size: 12px; color: #8f959d; margin-top: 4px; }
+
+  /* transitions-dev 数字弹入动效：走势分析页数值刷新 */
+  @keyframes t-digit-pop-in {
+    0%   { transform: translate(calc(var(--digit-distance) * var(--digit-dir-x)), calc(var(--digit-distance) * var(--digit-dir-y))); opacity: 0; filter: blur(var(--digit-blur)); }
+    100% { transform: translate(0, 0); opacity: 1; filter: blur(0); }
+  }
+  .t-digit-group { display: inline-flex; align-items: baseline; }
+  .t-digit { display: inline-block; will-change: transform, opacity, filter; }
+  .t-digit-group.is-animating .t-digit {
+    animation: t-digit-pop-in var(--digit-dur) var(--digit-ease) both;
+  }
+  .t-digit-group.is-animating .t-digit[data-stagger="1"] { animation-delay: var(--digit-stagger); }
+  .t-digit-group.is-animating .t-digit[data-stagger="2"] { animation-delay: calc(var(--digit-stagger) * 2); }
+  @media (prefers-reduced-motion: reduce) {
+    .t-digit-group .t-digit { animation: none !important; }
+  }
 
   /* ============ 行业板块页 ============ */
   .sec-wrap { max-width: 1240px; }
@@ -2853,7 +2877,7 @@ try {
         <!-- 情绪温度计 -->
         <div class="senti-thermo">
           <div class="st-score-row">
-            <div class="st-score" id="st-score">--</div>
+            <div class="st-score t-digit-group" id="st-score">--</div>
             <div class="st-label" id="st-label">计算中</div>
             <div class="st-desc" id="st-desc">综合涨跌结构 · 涨停封板 · 连板高度计算</div>
           </div>
@@ -2879,7 +2903,7 @@ try {
           </div>
           <div class="senti-card">
             <div class="sc-name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg> 最高连板</div>
-            <div class="sc-vals"><span class="up" id="st-lbc">--</span><span class="lbc-unit">板</span></div>
+            <div class="sc-vals"><span class="up t-digit-group" id="st-lbc">--</span><span class="lbc-unit">板</span></div>
             <div class="sc-sub" id="st-lbc-sub">连板梯队加载中…</div>
           </div>
           <div class="senti-card">
@@ -4952,6 +4976,26 @@ setInterval(() => {
   if ($('page-funds').style.display !== 'none') loadFunds();
 }, 10000);
 
+/* ———— transitions-dev 数字弹入辅助函数 ———— */
+function setDigitAnim(el, val) {
+  const s = String(val);
+  el.classList.remove('is-animating');
+  el.innerHTML = '';
+  const chars = s.split('');
+  chars.forEach((ch, i) => {
+    const span = document.createElement('span');
+    span.className = 't-digit';
+    // 数字/符号用字符，小数点/分隔符特殊处理
+    span.textContent = ch;
+    // 后两位错峰
+    if (i === chars.length - 2) span.dataset.stagger = '1';
+    else if (i === chars.length - 1) span.dataset.stagger = '2';
+    el.appendChild(span);
+  });
+  void el.offsetHeight; // 强制回流
+  el.classList.add('is-animating');
+}
+
 /* ================= 走势情绪分析 ================= */
 const SENTI_HOSTS = ['push2delay.eastmoney.com', 'push2.eastmoney.com'];
 
@@ -5086,7 +5130,7 @@ async function loadSenti() {
       score = Math.round(scoreParts.reduce((s, [, v]) => s + v, 0) / scoreParts.length);
     }
     const lbl = sentiLabel(score);
-    $('st-score').textContent = score;
+    setDigitAnim($('st-score'), score);
     $('st-score').style.color = lbl.c;
     $('st-label').textContent = lbl.t;
     $('st-label').style.color = lbl.c;
@@ -5099,8 +5143,8 @@ async function loadSenti() {
     // —— 2. 指标卡 ——
     if (udRes) {
       const { up, down, flat } = udRes;
-      $('st-up').textContent = up;
-      $('st-down').textContent = down;
+      setDigitAnim($('st-up'), up);
+      setDigitAnim($('st-down'), down);
       $('st-flat').textContent = `平盘 ${flat} 家`;
       $('st-up-bar').style.width = (up / Math.max(up + down, 1) * 100).toFixed(1) + '%';
     }
@@ -5108,21 +5152,21 @@ async function loadSenti() {
       const zt = ztRes.tc || ztRes.pool.length;
       const zb = zbRes.tc || zbRes.pool.length;
       const fb = Math.round(zt / Math.max(zt + zb, 1) * 100);
-      $('st-zt').textContent = zt;
-      $('st-zb').textContent = zb;
+      setDigitAnim($('st-zt'), zt);
+      setDigitAnim($('st-zb'), zb);
       $('st-fengban').textContent = `封板率 ${fb}% · 涨停成交占优` + (fb >= 60 ? '' : ' · 情绪偏弱');
       $('st-zt-bar').style.width = fb + '%';
     }
     if (ztRes) {
       const maxLbc = ztRes.pool.reduce((m, p) => Math.max(m, p.lbc || 0), 0);
-      $('st-lbc').textContent = maxLbc;
+      setDigitAnim($('st-lbc'), maxLbc);
       $('st-lbc-sub').textContent = `数据日 ${ztRes.qdate} · 空间高度`;
     }
     if (udRes) {
       try {
         const amtRes = await fetchJson(`https://${SENTI_HOSTS[0]}/api/qt/ulist.np/get?fltt=2&secids=1.000001,0.399001&fields=f6`, 4500);
         const amt = (amtRes.data.diff || []).reduce((s, x) => s + (x.f6 || 0), 0);
-        if (amt > 0) $('st-amt').textContent = (amt / 1e12).toFixed(2) + ' 万亿';
+        if (amt > 0) setDigitAnim($('st-amt'), (amt / 1e12).toFixed(2) + ' 万亿');
       } catch (e) { }
     }
 
