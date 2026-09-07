@@ -1429,6 +1429,10 @@
   .sec-row:nth-child(-n+4) .sr-rank { background: #fff1f0; color: #e85d4e; }
   .sec-row .sr-name { font-weight: 600; font-size: 15.5px; }
   .sec-row .sr-name small { font-size: 12px; color: var(--text-sub); font-weight: 400; margin-left: 8px; }
+  /* 成分股表格单元格：统一为 flex 纵向居中，数字使用等宽数字制表 */
+  .sec-row > .watch-col { display: flex; align-items: center; font-variant-numeric: tabular-nums; }
+  /* 涨跌幅列与表头对齐：表头 pct-h 居中，数据单元格同步居中并垂直对齐 */
+  .sec-row > .watch-col:nth-child(4) { justify-content: center; text-align: center; }
   @media (max-width: 900px) { .sec-row { grid-template-columns: 46px 2fr 1.2fr 1fr; } .sec-row .w-hide { display: none; } }
 
   /* ============ 重点关注页 ============ */
