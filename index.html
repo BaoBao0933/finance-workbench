@@ -414,6 +414,57 @@
   .btn-refresh:hover { background: linear-gradient(180deg, #fffcf6, #f3ecdd); }
   .btn-refresh.spinning .icon { animation: spin .8s linear; }
   @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+  /* 刷新按钮里的“洗衣机”加载动效（Uiverse Shoh2008，缩小到约一个图标大小） */
+  .hwb-wrap { position: relative; width: 16px; height: 20px; display: inline-block; flex: none; vertical-align: middle; }
+  .hwb-wrap .ldr-wrap {
+    position: absolute; left: 0; top: 0; width: 120px; height: 150px;
+    transform: scale(.13); transform-origin: 0 0;
+  }
+  .hwb-wrap .loader {
+    width: 120px; height: 150px;
+    background-color: #fff;
+    background-repeat: no-repeat;
+    background-image: linear-gradient(#ddd 50%, #bbb 51%),
+      linear-gradient(#ddd, #ddd), linear-gradient(#ddd, #ddd),
+      radial-gradient(ellipse at center, #aaa 25%, #eee 26%, #eee 50%, #0000 55%),
+      radial-gradient(ellipse at center, #aaa 25%, #eee 26%, #eee 50%, #0000 55%),
+      radial-gradient(ellipse at center, #aaa 25%, #eee 26%, #eee 50%, #0000 55%);
+    background-position: 0 20px, 45px 0, 8px 6px, 55px 3px, 75px 3px, 95px 3px;
+    background-size: 100% 4px, 1px 23px, 30px 8px, 15px 15px, 15px 15px, 15px 15px;
+    position: relative; border-radius: 6%;
+    animation: ldr-shake 3s ease-in-out infinite;
+    transform-origin: 60px 180px; box-sizing: border-box;
+  }
+  .hwb-wrap .loader:before {
+    content: ""; position: absolute; left: 5px; top: 100%;
+    width: 7px; height: 5px; background: #aaa; border-radius: 0 0 4px 4px; box-shadow: 102px 0 #aaa;
+  }
+  .hwb-wrap .loader:after {
+    content: ""; position: absolute; width: 95px; height: 95px;
+    left: 0; right: 0; margin: auto; bottom: 20px;
+    background-color: #bbdefb;
+    background-image: linear-gradient(to right, #0004 0%, #0004 49%, #0000 50%, #0000 100%),
+      linear-gradient(135deg, #64b5f6 50%, #607d8b 51%);
+    background-size: 30px 100%, 90px 80px; border-radius: 50%;
+    background-repeat: repeat, no-repeat; background-position: 0 0;
+    box-sizing: border-box; border: 10px solid #DDD;
+    box-shadow: 0 0 0 4px #999 inset, 0 0 6px 6px #0004 inset;
+    animation: ldr-spin 3s ease-in-out infinite;
+  }
+  @keyframes ldr-shake {
+    65%, 80%, 88%, 96% { transform: rotate(0.5deg); }
+    50%, 75%, 84%, 92% { transform: rotate(-0.5deg); }
+    0%, 50%, 100% { transform: rotate(0); }
+  }
+  @keyframes ldr-spin {
+    0% { transform: rotate(0deg); }
+    50% { transform: rotate(360deg); }
+    75% { transform: rotate(750deg); }
+    100% { transform: rotate(1800deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hwb-wrap .loader, .hwb-wrap .loader:after { animation: none; }
+  }
   .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 3px 10px rgba(108, 75, 232, .3); }
   .btn-primary:hover { background: var(--accent-hover); }
 
@@ -2411,7 +2462,7 @@ try {
           </div>
         </div>
         <div class="header-actions">
-          <div class="btn btn-refresh" id="btn-refresh"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
+          <div class="btn btn-refresh" id="btn-refresh" role="button" tabindex="0" title="刷新" aria-label="刷新"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span><span class="hwb-wrap" aria-hidden="true"><span class="ldr-wrap"><span class="loader"></span></span></span></div>
         </div>
       </div>
 
