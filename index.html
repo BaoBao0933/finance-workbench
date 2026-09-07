@@ -121,6 +121,29 @@
   :root[data-theme="light"] .fun-banner::before {
     background: linear-gradient(180deg, rgba(255,255,255,.6), transparent 40%);
   }
+  /* Uiverse「Hover me」灵感：浅色版悬停时沿 hero 边缘旋转的冷调渐变光边
+     conic 渐变 + mask 环形裁剪 + @property 角度旋转 → 轻盈扫光边框 */
+  @property --fb-a { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+  @keyframes fbSpin { to { --fb-a: 360deg; } }
+  :root[data-theme="light"] .fun-banner::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    padding: 2px;
+    background: conic-gradient(from var(--fb-a),
+        rgba(110,168,254,.0), rgba(110,168,254,.95),
+        rgba(155,108,255,.95), rgba(255,138,107,.90), rgba(255,138,107,.0));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask-composite: exclude;
+    animation: fbSpin 4.6s linear infinite;
+    opacity: 0;
+    transition: opacity .4s ease;
+    will-change: opacity;
+  }
+  :root[data-theme="light"] .fun-banner:hover::after { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) {
+    :root[data-theme="light"] .fun-banner::after { animation: none; opacity: 0; }
+  }
   .fun-banner .fb-left { display: flex; align-items: center; gap: 18px; z-index: 1; }
   .fun-banner .fb-emoji { font-size: 40px; filter: drop-shadow(0 4px 8px rgba(0,0,0,.2)); animation: floaty 3s ease-in-out infinite; }
   .fun-banner .fb-title { font-size: 17px; font-weight: 700; letter-spacing: 1px; line-height: 1.6; }
