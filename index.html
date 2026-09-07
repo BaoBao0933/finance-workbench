@@ -98,58 +98,159 @@
   .module-header .m-title { display: inline-flex; align-items: center; gap: 7px; }
   .module-header .m-ico { font-size: 17px; animation: floaty 3s ease-in-out infinite; }
 
-  /* 趣味欢迎横幅（深色磨砂玻璃） */
+  /* ===================================================
+     Nothing Design — 趣味每日标语横幅
+     极简 · 排版驱动 · 单色基底 · 工业温暖
+     =================================================== */
   .fun-banner {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 28px;
+    padding: 18px 28px;
     margin-bottom: 22px;
-    border-radius: 18px;
+    border-radius: 16px;
     overflow: hidden;
-    color: #fdfeff;
+    color: #f0f2f5;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
     background:
-      radial-gradient(520px 220px at 10% -50%, rgba(255,138,107,.30), transparent 62%),
-      radial-gradient(400px 180px at 100% 130%, rgba(224,150,95,.16), transparent 60%),
-      linear-gradient(120deg, rgba(42,42,50,.82), rgba(49,49,58,.70) 50%, rgba(38,38,46,.80));
+      radial-gradient(480px 200px at 8% -40%, rgba(255,138,107,.18), transparent 60%),
+      radial-gradient(360px 160px at 100% 120%, rgba(224,160,110,.10), transparent 55%),
+      linear-gradient(125deg, rgba(38,38,46,.88), rgba(44,44,52,.76) 50%, rgba(34,34,42,.84));
     backdrop-filter: blur(20px) saturate(170%);
     -webkit-backdrop-filter: blur(20px) saturate(170%);
-    border: 1px solid rgba(255,170,135,.20);
+    border: 1px solid rgba(255,170,135,.14);
     box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.12),
-      inset 0 -1px 0 rgba(255,255,255,.05),
-      0 18px 40px rgba(0,0,0,.34);
+      inset 0 1px 0 rgba(255,255,255,.08),
+      0 16px 36px rgba(0,0,0,.30);
   }
   .fun-banner::before {
     content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-    background: linear-gradient(180deg, rgba(255,255,255,.09), transparent 40%);
+    background: linear-gradient(180deg, rgba(255,255,255,.06), transparent 40%);
   }
-  /* 浅色主题：横幅同步浅色页面 → 浅霜玻璃 + 暖橙光晕，深色文字保证可读 */
+
+  /* 内部布局：左侧 → 图片 + 文字区；右侧 → 装饰 + 开关 */
+  .fun-banner .fb-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    z-index: 1;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* 角色图片：40px 圆形剪影效果，带柔和光晕 */
+  .fun-banner .fb-emoji {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .fun-banner .fb-emoji img,
+  .fun-banner .fb-emoji svg {
+    width: 44px;
+    height: 44px;
+    display: block;
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,.25));
+  }
+  .fun-banner .fb-emoji {
+    animation: floaty 3.6s ease-in-out infinite;
+  }
+
+  /* 文字区：Nothing Design 三层结构
+     Primary   → 标语正文（Space Grotesk Medium 18px）
+     Secondary → 作者/分类标签（Space Mono ALL CAPS 11px） */
+  .fun-banner .fb-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .fun-banner .fb-author {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.45);
+    order: -1;
+  }
+  .fun-banner .fb-title {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 17px;
+    font-weight: 500;
+    letter-spacing: .01em;
+    line-height: 1.55;
+    color: #f0f2f5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 右侧装饰区：火花 + 开关 */
+  .fun-banner .fb-sparks {
+    position: absolute;
+    right: 102px;
+    top: 8px;
+    bottom: 8px;
+    width: 150px;
+    pointer-events: none;
+    opacity: .55;
+  }
+  .fun-banner .spark {
+    position: absolute;
+    font-size: 16px;
+    opacity: .7;
+    animation: floaty 3.8s ease-in-out infinite;
+  }
+  .fun-banner .spark img,
+  .fun-banner .spark svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+    opacity: .6;
+  }
+  .fun-banner .spark.s1 { left: 6px;  top: 2px; animation-delay: .2s; }
+  .fun-banner .spark.s2 { left: 52px; bottom: 2px; animation-delay: 1s; }
+  .fun-banner .spark.s3 { left: 100px; top: 6px; animation-delay: .6s; }
+  .fun-banner .spark.s4 { left: 130px; bottom: 6px; animation-delay: 1.4s; }
+  .fun-banner .spark.s5 { right: 2px; top: 50%; animation-delay: .9s; }
+  .fun-banner .spark.s2 img { width: 15px; height: 15px; }
+  .fun-banner .spark.s4 img { width: 15px; height: 15px; }
+  .fun-banner .spark.s5 img { width: 20px; height: 20px; }
+
+  /* 浅色主题覆盖 */
   :root[data-theme="light"] .fun-banner {
-    color: #22273a;
+    color: #1e2337;
     background:
-      radial-gradient(520px 220px at 10% -50%, rgba(255,150,118,.30), transparent 62%),
-      radial-gradient(400px 180px at 100% 130%, rgba(224,160,120,.18), transparent 60%),
-      linear-gradient(120deg, rgba(255,255,255,.88), rgba(250,247,255,.76) 50%, rgba(255,253,250,.86));
-    border-color: rgba(224,120,96,.26);
+      radial-gradient(480px 200px at 8% -40%, rgba(255,150,118,.20), transparent 60%),
+      radial-gradient(360px 160px at 100% 120%, rgba(224,160,120,.12), transparent 55%),
+      linear-gradient(125deg, rgba(255,255,255,.90), rgba(250,247,255,.78) 50%, rgba(255,253,250,.88));
+    border-color: rgba(224,120,96,.18);
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,.95),
-      0 12px 30px rgba(120,140,180,.10);
+      0 10px 28px rgba(120,140,180,.08);
   }
   :root[data-theme="light"] .fun-banner::before {
-    background: linear-gradient(180deg, rgba(255,255,255,.6), transparent 40%);
+    background: linear-gradient(180deg, rgba(255,255,255,.5), transparent 40%);
   }
-  /* Uiverse「Hover me」灵感：浅色版悬停时沿 hero 边缘旋转的冷调渐变光边
-     conic 渐变 + mask 环形裁剪 + @property 角度旋转 → 轻盈扫光边框 */
+  :root[data-theme="light"] .fun-banner .fb-author {
+    color: rgba(30,35,55,.45);
+  }
+  :root[data-theme="light"] .fun-banner .fb-title {
+    color: #1e2337;
+  }
+  /* 浅色版悬停扫光边框（保留原有设计） */
   @property --fb-a { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
   @keyframes fbSpin { to { --fb-a: 360deg; } }
   :root[data-theme="light"] .fun-banner::after {
     content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
     padding: 2px;
     background: conic-gradient(from var(--fb-a),
-        rgba(110,168,254,.0), rgba(110,168,254,.95),
-        rgba(155,108,255,.95), rgba(255,138,107,.90), rgba(255,138,107,.0));
+        rgba(110,168,254,.0), rgba(110,168,254,.85),
+        rgba(155,108,255,.85), rgba(255,138,107,.80), rgba(255,138,107,.0));
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
             mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -163,19 +264,8 @@
   @media (prefers-reduced-motion: reduce) {
     :root[data-theme="light"] .fun-banner::after { animation: none; opacity: 0; }
   }
-  .fun-banner .fb-left { display: flex; align-items: center; gap: 18px; z-index: 1; }
-  .fun-banner .fb-emoji { font-size: 40px; filter: drop-shadow(0 4px 8px rgba(0,0,0,.2)); animation: floaty 3s ease-in-out infinite; }
-  .fun-banner .fb-title { font-size: 17px; font-weight: 700; letter-spacing: 1px; line-height: 1.6; }
-  .fun-banner .fb-sparks { position: absolute; right: 20px; top: 10px; bottom: 10px; width: 160px; pointer-events: none; }
-  .fun-banner .spark { position: absolute; font-size: 18px; opacity: .9; animation: floaty 3.2s ease-in-out infinite; }
-  .fun-banner .spark.s1 { left: 10px; top: 4px; animation-delay: .2s; }
-  .fun-banner .spark.s2 { left: 56px; bottom: 4px; font-size: 15px; animation-delay: 1s; }
-  .fun-banner .spark.s3 { left: 108px; top: 10px; animation-delay: .6s; }
-  .fun-banner .spark.s4 { left: 140px; bottom: 10px; font-size: 15px; animation-delay: 1.4s; }
-  .fun-banner .spark.s5 { right: 4px; top: 50%; font-size: 20px; animation-delay: .9s; }
 
   /* 趣味像素苦/笑脸开关（纯装饰，位于横幅右侧；颜色随主题） */
-  .fun-banner .fb-sparks { right: 102px; width: 150px; }
   .fun-banner .fb-toggle { position: absolute; right: 22px; top: 50%; transform: translateY(-50%); z-index: 2; }
   .pixel-toggle-label { display: inline-flex; cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; outline: none; }
   .pixel-checkbox { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
@@ -219,6 +309,52 @@
   :root[data-theme="light"] .face-sad { color: #8b94a6; }
   @media (prefers-reduced-motion: reduce) {
     .pixel-toggle-track, .pixel-coin-thumb, .coin-flipper, .indicator-wrapper { transition: none !important; }
+  }
+
+  /* ===================================================
+     Nothing Design — 每日标语微动效
+     文字入场 · 图标浮动 · 火花粒子
+     =================================================== */
+  @keyframes fb-text-in {
+    0%   { opacity: 0; transform: translateY(12px) scale(.97); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes fb-emoji-bounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    25%      { transform: translateY(-5px) scale(1.04); }
+    50%      { transform: translateY(0) scale(1); }
+    75%      { transform: translateY(-3px) scale(1.02); }
+  }
+  @keyframes fb-spark-drift {
+    0%   { opacity: 0; transform: translateY(4px) scale(.8); }
+    30%  { opacity: .7; transform: translateY(0) scale(1); }
+    70%  { opacity: .5; transform: translateY(-4px) scale(.9); }
+    100% { opacity: 0; transform: translateY(-10px) scale(.5); }
+  }
+  @keyframes fb-glow-pulse {
+    0%, 100% { opacity: .35; }
+    50%      { opacity: .65; }
+  }
+  /* 入场后文字动画 */
+  .fun-banner.fb-entered .fb-text { animation: fb-text-in .6s cubic-bezier(.22,1,.36,1) both; }
+  .fun-banner.fb-entered .fb-emoji { animation: fb-emoji-bounce .8s cubic-bezier(.34,1.45,.64,1) both; }
+  .fun-banner.fb-entered .fb-author { animation-delay: .08s; }
+  .fun-banner.fb-entered .fb-title { animation-delay: .16s; }
+  /* 入场后火花闪烁 */
+  .fun-banner.fb-entered .spark {
+    animation: fb-spark-drift 2.2s ease-in-out infinite;
+  }
+  .fun-banner.fb-entered .fb-sparks {
+    animation: fb-glow-pulse 3.4s ease-in-out infinite;
+  }
+  /* 默认：图标持续浮动，文字无入场态 */
+  .fun-banner .fb-emoji { animation: floaty 3.6s ease-in-out infinite; }
+  .fun-banner .spark { animation: floaty 3.8s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) {
+    .fun-banner.fb-entered .fb-text,
+    .fun-banner.fb-entered .fb-emoji,
+    .fun-banner.fb-entered .spark,
+    .fun-banner.fb-entered .fb-sparks { animation: none !important; }
   }
 
   /* 侧边栏：与主内容完全同源背景的透色毛玻璃，弱化分层，未来感 iOS */
@@ -328,15 +464,7 @@
     55% { transform: rotate(-9deg) rotateY(20deg) scaleY(.9) translateY(1px); }
     100% { transform: rotate(-6deg) rotateY(-22deg) scaleY(.92) translateY(1px); }
   }
-  .fun-banner .fb-emoji svg { width: 40px; height: 40px; display: block; stroke-width: 2; }
-  .fun-banner .fb-emoji img { width: 48px; height: 48px; display: block; }
-  .fun-banner .spark svg { width: 18px; height: 18px; display: block; stroke-width: 2; }
-  .fun-banner .spark img { width: 22px; height: 22px; display: block; }
-  .fun-banner .spark.s2 svg, .fun-banner .spark.s4 svg { width: 15px; height: 15px; }
-  .fun-banner .spark.s5 svg { width: 20px; height: 20px; }
-  .fun-banner .spark.s1 img { width: 20px; height: 20px; }
-  .fun-banner .spark.s2 img, .fun-banner .spark.s4 img { width: 18px; height: 18px; }
-  .fun-banner .spark.s5 img { width: 24px; height: 24px; }
+  /* 横幅角色/火花图片尺寸已在上方 Nothing Design 区块定义 */
 
   .ov-icon svg { width: 26px; height: 26px; stroke-width: 2; }
   .watch-empty .we-icon svg { width: 40px; height: 40px; display: block; stroke-width: 1.75; }
@@ -2743,6 +2871,10 @@
     box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 12px 32px rgba(232,109,94,.24);
   }
 </style>
+<!-- Google Fonts: Space Grotesk + Space Mono (Nothing Design) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <!-- anime.js 动画库（通过 CDN 快速引入，供页面动画使用） -->
 <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
 <script>
@@ -2831,11 +2963,12 @@ try {
         <span id="live-time">--</span>
       </div>
 
-      <!-- 趣味欢迎横幅（纯装饰） -->
+      <!-- Nothing Design 趣味每日标语横幅 -->
       <div class="fun-banner">
         <div class="fb-left">
           <span class="fb-emoji"><img src="data:image/svg+xml;base64,PHN2ZyBpZD0iZW1vamkiIHZpZXdCb3g9IjAgMCA3MiA3MiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZyBpZD0iY29sb3IiPgogICAgPGNpcmNsZSBjeD0iNDguNDY0NSIgY3k9IjIzLjc1OTQiIHI9IjIuMTAxNCIgZmlsbD0iI2ZmZiIvPgogICAgPHBhdGggZmlsbD0iI2ZjZWEyYiIgZD0ibTE2LjEyLDQ4LjExNGMtMy4xNTg0LDMuMTYzNC00LjY1MTgsNy41NjAxLTMuOTcsMTEuNjg4LDQuMTI4LjY3NjMsOC41MjIzLS44MTk2LDExLjY4My0zLjk3NywzLjE1ODQtMy4xNjM0LDQuNjUxOC03LjU2MDEsMy45Ny0xMS42ODgtNC4xMjgtLjY3NjMtOC41MjIzLjgxOTYtMTEuNjgzLDMuOTc3WiIvPgogICAgPHBhdGggZmlsbD0iIzYxYjJlNCIgZD0ibTMxLjk3Myw0NS44MzljLS4xOTE5Ljk2Ni0uNjY1NywxLjg1MzYtMS4zNjE2LDIuNTUwNy0uMzM4OS4zMzczLS43MjQ2LjYyNDEtMS4xNDUyLjg1MTYsMi4xNjI2LDIuOTcxNiwzLjc1NzksNi4yODQ3LDQuNjk1Miw5Ljc1MDYuNzA5Mi0uNjIxNiwxLjM5MDYtMS4yNzg2LDIuMDQxNy0xLjk2ODUsMS45MTM2LTIuMDM0MywzLjU0OTEtNC4zMzc2LDQuODUxNi02LjgzMjYsMS4yNTA3LTIuNDIwMSwyLjE3NTEtNC45OTIyLDIuNzQ0Mi03LjYzNTQtMy43Mjg1LDEuOTU0NC03Ljc3MTksMy4wNzcxLTExLjgyNiwzLjI4MzdoMFoiLz4KICAgIDxwYXRoIGZpbGw9IiM5MmQzZjUiIGQ9Im0xNC45MjMsMzUuNzQ5Yy0uNjkuNjUtMS4zNDcyLDEuMzMwMy0xLjk2OTEsMi4wMzgzLDMuNDY4Mi45MzEzLDYuNzg0NiwyLjUyMSw5Ljc2MDQsNC42Nzg0LjIyNjQtLjQxNC41MTA0LS43OTM5Ljg0MzUtMS4xMjgxLjY5NDktLjY5MzUsMS41NzkxLTEuMTY2NSwyLjU0MTctMS4zNTk4LjIxMDYtNC4wNTA3LDEuMzM2NC04LjA4OTksMy4yOTMtMTEuODE0LjAwMTktLjAwMzcuMDAzNy0uMDA3NC4wMDU2LS4wMTEyLTIuNjQ1LjU2ODctNS4yMTg4LDEuNDkyOC03LjY0MDUsMi43NDM0LTIuNDk2LDEuMzAzLTQuNzk5OSwyLjkzODktNi44MzQ2LDQuODUzaDBaIi8+CiAgICA8cGF0aCBmaWxsPSIjZWE1YTQ3IiBkPSJtMzQuODIxLDIwLjc0N2MtNS4yMzE0LDUuMjUwNy04LjM2NjUsMTIuMTYzNS04LjcyMjgsMTkuMjMzLDEuNjM3Ni0uMzMxOCwzLjMzMjYuMTc4MSw0LjUxNSwxLjM1ODQsMS4xODYsMS4xODY4LDEuNjk1NiwyLjg5MDMsMS4zNTYsNC41MzMyLDcuMDc1NC0uMzYwOSwxMy45OTE5LTMuNTAyNCwxOS4yNDItOC43Mzk4LDYuNzExNy02LjcyMjksOS44ODQzLTE2LjA2Nyw4LjQzMzctMjQuODM5LTEuNzMxOC0uMjgyNy0zLjUwNDQtLjM4NzktNS4yOTE1LS4zMTQxLTcuMTc0MS4yOTI2LTE0LjIwOTcsMy40NTA4LTE5LjUzMiw4Ljc2NzdsLS4wMDA0LjAwMDZabTEwLjI0OS0uNTI5MWMxLjg0MTItMS44NDEzLDQuODI2OS0xLjg0MTgsNi42Njg3LS4wMDEyLjAwMDQuMDAwNC4wMDA4LjAwMDguMDAxMi4wMDEyLDEuODQxOCwxLjg0MDcsMS44NDI0LDQuODI1NS4wMDEyLDYuNjY2Ny0uMDAwNC4wMDA0LS4wMDA4LjAwMDgtLjAwMTIuMDAxMi0xLjg0MTksMS44NDA0LTQuODI3NCwxLjgzOTgtNi42Njg1LS4wMDE0LTEuODQxNy0xLjg0MDYtMS44NDI0LTQuODI1Mi0uMDAxNC02LjY2NjVaIi8+CiAgICA8cGF0aCBmaWxsPSIjZjFiMzFjIiBkPSJtMjYuNTM4LDUyLjAzN2MtLjg3NTYuOTgzMS0xLjg4OTQsMS44NDY3LTMuMDA3MiwyLjU2MTctMy40OTA3LDIuMjIyOC03LjcyNDQsMi44MzQ1LTExLjQ0MSwxLjY1My0uMTQ5NSwxLjE5NjQtLjEyOTMsMi4zOTE2LjA2LDMuNTQ5Niw0LjEyOC42NzYzLDguNTIyMy0uODE5NSwxMS42ODMtMy45NzY5LDEuMTA0OC0xLjExMzEsMi4wMjA5LTIuMzk1NiwyLjcwNTUtMy43ODc0aC0uMDAwM1oiLz4KICAgIDxwYXRoIGZpbGw9IiNkMjJmMjciIGQ9Im0yNi4yMDQsMzguNjg3Yy0uMDMzLjQyODEtLjA1NTkuODU1OC0uMDY4NCwxLjI4MywxLjYyNzEtLjMxNiwzLjMwNS4xOTY3LDQuNDc3MywxLjM2ODIsMS4xODYsMS4xODY4LDEuNjk1NiwyLjg5MDMsMS4zNTYsNC41MzMyLDcuMDc1LS4zNjE4LDEzLjk5MDctMy41MDM4LDE5LjI0LTguNzQxMiwxLjQ5MzItMS41MDY3LDIuODI2Ni0zLjE2MTksMy45NzQ2LTQuOTMzOS0xLjM0NzIsMS4yMjY3LTIuODA1MSwyLjMzNDQtNC4zNTMsMy4zMDc0LTcuNTU3NCw0LjcxMDktMTYuNjkzOCw1Ljg5MTgtMjQuNjI3LDMuMTgzMmguMDAwNVoiLz4KICAgIDxwYXRoIGZpbGw9IiM2MWIyZTQiIGQ9Im0yNC4wMzksNDguNTUxYy44NzAzLS40MzcyLDEuNzIwNi0uOTE3OCwyLjU1MDEtMS40MzgsMi40NDMzLTEuNTMyMyw0LjY3NzYtMy40MDQ2LDYuNjI5NC01LjU1NTJsLjAwMjgtLjAwMjhjMS44ODAzLTIuMDkxMSwzLjQ3NDUtNC40MTg3LDQuNzMyOS02LjkxMjIuMDYxLS4xMjA0LjA5NjctLjI1Mi4xMDQ3LS4zODY3LTMuMzk4NS0uNzUzMy0xNC44NDYsMTAuMjUxLTE0LjAxOTksMTQuMjk0OWgwWiIvPgogIDwvZz4KICA8ZyBpZD0ibGluZSI+CiAgICA8cGF0aCBkPSJtNDguNDA1LDI5LjQ5Yy0zLjI3NjEsMC01Ljk0MS0yLjY2NDEtNS45NDEtNS45MzkyczIuNjY0OS01LjkzOTIsNS45NDEtNS45MzkyLDUuOTQxLDIuNjY0MSw1Ljk0MSw1LjkzOTItMi42NjQ5LDUuOTM5Mi01Ljk0MSw1LjkzOTJabTAtOS44OTg3Yy0yLjE4MzksMC0zLjk2MDcsMS43NzU3LTMuOTYwNywzLjk1OTVzMS43NzY4LDMuOTU5NSwzLjk2MDcsMy45NTk1LDMuOTYwNy0xLjc3NTgsMy45NjA3LTMuOTU5NS0xLjc3NjktMy45NTk1LTMuOTYwNy0zLjk1OTVaIi8+CiAgICA8cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIxLjk0OSIgZD0ibTIwLjY1Myw0NS4wNjNjLTEuNjc4LjcwODMtMy4yMjIyLDEuNzQ3NS00LjUzMzEsMy4wNTA4LTMuMTU4MSwzLjE2MzEtNC42NTE3LDcuNTU5NC0zLjk3MDMsMTEuNjg3LDQuMTI4LjY3NjIsOC41MjIxLS44MTk2LDExLjY4My0zLjk3NjksMS4zMDQzLTEuMzEwNCwyLjM0NDYtMi44NTQxLDMuMDUzNy00LjUzMTgiLz4KICAgIDxwYXRoIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjEuOTQ5IiBkPSJtMTQuOTIzLDM1Ljc0OWMtLjY5LjY1LTEuMzQ3MiwxLjMzMDMtMS45NjkxLDIuMDM4MywzLjQ2ODIuOTMxMyw2Ljc4NDYsMi41MjEsOS43NjA0LDQuNjc4NC4yMjY0LS40MTQuNTEwNC0uNzkzOS44NDM1LTEuMTI4MS42OTQ5LS42OTM1LDEuNTc5MS0xLjE2NjUsMi41NDE3LTEuMzU5OC4yMTA2LTQuMDUwNywxLjMzNjQtOC4wODk5LDMuMjkzLTExLjgxNC4wMDE5LS4wMDM3LjAwMzctLjAwNzQuMDA1Ni0uMDExMi0yLjY0NS41Njg3LTUuMjE4OCwxLjQ5MjgtNy42NDA1LDIuNzQzNC0yLjQ5NiwxLjMwMy00Ljc5OTksMi45Mzg5LTYuODM0Niw0Ljg1M2gwWiIvPgogICAgPHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS13aWR0aD0iMS45NDkiIGQ9Im0zMS45NzMsNDUuODM5Yy0uMTkxOS45NjYtLjY2NTcsMS44NTM2LTEuMzYxNiwyLjU1MDctLjMzODkuMzM3My0uNzI0Ni42MjQxLTEuMTQ1Mi44NTE2LDIuMTYyNiwyLjk3MTYsMy43NTc5LDYuMjg0Nyw0LjY5NTIsOS43NTA2LjcwOTItLjYyMTYsMS4zOTA2LTEuMjc4NiwyLjA0MTctMS45Njg1LDEuOTEzNi0yLjAzNDMsMy41NDkxLTQuMzM3Niw0Ljg1MTYtNi44MzI2LDEuMjUwNy0yLjQyMDEsMi4xNzUxLTQuOTkyMiwyLjc0NDItNy42MzU0LTMuNzI4NSwxLjk1NDQtNy43NzE5LDMuMDc3MS0xMS44MjYsMy4yODM3aDBaIi8+CiAgICA8cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIxLjk0OSIgZD0ibTMxLjgzLDQzLjM0NWMuMjY5Ni44ODYzLjI1MDYsMS42OTE5LjEzNzEsMi41MjQ1LDcuMDc1OS0uMzYxMSwxMy45OTMtMy41MDMxLDE5LjI0My04Ljc0MTIsNi43MTA2LTYuNzIxNSw5Ljg4MzYtMTYuMDYzLDguNDM1MS0yNC44MzQtOC43NzEyLTEuNDM2NS0xOC4xMDgsMS43NDItMjQuODIzLDguNDUwOC01LjIzMjIsNS4yNTA5LTguMzY3OSwxMi4xNjQtOC43MjQyLDE5LjIzNC45NDEzLS4xOTA3LDEuODk4NC0uMDk0MiwyLjc2OTMuMjM4NyIvPgogICAgPHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS13aWR0aD0iMS45NDkiIGQ9Im0zNy4wNzIsMzQuMTk2aC0uMDAwMmMtMi40MTU2LDEuMjE4My00LjY3MjQsMi43NjI2LTYuNjk5Niw0LjU4NDQtMi4wODQ5LDEuODkxMS0zLjksNC4wNTU2LTUuMzg0NCw2LjQyMTEtLjUwMzkuODAzMS0uOTY4NCwxLjYyNzMtMS4zOTE3LDIuNDY5NCIvPgogIDwvZz4KPC9zdmc+Cg==" alt=""></span>
           <div class="fb-text">
+            <div class="fb-author">今日寄语</div>
             <div class="fb-title">祝你今天收益长虹！</div>
           </div>
         </div>
@@ -6841,11 +6974,27 @@ function pickBannerEmoji(text) {
 function renderDailyQuote() {
   const idx = todayQuoteIndex();
   const t = document.querySelector('.fun-banner .fb-title');
+  const a = document.querySelector('.fun-banner .fb-author');
   const e = document.querySelector('.fun-banner .fb-emoji img');
-  if (!t) return;
+  if (!t || !a) return;
   const q = DAILY_QUOTES[idx];
-  t.textContent = q;
+  // 解析作者与正文（格式："作者：正文"）
+  const colonIdx = q.indexOf('：');
+  if (colonIdx > 0 && colonIdx < 12) {
+    a.textContent = q.substring(0, colonIdx);
+    t.textContent = q.substring(colonIdx + 1);
+  } else {
+    a.textContent = '今日寄语';
+    t.textContent = q;
+  }
   if (e) e.src = pickBannerEmoji(q);
+  // 文字入场动画触发
+  const banner = document.querySelector('.fun-banner');
+  if (banner) {
+    banner.classList.remove('fb-entered');
+    void banner.offsetWidth;
+    banner.classList.add('fb-entered');
+  }
 }
 
 // 跨过凌晨自动换一句：调度到下一个 0 点执行
