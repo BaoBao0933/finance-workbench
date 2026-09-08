@@ -580,9 +580,9 @@
   /* ===== 图1 新拟态天气卡片（深色主题） ===== */
   .weather-card {
     position: relative;
-    width: 232px;
-    padding: 15px 17px 13px;
-    border-radius: 22px;
+    width: 220px;
+    padding: 11px 14px 10px;
+    border-radius: 18px;
     background:
       linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.02)) ;
     box-shadow:
@@ -606,30 +606,30 @@
   }
   .wc-cbtn svg { width: 15px; height: 15px; }
   .wc-sun {
-    width: 150px; height: 150px; margin: 4px auto 2px;
+    width: 84px; height: 84px; margin: 2px auto 0;
     border-radius: 50%;
     background: radial-gradient(circle at 36% 32%, #fff3c4 0%, #f7c948 46%, #f6a433 78%, #ef7f1c 100%);
     box-shadow:
-      0 0 34px rgba(247, 170, 60, .34),
-      inset -10px -14px 26px rgba(214, 99, 20, .30),
-      inset 8px 10px 20px rgba(255, 246, 214, .55);
+      0 0 26px rgba(247, 170, 60, .34),
+      inset -6px -8px 16px rgba(214, 99, 20, .30),
+      inset 5px 6px 12px rgba(255, 246, 214, .55);
   }
-  .wc-main { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 10px; }
-  .wc-tempidx { display: flex; align-items: baseline; gap: 6px; }
-  .wc-num { font-size: 52px; font-weight: 700; line-height: 1; color: var(--text-main); letter-spacing: -1px; }
-  .wc-deg { font-size: 15px; font-weight: 600; color: var(--text-sub); }
-  .wc-cond { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+  .wc-main { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 6px; }
+  .wc-tempidx { display: flex; align-items: baseline; gap: 5px; }
+  .wc-num { font-size: 40px; font-weight: 700; line-height: 1; color: var(--text-main); letter-spacing: -1px; }
+  .wc-deg { font-size: 13px; font-weight: 600; color: var(--text-sub); }
+  .wc-cond { font-size: 11.5px; color: var(--text-sub); margin-top: 1px; }
   .wc-ic { color: var(--accent); }
-  .wc-ic svg { width: 34px; height: 34px; }
+  .wc-ic svg { width: 28px; height: 28px; }
   .wc-forecast {
     display: flex; justify-content: space-between;
-    margin-top: 13px; padding-top: 11px;
+    margin-top: 9px; padding-top: 8px;
     border-top: 1px dashed rgba(120,125,140,.22);
   }
-  .wc-day { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 34px; }
-  .wc-dn { font-size: 10.5px; color: var(--text-sub); font-weight: 600; }
-  .wc-dnum { font-size: 10px; color: var(--text-sub); opacity: .78; }
-  .wc-dt { font-size: 12px; color: var(--text-main); font-weight: 600; }
+  .wc-day { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 30px; }
+  .wc-dn { font-size: 10px; color: var(--text-sub); font-weight: 600; }
+  .wc-dnum { font-size: 9px; color: var(--text-sub); opacity: .78; }
+  .wc-dt { font-size: 11px; color: var(--text-main); font-weight: 600; white-space: nowrap; }
   .wc-day.active { color: var(--accent); }
   .wc-day.active .wc-dn { color: var(--accent); font-weight: 700; }
   .wc-day.active .wc-dt { color: var(--accent); }
@@ -647,6 +647,26 @@
     box-shadow: inset 1px 1px 3px rgba(255,255,255,.9), 2px 3px 6px rgba(180,188,204,.4);
   }
   :root[data-theme="light"] .wc-forecast { border-top: 1px dashed rgba(90,100,120,.22); }
+
+  /* transitions-dev · number pop-in（实时天气温度数字逐位滑入） */
+  .t-digit-group { display: inline-flex; align-items: baseline; }
+  .t-digit { display: inline-block; will-change: transform, opacity, filter; }
+  @keyframes t-digit-pop-in {
+    0%   { transform: translate(calc(var(--digit-distance,8px) * var(--digit-dir-x,0)), calc(var(--digit-distance,8px) * var(--digit-dir-y,1))); opacity: 0; filter: blur(var(--digit-blur,2px)); }
+    100% { transform: translate(0,0); opacity: 1; filter: blur(0); }
+  }
+  .t-digit-group.is-animating .t-digit { animation: t-digit-pop-in var(--digit-dur,500ms) var(--digit-ease) both; }
+  .t-digit-group.is-animating .t-digit[data-stagger="1"] { animation-delay: var(--digit-stagger,70ms); }
+  .t-digit-group.is-animating .t-digit[data-stagger="2"] { animation-delay: calc(var(--digit-stagger,70ms) * 2); }
+  /* 天气状态文字 / 图标更新动效（text states + icon swap 精神） */
+  .wc-cond { display: inline-block; }
+  .wc-cond.is-swap { animation: wc-text-in var(--digit-dur,500ms) cubic-bezier(.34,1.45,.64,1); }
+  .wc-ic.is-swap { animation: wc-icon-in 320ms ease-in-out; }
+  @keyframes wc-text-in { 0% { opacity: 0; transform: translateY(5px); filter: blur(2px); } 100% { opacity: 1; transform: none; filter: blur(0); } }
+  @keyframes wc-icon-in { 0% { opacity: 0; transform: scale(.4); filter: blur(2px); } 60% { transform: scale(1.12); } 100% { opacity: 1; transform: scale(1); filter: blur(0); } }
+  @media (prefers-reduced-motion: reduce) {
+    .t-digit-group .t-digit, .wc-cond.is-swap, .wc-ic.is-swap { animation: none !important; }
+  }
   .btn {
     display: inline-flex;
     align-items: center;
@@ -3150,13 +3170,13 @@ try {
             <div class="wc-sun"></div>
             <div class="wc-main">
               <div class="wc-tempidx">
-                <div class="wc-num">24</div>
+                <div class="wc-num"><span class="t-digit-group is-animating" id="wc-temp"></span></div>
                 <div class="wc-tempright">
                   <span class="wc-deg">°C</span>
-                  <div class="wc-cond">晴 · 舒适</div>
+                  <div class="wc-cond" id="wc-cond">--</div>
                 </div>
               </div>
-              <div class="wc-ic"><svg viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="36" cy="36" r="11"/><path d="M36 8v-3M36 67v-3M8 36H5M67 36h-3M16.5 16.5l-2-2M57.5 57.5l-2-2M55.5 16.5l2-2M14.5 57.5l2-2"/></svg></div>
+              <div class="wc-ic" id="wc-ic"><svg viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="36" cy="36" r="11"/><path d="M36 8v-3M36 67v-3M8 36H5M67 36h-3M16.5 16.5l-2-2M57.5 57.5l-2-2M55.5 16.5l2-2M14.5 57.5l2-2"/></svg></div>
             </div>
             <div class="wc-forecast" id="wc-forecast"></div>
           </div>
@@ -3169,17 +3189,86 @@ try {
           var now = new Date();
           var dEl = document.getElementById('wc-date');
           if (dEl) dEl.textContent = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
-          var temp = [24, 25, 26, 23, 22];
-          var fc = document.getElementById('wc-forecast');
-          if (fc) {
+
+          /* 天气代码 → 中文状态 + 图标 SVG */
+          function weatherInfo(code) {
+            if (code === 0) return { text: '晴', icon: '<svg viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="36" cy="36" r="11"/><path d="M36 8v-3M36 67v-3M8 36H5M67 36h-3M16.5 16.5l-2-2M57.5 57.5l-2-2M55.5 16.5l2-2M14.5 57.5l2-2"/></svg>' };
+            if (code <= 3)  return { text: '多云', icon: '<svg viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="36" cy="34" r="9"/><path d="M40 24c0-6 3-9 7-9l6 8M42 44h16l3-5c3-1 2 8-1 8H38"/></svg>' };
+            if (code <= 48) return { text: '雾', icon: '<svg viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 24h18M12 34h26M12 44h22M12 54h30M44 30h14M46 40h26M46 50h18"/></svg>' };
+            if (code <= 67) return { text: '雨', icon: '<svg viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M28 26c4-6 16-6 18 2 3-2 9-1 7 5h8c4 0 5 9-3 9H24c-6 0-6-9-2-9l2-4"/><path d="M32 44l-4 8M42 44l-4 8M52 44l-4 8"/></svg>' };
+            if (code <= 77) return { text: '雪', icon: '<svg viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M30 30c5-8 18-8 19 1 4-2 11-1 8 6h6c6 0 7 11-4 11H24c-7 0-8-11-3-12l1-4"/><path d="M34 52l-2 6M44 52l-2 6M54 52l-2 6"/></svg>' };
+            return { text: '雷雨', icon: '<svg viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M34 26c4-6 16-6 18 2 3-2 10-1 7 5 2 3 0 9-3 9H31c-7 0-7-9-3-10l-6 0 3-6c0 0 2-4 2-4 4-5 5-5 10-5z"/><path d="M42 46l-6 12h8l-4 9"/></svg>' };
+          }
+
+          /* 温度数字逐位滑入（transitions-dev number pop-in） */
+          function setTemp(group, str) {
+            group.classList.remove('is-animating');
+            group.replaceChildren();
+            var chars = String(str);
+            for (var i = 0; i < chars.length; i++) {
+              var s = document.createElement('span');
+              s.className = 't-digit';
+              s.textContent = chars[i];
+              if (i === chars.length - 2) s.dataset.stagger = '1';
+              else if (i === chars.length - 1) s.dataset.stagger = '2';
+              group.appendChild(s);
+            }
+            if (chars.length <= 2) group.querySelector('.t-digit').dataset.stagger = '1';
+            void group.offsetHeight;
+            group.classList.add('is-animating');
+          }
+          function swapText(el) {
+            el.classList.remove('is-swap');
+            void el.offsetWidth;
+            el.classList.add('is-swap');
+          }
+
+          function fillForecast(dailyMax, dailyMin) {
+            var fc = document.getElementById('wc-forecast');
+            if (!fc) return;
             var h = '';
             for (var i = 0; i < 5; i++) {
               var d = new Date(now); d.setDate(now.getDate() + i);
               var active = i === 0 ? ' active' : '';
-              h += '<div class="wc-day' + active + '"><span class="wc-dn">' + cnW(d.getDay()) + '</span><span class="wc-dnum">' + d.getDate() + '</span><span class="wc-dt">' + temp[i] + '°</span></div>';
+              var m = dailyMax[i] != null ? Math.round(dailyMax[i]) : 0;
+              var n = dailyMin[i] != null ? Math.round(dailyMin[i]) : 0;
+              h += '<div class="wc-day' + active + '"><span class="wc-dn">' + cnW(d.getDay()) + '</span><span class="wc-dnum">' + d.getDate() + '</span><span class="wc-dt">' + m + '°/' + n + '°</span></div>';
             }
             fc.innerHTML = h;
           }
+
+          var group = document.getElementById('wc-temp');
+          var condEl = document.getElementById('wc-cond');
+          var icEl = document.getElementById('wc-ic');
+          var loc = { name: '上海', lat: 31.2304, lon: 121.4737 };
+
+          function apply(data) {
+            if (!data) return;
+            if (setTemp && group && data.current) setTemp(group, Math.round(data.current.temperature_2m));
+            if (condEl && data.current) {
+              var info = weatherInfo(data.current.weather_code);
+              condEl.textContent = info.text + ' · ' + Math.round(data.current.wind_speed_10m) + '级风';
+              swapText(condEl);
+              if (icEl) {
+                icEl.innerHTML = info.icon;
+                icEl.classList.remove('is-swap');
+                void icEl.offsetWidth;
+                icEl.classList.add('is-swap');
+              }
+            }
+            if (data.daily) fillForecast(data.daily.temperature_2m_max, data.daily.temperature_2m_min);
+          }
+
+          var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + loc.lat + '&longitude=' + loc.lon +
+                    '&current=temperature_2m,weather_code,wind_speed_10m' +
+                    '&daily=temperature_2m_max,temperature_2m_min&forecast_days=5&timezone=Asia%2FShanghai';
+          fetch(url).then(function (r) { return r.json(); }).then(apply).catch(function (e) {
+            /* API 不可用时降级为示例数据，保持卡片可用 */
+            apply({
+              current: { temperature_2m: 24, weather_code: 0, wind_speed_10m: 3 },
+              daily: { temperature_2m_max: [25,26,24,23,22], temperature_2m_min: [18,19,18,17,16] }
+            });
+          });
         })();
         </script>
       </div>
