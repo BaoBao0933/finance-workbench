@@ -1994,12 +1994,12 @@
       max-height var(--resize-dur) var(--resize-ease);
     will-change: max-height;
   }
-  /* 折叠时底部渐变淡出提示 */
+  /* 折叠时底部渐变淡出提示（仅极淡半行，不影响阅读） */
   .news-item .n-summary::after {
     content: '';
     position: absolute;
     bottom: 0; left: 0; right: 0;
-    height: 1.2em;
+    height: .6em;
     background: linear-gradient(to bottom, transparent, var(--bg));
     pointer-events: none;
     transition: opacity var(--resize-dur) var(--resize-ease);
@@ -5314,16 +5314,10 @@ function attachNewsInteractions() {
       this.appendChild(ripple);
       ripple.addEventListener('animationend', () => ripple.remove());
     });
-    // 摘要展开 — 实际 overflow 检测 + transitions-dev text states swap 动效
+    // 摘要展开 — transitions-dev text states swap 动效
     const expand = item.querySelector('.n-summary-expand');
     const summary = item.querySelector('.n-summary');
     if (expand && summary) {
-      // 检测实际是否溢出：内容高度 > 容器高度，才显示按钮
-      if (summary.scrollHeight <= summary.clientHeight) {
-        expand.style.display = 'none';
-      } else {
-        expand.style.display = 'inline-block';
-      }
       expand.addEventListener('click', function(e) {
         e.stopPropagation();
         const parent = this.parentElement; // .n-summary
