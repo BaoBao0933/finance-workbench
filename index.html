@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -1595,8 +1595,7 @@
     display: flex; flex-direction: column; gap: 8px;
     flex-shrink: 0; /* 禁止被 flex 压缩——超出列表高度时应滚动而不是挤扁卡片 */
     overflow: hidden;
-    transition: max-height var(--resize-dur) var(--resize-ease);
-    will-change: max-height;
+    transition: height var(--resize-dur) var(--resize-ease);
   }
   @media (prefers-reduced-motion: reduce) {
     .focus-col .news-item { transition: none !important; }
@@ -1998,20 +1997,6 @@
     overflow: hidden;
     transition:
       max-height var(--resize-dur) var(--resize-ease);
-    will-change: max-height;
-  }
-  /* 折叠时底部渐变淡出提示（仅极淡半行，不影响阅读） */
-  .news-item .n-summary::after {
-    content: '';
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: .6em;
-    background: linear-gradient(to bottom, transparent, var(--bg));
-    pointer-events: none;
-    transition: opacity var(--resize-dur) var(--resize-ease);
-  }
-  .news-item .n-summary.is-expanded::after {
-    opacity: 0;
   }
   .news-item .n-summary.is-expanded,
   .news-item.is-expanded .n-summary {
@@ -2863,7 +2848,6 @@
   :root[data-theme="light"] .w-pin:hover,
   :root[data-theme="light"] .w-pin.active { background: #e8ecf2; color: var(--accent); box-shadow: none; }
   :root[data-theme="light"] .news-item .n-summary { color: #5a6476; }
-:root[data-theme="light"] .news-item .n-summary::after { background: linear-gradient(to bottom, transparent, #f0f3f8); }
   :root[data-theme="light"] .news-item .n-meta { color: #6a7488; }
   :root[data-theme="light"] .news-item .n-tag { background: #e8ecf2; color: var(--accent); }
   :root[data-theme="light"] .news-item.hot .n-title { }
@@ -5322,72 +5306,76 @@ function attachNewsInteractions() {
       this.appendChild(ripple);
       ripple.addEventListener('animationend', () => ripple.remove());
     });
-    // 摘要展开 —— 整个卡片用 JS 驱动 max-height 平滑放大（transitions-dev card resize）
+    // 摘要展开 —— 卡片 height 平滑动画（transitions-dev card resize）
     const expand = item.querySelector('.n-summary-expand');
     const summary = item.querySelector('.n-summary');
     if (expand && summary) {
       expand.addEventListener('click', function(e) {
         e.stopPropagation();
-        const card = item; // .news-item
+        const card = item;
         const isExpanded = card.classList.contains('is-expanded');
 
-        // 三阶段 text states swap: 当前文字退出 → 切换文本 → 新文字进入
-        const dur = parseFloat(
+        // 三阶段 text states swap: 退出 → 切换 → 进入
+        const swapDur = parseFloat(
           getComputedStyle(document.documentElement).getPropertyValue('--text-swap-dur')
         ) || 200;
         this.classList.add('is-exit');
+
+        if (isExpanded) {
+          // === 收起 ===
+          const expandedH = card.offsetHeight;
+          card.classList.remove('is-expanded');
+          summary.classList.remove('is-expanded');
+          const collapsedH = card.offsetHeight;
+          card.style.height = expandedH + 'px';
+          void card.offsetHeight;
+          card.classList.add('is-expanded');
+          summary.classList.add('is-expanded');
+          void card.offsetHeight;
+          card.classList.remove('is-expanded');
+          summary.classList.remove('is-expanded');
+          card.style.height = collapsedH + 'px';
+          card.addEventListener('transitionend', function cleanup() {
+            card.style.height = '';
+            card.removeEventListener('transitionend', cleanup);
+          }, { once: true });
+        } else {
+          // === 展开 ===
+          const collapsedH = card.offsetHeight;
+          card.classList.add('is-expanded');
+          summary.classList.add('is-expanded');
+          const expandedH = card.offsetHeight;
+          card.classList.remove('is-expanded');
+          summary.classList.remove('is-expanded');
+          card.style.height = collapsedH + 'px';
+          void card.offsetHeight;
+          card.classList.add('is-expanded');
+          summary.classList.add('is-expanded');
+          card.style.height = expandedH + 'px';
+          card.addEventListener('transitionend', function cleanup() {
+            card.style.height = '';
+            card.removeEventListener('transitionend', cleanup);
+          }, { once: true });
+        }
+
+        // 文字切换
         setTimeout(() => {
-          if (isExpanded) {
-            // === 收起 ===
-            const expandedH = card.offsetHeight;
-            // 临时移除展开状态，测量折叠高度
-            card.classList.remove('is-expanded');
-            summary.classList.remove('is-expanded');
-            const collapsedH = card.offsetHeight;
-            // 恢复展开状态，准备动画
-            card.classList.add('is-expanded');
-            summary.classList.add('is-expanded');
-            void card.offsetHeight; // 强制回流
-            card.style.maxHeight = expandedH + 'px';
-            void card.offsetHeight;
-            card.classList.remove('is-expanded');
-            summary.classList.remove('is-expanded');
-            card.style.maxHeight = collapsedH + 'px';
-            // 动画结束后清理 inline max-height
-            card.addEventListener('transitionend', function cleanup() {
-              card.style.maxHeight = '';
-              card.removeEventListener('transitionend', cleanup);
-            }, { once: true });
-          } else {
-            // === 展开 ===
-            const collapsedH = card.offsetHeight;
-            // 临时展开，测量完整高度
-            card.classList.add('is-expanded');
-            summary.classList.add('is-expanded');
-            const expandedH = card.offsetHeight;
-            // 恢复折叠
-            card.classList.remove('is-expanded');
-            summary.classList.remove('is-expanded');
-            void card.offsetHeight;
-            card.style.maxHeight = collapsedH + 'px';
-            void card.offsetHeight;
-            card.classList.add('is-expanded');
-            summary.classList.add('is-expanded');
-            card.style.maxHeight = expandedH + 'px';
-            // 动画结束后清理 inline max-height
-            card.addEventListener('transitionend', function cleanup() {
-              card.style.maxHeight = '';
-              card.removeEventListener('transitionend', cleanup);
-            }, { once: true });
-          }
-          // 切换按钮文字
           this.textContent = card.classList.contains('is-expanded') ? '收起' : '展开全文';
           this.classList.remove('is-exit');
           this.classList.add('is-enter-start');
           void this.offsetHeight;
           this.classList.remove('is-enter-start');
-        }, dur);
+        }, swapDur);
       });
+    }
+  });
+
+  // 溢出检测：只在内容真的被截断时显示「展开全文」
+  items.forEach(item => {
+    const s = item.querySelector('.n-summary');
+    const b = item.querySelector('.n-summary-expand');
+    if (s && b) {
+      b.style.display = (s.scrollHeight > s.clientHeight + 1) ? '' : 'none';
     }
   });
 }
