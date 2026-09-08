@@ -1753,48 +1753,61 @@
     100% { opacity: 1; transform: translateY(0); }
   }
   /* 热点新闻卡片：使用 transitions-dev 角标动效，不再改变卡片背景 */
-  .news-item.hot { }
-  .news-item.hot .n-title { }
-  /* transitions-dev 通知角标：热点标记 */
-  @keyframes hot-badge-slide-in {
-    from { transform: translate(var(--badge-offset-x), var(--badge-offset-y)); }
-    to   { transform: translate(0, 0); }
+  /* ===== 热点标记 · iOS 风格玻璃胶囊 + 脉冲圆点 + 弹簧入场 ===== */
+  @keyframes hot-badge-in {
+    0%   { opacity: 0; transform: translateY(6px) scale(.84); }
+    60%  { opacity: 1; transform: translateY(0)   scale(1.05); }
+    100% { opacity: 1; transform: translateY(0)   scale(1); }
+  }
+  @keyframes hot-pulse {
+    0%          { transform: scale(1);   opacity: .55; }
+    70%, 100%   { transform: scale(2.8); opacity: 0; }
   }
   .hot-badge {
     position: absolute;
-    top: -6px;
-    right: -8px;
+    top: 12px;
+    right: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .4px;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 11%, transparent);
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
+    border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+    box-shadow:
+      0 1px 4px color-mix(in srgb, var(--accent) 16%, transparent),
+      inset 0 0 0 .5px color-mix(in srgb, #fff 14%, transparent);
     pointer-events: none;
-    will-change: transform;
-    animation: hot-badge-slide-in var(--badge-slide-dur) var(--badge-slide-ease);
+    transform-origin: 100% 0;
+    animation: hot-badge-in 480ms var(--badge-pop-ease) both;
   }
   .hot-badge-dot {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 22px;
-    height: 22px;
-    border-radius: 11px;
-    padding: 0 7px;
-    font-size: 11px;
-    font-weight: 700;
-    color: #fff;
-    background: linear-gradient(135deg, #e85d4e, #d0453a);
-    box-shadow: 0 2px 6px rgba(232, 93, 78, .35);
-    transform-origin: center;
-    transform: scale(1);
-    opacity: 1;
-    filter: blur(0);
-    transition:
-      transform var(--badge-pop-dur)  var(--badge-pop-ease),
-      opacity   var(--badge-fade-dur) var(--badge-pop-ease),
-      filter    var(--badge-pop-dur)  var(--badge-pop-ease);
-    will-change: transform, opacity, filter;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    position: relative;
+  }
+  .hot-badge-dot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: currentColor;
+    animation: hot-pulse 2.2s var(--badge-fade-ease) infinite;
   }
   @media (prefers-reduced-motion: reduce) {
-    .hot-badge, .hot-badge-dot { animation: none !important; transition: none !important; }
+    .hot-badge, .hot-badge-dot, .hot-badge-dot::after { animation: none !important; }
   }
   .news-item:hover { box-shadow: 0 10px 30px rgba(150, 112, 62,.10), 0 2px 6px rgba(150, 112, 62,.06); transform: translateY(-2px); }
+  /* 热点卡片标题右侧让位给角标 */
+  .news-item.hot .n-title { padding-right: 52px; }
   .news-item .n-title { font-size: 15.5px; font-weight: 600; line-height: 1.5; color: var(--text-main); }
   .news-item .n-summary { font-size: 14px; color: #c2c8d0; line-height: 1.68; margin-top: 7px; }
   .news-item .n-meta { display: flex; align-items: center; gap: 10px; margin-top: 11px; font-size: 12.5px; color: #8f959d; }
@@ -5279,7 +5292,7 @@ function renderNewsList() {
       if (NEWS_KEYWORDS[s.name] && NEWS_KEYWORDS[s.name].some(k => (n.digest || '').includes(k) || (n.title || '').includes(k))) { relTag = `板块·${s.name}`; break; }
     }
     return `<div class="news-item${hot ? ' hot' : ''}">
-      ${hot ? '<span class="hot-badge"><span class="hot-badge-dot">热点</span></span>' : ''}
+      ${hot ? '<span class="hot-badge"><span class="hot-badge-dot"></span>热点</span>' : ''}
       <div class="n-title">${title}</div>
       ${summary ? `<div class="n-summary">${summary}</div><div class="n-summary-more"><span class="n-summary-expand">展开全文</span></div>` : ''}
       <div class="n-meta">
