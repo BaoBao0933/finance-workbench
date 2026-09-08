@@ -1594,11 +1594,6 @@
     border: 1px solid var(--card-border); border-radius: 13px;
     display: flex; flex-direction: column; gap: 8px;
     flex-shrink: 0; /* 禁止被 flex 压缩——超出列表高度时应滚动而不是挤扁卡片 */
-    overflow: hidden;
-    transition: height var(--resize-dur) var(--resize-ease);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .focus-col .news-item { transition: none !important; }
   }
   .focus-col .news-item::before { content: ''; position: absolute; left: 0; top: 15px; bottom: 15px; width: 3px; border-radius: 3px; background: #d6cab4; }
   .focus-col .news-item.bull::before { background: linear-gradient(var(--up), #ffb49a); }
@@ -1990,7 +1985,7 @@
     align-items: flex-start;
     gap: 6px;
   }
-  /* 新闻摘要 —— 折叠/展开 */
+  /* 新闻摘要 —— 折叠/展开 (纯 CSS max-height 过渡) */
   .news-item .n-summary {
     position: relative;
     max-height: 3.36em;
@@ -1998,9 +1993,8 @@
     transition:
       max-height var(--resize-dur) var(--resize-ease);
   }
-  .news-item .n-summary.is-expanded,
   .news-item.is-expanded .n-summary {
-    max-height: none;
+    max-height: 2000px;
   }
   @media (prefers-reduced-motion: reduce) {
     .news-item .n-summary { transition: none !important; }
@@ -2053,8 +2047,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .news-pin, .t-text-swap, .n-summary, .news-item, .news-list.is-transitioning > *,
-  .focus-col .news-item { transition: none !important; animation: none !important; }
+    .news-pin, .t-text-swap, .n-summary, .news-list.is-transitioning > * { transition: none !important; animation: none !important; }
   }
 
   /* ============ 暖调极简 · 透明玻璃拟态强化层（仅表现层，不影响涨跌配色与局部刷新） ============ */
@@ -5306,7 +5299,7 @@ function attachNewsInteractions() {
       this.appendChild(ripple);
       ripple.addEventListener('animationend', () => ripple.remove());
     });
-    // 摘要展开 —— 卡片 height 平滑动画（transitions-dev card resize）
+    // 摘要展开 —— 纯 class 切换，CSS max-height 自动过渡
     const expand = item.querySelector('.n-summary-expand');
     const summary = item.querySelector('.n-summary');
     if (expand && summary) {
@@ -5315,52 +5308,16 @@ function attachNewsInteractions() {
         const card = item;
         const isExpanded = card.classList.contains('is-expanded');
 
-        // 三阶段 text states swap: 退出 → 切换 → 进入
+        // 切换卡片展开状态 → CSS max-height 自动过渡
+        card.classList.toggle('is-expanded');
+
+        // text states swap: 退出 → 切换 → 进入
         const swapDur = parseFloat(
           getComputedStyle(document.documentElement).getPropertyValue('--text-swap-dur')
         ) || 200;
         this.classList.add('is-exit');
-
-        if (isExpanded) {
-          // === 收起 ===
-          const expandedH = card.offsetHeight;
-          card.classList.remove('is-expanded');
-          summary.classList.remove('is-expanded');
-          const collapsedH = card.offsetHeight;
-          card.style.height = expandedH + 'px';
-          void card.offsetHeight;
-          card.classList.add('is-expanded');
-          summary.classList.add('is-expanded');
-          void card.offsetHeight;
-          card.classList.remove('is-expanded');
-          summary.classList.remove('is-expanded');
-          card.style.height = collapsedH + 'px';
-          card.addEventListener('transitionend', function cleanup() {
-            card.style.height = '';
-            card.removeEventListener('transitionend', cleanup);
-          }, { once: true });
-        } else {
-          // === 展开 ===
-          const collapsedH = card.offsetHeight;
-          card.classList.add('is-expanded');
-          summary.classList.add('is-expanded');
-          const expandedH = card.offsetHeight;
-          card.classList.remove('is-expanded');
-          summary.classList.remove('is-expanded');
-          card.style.height = collapsedH + 'px';
-          void card.offsetHeight;
-          card.classList.add('is-expanded');
-          summary.classList.add('is-expanded');
-          card.style.height = expandedH + 'px';
-          card.addEventListener('transitionend', function cleanup() {
-            card.style.height = '';
-            card.removeEventListener('transitionend', cleanup);
-          }, { once: true });
-        }
-
-        // 文字切换
         setTimeout(() => {
-          this.textContent = card.classList.contains('is-expanded') ? '收起' : '展开全文';
+          this.textContent = isExpanded ? '展开全文' : '收起';
           this.classList.remove('is-exit');
           this.classList.add('is-enter-start');
           void this.offsetHeight;
