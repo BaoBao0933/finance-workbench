@@ -1764,13 +1764,10 @@
     70%, 100%   { transform: scale(2.8); opacity: 0; }
   }
   .hot-badge {
-    position: absolute;
-    top: 12px;
-    right: 12px;
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 3px 9px;
+    padding: 2px 9px;
     border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
@@ -1783,8 +1780,7 @@
     box-shadow:
       0 1px 4px color-mix(in srgb, var(--accent) 16%, transparent),
       inset 0 0 0 .5px color-mix(in srgb, #fff 14%, transparent);
-    pointer-events: none;
-    transform-origin: 100% 0;
+    transform-origin: center;
     animation: hot-badge-in 480ms var(--badge-pop-ease) both;
   }
   .hot-badge-dot {
@@ -1806,8 +1802,6 @@
     .hot-badge, .hot-badge-dot, .hot-badge-dot::after { animation: none !important; }
   }
   .news-item:hover { box-shadow: 0 10px 30px rgba(150, 112, 62,.10), 0 2px 6px rgba(150, 112, 62,.06); transform: translateY(-2px); }
-  /* 热点卡片标题右侧让位给角标 */
-  .news-item.hot .n-title { padding-right: 52px; }
   .news-item .n-title { font-size: 15.5px; font-weight: 600; line-height: 1.5; color: var(--text-main); }
   .news-item .n-summary { font-size: 14px; color: #c2c8d0; line-height: 1.68; margin-top: 7px; }
   .news-item .n-meta { display: flex; align-items: center; gap: 10px; margin-top: 11px; font-size: 12.5px; color: #8f959d; }
@@ -5292,10 +5286,10 @@ function renderNewsList() {
       if (NEWS_KEYWORDS[s.name] && NEWS_KEYWORDS[s.name].some(k => (n.digest || '').includes(k) || (n.title || '').includes(k))) { relTag = `板块·${s.name}`; break; }
     }
     return `<div class="news-item${hot ? ' hot' : ''}">
-      ${hot ? '<span class="hot-badge"><span class="hot-badge-dot"></span>热点</span>' : ''}
       <div class="n-title">${title}</div>
       ${summary ? `<div class="n-summary">${summary}</div><div class="n-summary-more"><span class="n-summary-expand">展开全文</span></div>` : ''}
       <div class="n-meta">
+        ${hot ? '<span class="hot-badge"><span class="hot-badge-dot"></span>热点</span>' : ''}
         ${relTag ? `<span class="n-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg> ${relTag}</span>` : ''}
         ${media ? `<span class="n-tag-alt">${media}</span>` : ''}
         <span class="n-time">${time}</span>
