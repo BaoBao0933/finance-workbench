@@ -575,7 +575,78 @@
   .market-tag { background: rgba(255,255,255,.08); color: #c9ced6; }
   .market-tag.open { background: rgba(255,122,92,.16); color: #ffa68c; }
   .market-tag.auction { background: rgba(224,160,80,.16); color: #f0c481; }
-  .header-actions { display: flex; gap: 10px; margin-top: 4px; }
+  .header-actions { display: flex; gap: 10px; margin-top: 4px; align-items: flex-start; }
+
+  /* ===== 图1 新拟态天气卡片（深色主题） ===== */
+  .weather-card {
+    position: relative;
+    width: 232px;
+    padding: 15px 17px 13px;
+    border-radius: 22px;
+    background:
+      linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.02)) ;
+    box-shadow:
+      inset 2px 2px 6px rgba(255,255,255,.10),
+      inset -3px -3px 8px rgba(0,0,0,.28),
+      7px 9px 18px rgba(0,0,0,.32);
+    border: 1px solid rgba(255,255,255,.07);
+    color: var(--text-main);
+  }
+  .wc-top { display: flex; align-items: flex-start; justify-content: space-between; }
+  .wc-city { font-size: 14px; font-weight: 700; color: var(--text-main); letter-spacing: .3px; }
+  .wc-date { font-size: 11.5px; color: var(--text-sub); margin-top: 2px; }
+  .wc-ctrls { display: flex; gap: 7px; }
+  .wc-cbtn {
+    width: 30px; height: 30px; border-radius: 9px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text-sub);
+    background: linear-gradient(145deg, rgba(255,255,255,.08), rgba(255,255,255,.015));
+    box-shadow: inset 1px 1px 3px rgba(255,255,255,.10), 2px 3px 6px rgba(0,0,0,.25);
+    cursor: default;
+  }
+  .wc-cbtn svg { width: 15px; height: 15px; }
+  .wc-sun {
+    width: 150px; height: 150px; margin: 4px auto 2px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 36% 32%, #fff3c4 0%, #f7c948 46%, #f6a433 78%, #ef7f1c 100%);
+    box-shadow:
+      0 0 34px rgba(247, 170, 60, .34),
+      inset -10px -14px 26px rgba(214, 99, 20, .30),
+      inset 8px 10px 20px rgba(255, 246, 214, .55);
+  }
+  .wc-main { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 10px; }
+  .wc-tempidx { display: flex; align-items: baseline; gap: 6px; }
+  .wc-num { font-size: 52px; font-weight: 700; line-height: 1; color: var(--text-main); letter-spacing: -1px; }
+  .wc-deg { font-size: 15px; font-weight: 600; color: var(--text-sub); }
+  .wc-cond { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+  .wc-ic { color: var(--accent); }
+  .wc-ic svg { width: 34px; height: 34px; }
+  .wc-forecast {
+    display: flex; justify-content: space-between;
+    margin-top: 13px; padding-top: 11px;
+    border-top: 1px dashed rgba(120,125,140,.22);
+  }
+  .wc-day { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 34px; }
+  .wc-dn { font-size: 10.5px; color: var(--text-sub); font-weight: 600; }
+  .wc-dnum { font-size: 10px; color: var(--text-sub); opacity: .78; }
+  .wc-dt { font-size: 12px; color: var(--text-main); font-weight: 600; }
+  .wc-day.active { color: var(--accent); }
+  .wc-day.active .wc-dn { color: var(--accent); font-weight: 700; }
+  .wc-day.active .wc-dt { color: var(--accent); }
+  /* 浅色主题新拟态变体 */
+  :root[data-theme="light"] .weather-card {
+    background: linear-gradient(145deg, #ffffff, #e9edf3);
+    box-shadow:
+      inset 2px 2px 5px rgba(255,255,255,.9),
+      inset -3px -3px 8px rgba(180,188,204,.45),
+      8px 11px 20px rgba(170,182,200,.32);
+    border: 1px solid rgba(255,255,255,.95);
+  }
+  :root[data-theme="light"] .wc-cbtn {
+    background: linear-gradient(145deg, #ffffff, #e7ecf3);
+    box-shadow: inset 1px 1px 3px rgba(255,255,255,.9), 2px 3px 6px rgba(180,188,204,.4);
+  }
+  :root[data-theme="light"] .wc-forecast { border-top: 1px dashed rgba(90,100,120,.22); }
   .btn {
     display: inline-flex;
     align-items: center;
@@ -3064,8 +3135,53 @@ try {
           </div>
         </div>
         <div class="header-actions">
+          <!-- 图1 新拟态天气卡片 -->
+          <div class="weather-card" id="weather-card" aria-label="天气卡片" >
+            <div class="wc-top">
+              <div class="wc-loc">
+                <div class="wc-city">上海</div>
+                <div class="wc-date" id="wc-date">--</div>
+              </div>
+              <div class="wc-ctrls">
+                <span class="wc-cbtn" title="定位" aria-label="定位"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span>
+                <span class="wc-cbtn" title="更多" aria-label="更多"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></span>
+              </div>
+            </div>
+            <div class="wc-sun"></div>
+            <div class="wc-main">
+              <div class="wc-tempidx">
+                <div class="wc-num">24</div>
+                <div class="wc-tempright">
+                  <span class="wc-deg">°C</span>
+                  <div class="wc-cond">晴 · 舒适</div>
+                </div>
+              </div>
+              <div class="wc-ic"><svg viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="36" cy="36" r="11"/><path d="M36 8v-3M36 67v-3M8 36H5M67 36h-3M16.5 16.5l-2-2M57.5 57.5l-2-2M55.5 16.5l2-2M14.5 57.5l2-2"/></svg></div>
+            </div>
+            <div class="wc-forecast" id="wc-forecast"></div>
+          </div>
           <div class="btn btn-refresh" id="btn-refresh" role="button" tabindex="0" title="刷新"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
         </div>
+        <script>
+        (function () {
+          function pad(n){ return n < 10 ? '0' + n : '' + n; }
+          function cnW(day){ return ['周日','周一','周二','周三','周四','周五','周六'][day]; }
+          var now = new Date();
+          var dEl = document.getElementById('wc-date');
+          if (dEl) dEl.textContent = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
+          var temp = [24, 25, 26, 23, 22];
+          var fc = document.getElementById('wc-forecast');
+          if (fc) {
+            var h = '';
+            for (var i = 0; i < 5; i++) {
+              var d = new Date(now); d.setDate(now.getDate() + i);
+              var active = i === 0 ? ' active' : '';
+              h += '<div class="wc-day' + active + '"><span class="wc-dn">' + cnW(d.getDay()) + '</span><span class="wc-dnum">' + d.getDate() + '</span><span class="wc-dt">' + temp[i] + '°</span></div>';
+            }
+            fc.innerHTML = h;
+          }
+        })();
+        </script>
       </div>
 
       <div class="live-bar">
