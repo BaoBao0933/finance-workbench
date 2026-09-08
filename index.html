@@ -54,6 +54,9 @@
     --badge-slide-ease: cubic-bezier(0.22, 1, 0.36, 1);
     --badge-pop-ease: cubic-bezier(0.34, 1.36, 0.64, 1);
     --badge-close-ease: cubic-bezier(0.4, 0, 0.2, 1);
+    /* transitions-dev: 卡片尺寸变化动效 */
+    --resize-dur: 350ms;
+    --resize-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -1982,15 +1985,35 @@
     align-items: flex-start;
     gap: 6px;
   }
+  /* 新闻摘要 —— 折叠/展开 */
   .news-item .n-summary {
     position: relative;
     max-height: 3.36em;
     overflow: hidden;
-    transition: max-height .35s cubic-bezier(.22,1,.36,1);
+    transition:
+      max-height var(--resize-dur) var(--resize-ease);
+    will-change: max-height;
+  }
+  /* 折叠时底部渐变淡出提示 */
+  .news-item .n-summary::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1.2em;
+    background: linear-gradient(to bottom, transparent, var(--bg));
+    pointer-events: none;
+    transition: opacity var(--resize-dur) var(--resize-ease);
+  }
+  .news-item .n-summary.is-expanded::after {
+    opacity: 0;
   }
   .news-item .n-summary.is-expanded {
-    max-height: 200px;
+    max-height: 300px;
   }
+  @media (prefers-reduced-motion: reduce) {
+    .news-item .n-summary { transition: none !important; }
+  }
+  /* 展开/收起按钮 — 使用 transitions-dev text states swap 动效 */
   .news-item .n-summary-expand {
     display: inline-block;
     font-size: 12px;
@@ -2000,9 +2023,17 @@
     transition: opacity .2s;
     margin-top: 2px;
     user-select: none;
+    position: relative;
+    padding: 0 2px;
+    letter-spacing: .3px;
   }
   .news-item .n-summary-expand:hover {
     opacity: 1;
+  }
+  .news-item .n-summary-expand:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
   }
 
   /* 新闻时间图标增强 */
@@ -2030,7 +2061,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .news-pin, .t-text-swap, .news-item, .news-list.is-transitioning > * { transition: none !important; animation: none !important; }
+    .news-pin, .t-text-swap, .n-summary, .news-item, .news-list.is-transitioning > * { transition: none !important; animation: none !important; }
   }
 
   /* ============ 暖调极简 · 透明玻璃拟态强化层（仅表现层，不影响涨跌配色与局部刷新） ============ */
@@ -2824,6 +2855,7 @@
   :root[data-theme="light"] .w-pin:hover,
   :root[data-theme="light"] .w-pin.active { background: #e8ecf2; color: var(--accent); box-shadow: none; }
   :root[data-theme="light"] .news-item .n-summary { color: #5a6476; }
+:root[data-theme="light"] .news-item .n-summary::after { background: linear-gradient(to bottom, transparent, #f0f3f8); }
   :root[data-theme="light"] .news-item .n-meta { color: #6a7488; }
   :root[data-theme="light"] .news-item .n-tag { background: #e8ecf2; color: var(--accent); }
   :root[data-theme="light"] .news-item.hot .n-title { }
@@ -5228,7 +5260,6 @@ function renderNewsList() {
     const title = esc(n.title || '');
     const time = esc(n.showtime || '');
     const media = esc(n.simtopic || n.topic || '');
-    const isLongSummary = summary.length > 80;
     // 关联板块标签
     let relTag = '';
     for (const s of SECTORS) {
@@ -5237,7 +5268,7 @@ function renderNewsList() {
     return `<div class="news-item${hot ? ' hot' : ''}">
       ${hot ? '<span class="hot-badge"><span class="hot-badge-dot">热点</span></span>' : ''}
       <div class="n-title">${title}</div>
-      ${summary ? `<div class="n-summary${isLongSummary ? '' : ''}">${summary}${isLongSummary ? '<span class="n-summary-expand">展开全文</span>' : ''}</div>` : ''}
+      ${summary ? `<div class="n-summary">${summary}<span class="n-summary-expand t-text-swap">展开全文</span></div>` : ''}
       <div class="n-meta">
         ${relTag ? `<span class="n-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg> ${relTag}</span>` : ''}
         ${media ? `<span class="n-tag-alt">${media}</span>` : ''}
@@ -5283,14 +5314,34 @@ function attachNewsInteractions() {
       this.appendChild(ripple);
       ripple.addEventListener('animationend', () => ripple.remove());
     });
-    // 摘要展开
+    // 摘要展开 — 实际 overflow 检测 + transitions-dev text states swap 动效
     const expand = item.querySelector('.n-summary-expand');
-    if (expand) {
+    const summary = item.querySelector('.n-summary');
+    if (expand && summary) {
+      // 检测实际是否溢出：内容高度 > 容器高度，才显示按钮
+      if (summary.scrollHeight <= summary.clientHeight) {
+        expand.style.display = 'none';
+      } else {
+        expand.style.display = 'inline-block';
+      }
       expand.addEventListener('click', function(e) {
         e.stopPropagation();
-        const summary = this.parentElement;
-        summary.classList.toggle('is-expanded');
-        this.textContent = summary.classList.contains('is-expanded') ? '收起' : '展开全文';
+        const parent = this.parentElement; // .n-summary
+        const isExpanded = parent.classList.contains('is-expanded');
+
+        // 三阶段 text states swap: 当前文字退出 → 切换文本 → 新文字进入
+        const dur = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue('--text-swap-dur')
+        ) || 200;
+        this.classList.add('is-exit');
+        setTimeout(() => {
+          parent.classList.toggle('is-expanded');
+          this.textContent = parent.classList.contains('is-expanded') ? '收起' : '展开全文';
+          this.classList.remove('is-exit');
+          this.classList.add('is-enter-start');
+          void this.offsetHeight; // 强制回流
+          this.classList.remove('is-enter-start');
+        }, dur);
       });
     }
   });
