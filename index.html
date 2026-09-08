@@ -591,15 +591,26 @@
   }
   /* 图2经验：玻璃上的按钮用轻拟物（软棉花糖包裹感），而非单纯投影 */
   .btn-refresh {
-    background: linear-gradient(180deg, #fdfaf4, #efe7d7);
-    border-color: rgba(255, 252, 246, .85);
+    background: linear-gradient(118deg, rgba(255,253,247,.34) 0%, rgba(255,252,244,.14) 30%, rgba(255,253,247,.22) 60%, rgba(255,254,250,.30) 100%);
+    backdrop-filter: blur(30px) saturate(200%);
+    -webkit-backdrop-filter: blur(30px) saturate(200%);
+    border-color: rgba(255,255,255,.28);
     color: var(--accent);
     box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.95),
-      inset 0 -2px 4px rgba(196,160,110,.14),
-      0 2px 6px rgba(150,112,62,.14);
+      inset 0 1px 0 rgba(255,255,255,.5),
+      0 2px 8px rgba(150,112,62,.10),
+      0 8px 20px rgba(140,105,58,.12);
   }
-  .btn-refresh:hover { background: linear-gradient(180deg, #fffcf6, #f3ecdd); }
+  .btn-refresh:hover {
+    background: linear-gradient(118deg, rgba(255,253,247,.50) 0%, rgba(255,252,244,.26) 30%, rgba(255,253,247,.36) 60%, rgba(255,254,250,.46) 100%);
+    backdrop-filter: blur(32px) saturate(210%);
+    -webkit-backdrop-filter: blur(32px) saturate(210%);
+    border-color: rgba(255,255,255,.5);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.7),
+      0 4px 14px rgba(232,109,94,.18),
+      0 12px 28px rgba(140,105,58,.16);
+  }
   .btn-refresh.spinning .icon { animation: spin .8s linear; }
   @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
   .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 3px 10px rgba(108, 75, 232, .3); }
@@ -2543,14 +2554,6 @@
   .search-input, .search-drop { color: #eef0f2 !important; }
   .search-input::placeholder { color: #8c939b; }
 
-  /* 浅色高亮按钮（图二：白底深字），悬浮/主操作按钮保留珊瑚橙 */
-  .btn-refresh {
-    background: linear-gradient(180deg, #f2f2f2, #dfe0e2);
-    color: #242426 !important;
-    border-color: rgba(255,255,255,.16);
-    box-shadow: inset 0 1px 0 #fff, 0 3px 9px rgba(0,0,0,.28);
-  }
-  .btn-refresh:hover { background: linear-gradient(180deg, #ffffff, #ededee); }
   .btn-primary, .btn-add, .btn-back-sec { box-shadow: 0 3px 12px rgba(232,109,94,.32); }
 
   /* 满足减少动态效果偏好：关闭流光与光晕动画 */
@@ -2822,12 +2825,24 @@
     box-shadow: 0 3px 10px rgba(232,93,78,.28) !important;
   }
   :root[data-theme="light"] .btn-refresh {
-    background: linear-gradient(180deg, #ff7a68, #e8545f);
-    color: #fff !important;
-    border-color: transparent;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 4px 12px rgba(232,93,78,.3);
+    background: linear-gradient(118deg, rgba(255,255,255,.72) 0%, rgba(255,252,244,.60) 30%, rgba(255,253,247,.66) 60%, rgba(255,255,255,.74) 100%);
+    backdrop-filter: blur(30px) saturate(200%);
+    -webkit-backdrop-filter: blur(30px) saturate(200%);
+    color: var(--accent) !important;
+    border-color: rgba(255,255,255,.9);
+    box-shadow:
+      inset 0 1px 0 #fff,
+      0 3px 10px rgba(170,182,200,.22),
+      0 10px 24px rgba(170,182,200,.18);
   }
-  :root[data-theme="light"] .btn-refresh:hover { background: linear-gradient(180deg, #ff8a78, #e95a66); }
+  :root[data-theme="light"] .btn-refresh:hover {
+    background: linear-gradient(118deg, rgba(255,255,255,.9) 0%, rgba(255,255,255,.78) 30%, rgba(255,255,255,.84) 60%, rgba(255,255,255,.9) 100%);
+    border-color: rgba(255,255,255,1);
+    box-shadow:
+      inset 0 1px 0 #fff,
+      0 4px 14px rgba(232,109,94,.22),
+      0 12px 28px rgba(170,182,200,.22);
+  }
 
   /* 浅色主题：图标底片还原为暖色浅底 */
   :root[data-theme="light"] .ov-icon.purple { background: #e6eaf1 !important; color: #7a6f8c !important; }
