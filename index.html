@@ -5248,25 +5248,90 @@ function renderNewsTags() {
   }));
 }
 
-// 抓取东财快讯（JSONP 变量形式，script 标签加载避免 CORS）
-function fetchNews() {
+// 当前快讯来源（用于状态栏展示）
+let newsSourceName = '';
+
+// 源 1：东财快讯（全局变量注入形式）
+// 注意：该接口响应头是 Content-Type: text/html，部分浏览器/内核会因 MIME 校验拒绝执行，
+// 因此它只作为并行源之一，失败时由源 2 兜底。
+function fetchEastNews() {
   return new Promise((resolve) => {
     const url = 'https://newsapi.eastmoney.com/kuaixun/v1/getlist_102_ajaxResult_50_1_.html?ts=' + Date.now();
     const script = document.createElement('script');
-    const timer = setTimeout(() => { script.remove(); resolve(null); }, 7000);
+    let done = false;
+    const finish = (v) => { if (done) return; done = true; clearTimeout(timer); script.remove(); resolve(v); };
+    const timer = setTimeout(() => finish(null), 12000);
     script.onload = () => {
-      clearTimeout(timer);
       try {
         const raw = window.ajaxResult;
         const list = raw && raw.LivesList;
-        script.remove();
-        resolve(list || null);
-      } catch (e) { script.remove(); resolve(null); }
+        finish(Array.isArray(list) && list.length ? list : null);
+      } catch (e) { finish(null); }
     };
-    script.onerror = () => { clearTimeout(timer); script.remove(); resolve(null); };
+    script.onerror = () => finish(null);
     script.referrerPolicy = 'no-referrer';
     script.src = url;
     document.head.appendChild(script);
+  });
+}
+
+// 源 2：新浪财经 7x24 快讯（标准 JSONP，响应 Content-Type: application/javascript，兼容性最好）
+function fetchSinaNews(size = 50) {
+  return new Promise((resolve) => {
+    const cb = 'snNews' + Date.now() + Math.floor(Math.random() * 1000);
+    const script = document.createElement('script');
+    let done = false;
+    const finish = (v) => {
+      if (done) return; done = true;
+      clearTimeout(timer);
+      script.remove();
+      try { delete window[cb]; } catch (e) {}
+      resolve(v);
+    };
+    const timer = setTimeout(() => finish(null), 12000);
+    window[cb] = (d) => {
+      try {
+        const list = (d.result.data.feed && d.result.data.feed.list) || [];
+        // 统一成与东财一致的字段结构，后续渲染逻辑无需改动
+        const mapped = list.map(it => {
+          const raw = String(it.rich_text || '').trim();
+          const m = raw.match(/^【([^】]+)】([\s\S]*)$/);
+          return {
+            title: m ? m[1] : raw.slice(0, 60),
+            digest: m ? m[2].trim() : raw,
+            showtime: it.create_time || '',
+            titlestyle: '0',
+            simtopic: '新浪财经',
+            url_w: it.docurl || '',
+            url_m: it.docurl || ''
+          };
+        }).filter(n => n.title);
+        finish(mapped.length ? mapped : null);
+      } catch (e) { finish(null); }
+    };
+    script.onerror = () => finish(null);
+    script.referrerPolicy = 'no-referrer';
+    script.src = 'https://zhibo.sina.com.cn/api/zhibo/feed?zhibo_id=152&page=1&page_size=' + size + '&callback=' + cb;
+    document.head.appendChild(script);
+  });
+}
+
+// 抓取快讯：东财 + 新浪双源并行竞速，先返回有效数据者胜出；都失败才判定失败
+function fetchNews() {
+  return new Promise((resolve) => {
+    let settled = false, pending = 2;
+    const done = (list, src) => {
+      if (settled) return;
+      if (list && list.length) { settled = true; newsSourceName = src; resolve(list); return; }
+      pending -= 1;
+      if (pending <= 0) { settled = true; resolve(null); }
+    };
+    const guard = setTimeout(() => { if (!settled) { settled = true; resolve(null); } }, 15000);
+    const clearGuard = () => clearTimeout(guard);
+    fetchEastNews().then(l => { done(l, '东方财富'); if (settled) clearGuard(); })
+      .catch(() => { done(null); if (settled) clearGuard(); });
+    fetchSinaNews().then(l => { done(l, '新浪财经'); if (settled) clearGuard(); })
+      .catch(() => { done(null); if (settled) clearGuard(); });
   });
 }
 
@@ -5422,7 +5487,8 @@ async function loadNews() {
     if (listEl) listEl.classList.remove('is-loading');
     const now = new Date();
     const p = n => String(n).padStart(2, '0');
-    const next = `实时 · 已更新 ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+    const srcTxt = newsSourceName ? ` · ${newsSourceName}` : '';
+    const next = `实时 · 已更新 ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}${srcTxt}`;
     swapRefreshTime(next);
   } else {
     if (listEl) listEl.classList.remove('is-loading');
