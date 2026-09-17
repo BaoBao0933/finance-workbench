@@ -1594,6 +1594,8 @@
   .focus-wrap { max-width: 1280px; display: flex; flex-direction: column; gap: 20px; margin-top: 12px; }
   .focus-block-title { font-size: 16px; font-weight: 700; color: var(--text); margin: 2px 0 14px; display: flex; align-items: center; gap: 7px; }
   #focus-sectors .sec-cell { min-width: 158px; }
+  /* 自建板块（光引擎）：虚线描边，与东财概念板块区分 */
+  #focus-sectors .sec-cell.sec-custom { border: 1px dashed rgba(232,109,94,.5); }
   /* 快讯 —— 全宽上下排列，更透气 */
   .focus-cols { display: flex; flex-direction: column; gap: 22px; }
   .focus-col .news-list { max-height: 460px; overflow-y: auto; padding: 2px 6px 2px 2px; display: flex; flex-direction: column; gap: 10px; }
@@ -6419,6 +6421,43 @@ const FOCUS_STOCKS = [
 const FOCUS_SECTOR_KW = ['光通信', '光模块', '光器件', '光纤', '光缆', 'CPO', '共封装', '通信设备', '数据中心', '算力'];
 const FOCUS_NEWS_KW = ['光纤', '光缆', '光模块', '光器件', '光通信', 'CPO', '共封装', '硅光', '算力', '数据中心', '东数西算', '800G', '1.6T', '服务器', 'AI', '海缆', '交换机'];
 
+/* —— 自建「光引擎」板块 ——
+   东财没有这个概念板块（504 个概念板块里无匹配），因此按产业公开资料归类的核心标的自建：
+   光引擎 = CPO/NPO 里把光器件与封装集成的核心环节，价值量集中在光器件、光学元件与光源。
+   成分股（9 只）：
+     天孚通信 300394  CPO 光引擎龙头（FAU 光纤阵列 / 耦合器件）
+     太辰光   300570  MPO 高速光连接
+     仕佳光子 688313  AWG 阵列波导光栅芯片
+     腾景科技 688195  光学元器件（滤光片等）
+     蓝特光学 688127  微透镜阵列
+     源杰科技 688498  大功率 CW 光源
+     光库科技 300620  薄膜铌酸锂调制器
+     长光华芯 688048  高功率光芯片
+     华工科技 000988  3.2T 液冷 CPO 光引擎 / 硅光 */
+const FOCUS_ENGINE_CODE = '__OPT_ENGINE__';
+const FOCUS_ENGINE_STOCKS = [
+  ['0.300394', '天孚通信'], ['0.300570', '太辰光'], ['1.688313', '仕佳光子'],
+  ['1.688195', '腾景科技'], ['1.688127', '蓝特光学'], ['1.688498', '源杰科技'],
+  ['0.300620', '光库科技'], ['1.688048', '长光华芯'], ['0.000988', '华工科技'],
+];
+
+// 拉取光引擎成分股行情，返回 { pct: 等权平均涨跌幅, list: 行情数组 }
+async function fetchFocusEngineQuotes() {
+  const secids = FOCUS_ENGINE_STOCKS.map(s => s[0]).join(',');
+  const hosts = ['push2delay.eastmoney.com', 'push2.eastmoney.com'];
+  for (const host of hosts) {
+    try {
+      const res = await fetchJson(`https://${host}/api/qt/ulist.np/get?fltt=2&invt=2&secids=${secids}&fields=f2,f3,f4,f6,f12,f14`, 6000);
+      const diff = res && res.data && res.data.diff;
+      if (!diff || !diff.length) continue;
+      const valid = diff.filter(d => typeof d.f3 === 'number');
+      const pct = valid.length ? valid.reduce((s, d) => s + d.f3, 0) / valid.length : 0;
+      return { pct: pct, list: diff };
+    } catch (e) { /* 换域名重试 */ }
+  }
+  return null;
+}
+
 let focusSecCache = {};    // code -> {root, pct, codeEl}
 let focusStockCache = {};  // secid -> {row, price, pct, chg, amt}
 let focusFdCache = {};     // 板块成分股 secid -> rowEl
@@ -6444,8 +6483,11 @@ async function loadFocusSectors() {
       }
       if (!all.length) continue;
       const rel = all.filter(d => FOCUS_SECTOR_KW.some(k => (d.f14 || '').includes(k)))
-        .map(d => ({ code: d.f12, name: d.f14, pct: d.f3, price: d.f2 }))
-        .sort((a, b) => b.pct - a.pct);
+        .map(d => ({ code: d.f12, name: d.f14, pct: d.f3, price: d.f2 }));
+      // 自建「光引擎」板块：东财无此概念，按成分股等权平均涨跌幅合成，与东财板块一同排序
+      const eng = await fetchFocusEngineQuotes();
+      if (eng) rel.push({ code: FOCUS_ENGINE_CODE, name: '光引擎', pct: eng.pct, price: 0, custom: true, count: eng.list.length });
+      rel.sort((a, b) => b.pct - a.pct);
       const grid = $('focus-sectors');
       grid.querySelectorAll('.news-empty').forEach(el => el.remove());
       const seen = new Set();
@@ -6456,15 +6498,20 @@ async function loadFocusSectors() {
           const div = document.createElement('div');
           div.className = 'sec-cell';
           div.innerHTML = `<div class="scn"></div><div class="scp">--</div><div class="scc">--</div>`;
-          div.addEventListener('click', () => openFocusDetail(s.code, s.name, s.pct));
+          if (s.custom) {
+            div.classList.add('sec-custom');
+            div.addEventListener('click', () => openFocusEngineDetail(s.name, s.pct));
+          } else {
+            div.addEventListener('click', () => openFocusDetail(s.code, s.name, s.pct));
+          }
           cell = focusSecCache[s.code] = { root: div, name: div.querySelector('.scn'), pct: div.querySelector('.scp'), code: div.querySelector('.scc') };
         }
-        cell.name.textContent = s.name;
+        cell.name.textContent = s.custom ? s.name + ' ★' : s.name;
         const pctTxt = (s.pct > 0 ? '+' : '') + fmtNum(s.pct, 2) + '%';
         cell.pct.className = 'scp ' + clsOf(s.pct);
         cell.pct.classList.add('t-digit-group');
         setDigitAnim(cell.pct, pctTxt);
-        cell.code.textContent = s.code + ' · ' + fmtNum(s.price);
+        cell.code.textContent = s.custom ? `自建 · ${s.count} 只成分股` : s.code + ' · ' + fmtNum(s.price);
         grid.appendChild(cell.root);
       });
       Object.keys(focusSecCache).forEach(c => { if (!seen.has(c)) focusSecCache[c].root.remove(); });
@@ -6596,6 +6643,65 @@ async function loadFocusDetailStocks() {
   $('fd-list').innerHTML = '<div class="news-empty">成分股加载失败</div>';
 }
 
+// 打开自建「光引擎」板块的成分股
+function openFocusEngineDetail(name, pct) {
+  focusFdCode = FOCUS_ENGINE_CODE;
+  focusFdPct = pct;
+  $('fd-name').textContent = name;
+  $('fd-pct').className = 'sec-d-pct ' + clsOf(pct);
+  var detail = $('focus-detail');
+  detail.classList.add('t-panel-slide');
+  detail.style.display = '';
+  requestAnimationFrame(function() { detail.setAttribute('data-open', 'true'); });
+  $('fd-list').innerHTML = '<div class="news-empty">成分股加载中…</div>';
+  loadFocusEngineDetailStocks();
+}
+
+async function loadFocusEngineDetailStocks() {
+  const data = await fetchFocusEngineQuotes();
+  const list = $('fd-list');
+  if (!data || !data.list || !data.list.length) {
+    list.innerHTML = '<div class="news-empty">成分股加载失败</div>';
+    return;
+  }
+  list.querySelectorAll('.news-empty').forEach(el => el.remove());
+  const seen = new Set();
+  // 按涨跌幅降序展示
+  const rows = data.list.slice().sort((a, b) => (b.f3 || 0) - (a.f3 || 0));
+  rows.forEach((d, i) => {
+    const key = d.f12;
+    seen.add(key);
+    let row = focusFdCache[key];
+    if (!row) {
+      const div = document.createElement('div');
+      div.className = 'sec-row';
+      div.innerHTML = `<div class="sr-rank">${i + 1}</div>
+        <div class="sr-name">${d.f14}<small>${d.f12}</small></div>
+        <div class="sr-price"><b class="t-digit-group">--</b></div>
+        <div class="sr-pct"><b class="t-digit-group">--</b></div>
+        <div class="sr-chg"><b class="t-digit-group">--</b></div>
+        <div class="sr-amt w-hide">--</div>`;
+      row = focusFdCache[key] = { root: div, price: div.querySelector('.sr-price b'), pct: div.querySelector('.sr-pct b'), chg: div.querySelector('.sr-chg b'), amt: div.querySelector('.sr-amt') };
+    }
+    // 排名每次回写（列表顺序可能变化；缓存行不存 rank 字段，避免与东财板块共用缓存时冲突）
+    const rankEl = row.root.querySelector('.sr-rank');
+    if (rankEl) rankEl.textContent = i + 1;
+    const cls = clsOf(d.f3);
+    setDigitAnim(row.price, fmtNum(d.f2));
+    row.pct.className = 'sr-pct ' + cls;
+    row.pct.classList.add('t-digit-group');
+    setDigitAnim(row.pct, (d.f3 > 0 ? '+' : '') + fmtNum(d.f3, 2) + '%');
+    row.chg.className = 'sr-chg ' + cls;
+    row.chg.classList.add('t-digit-group');
+    setDigitAnim(row.chg, (d.f4 > 0 ? '+' : '') + fmtNum(d.f4, 2));
+    row.amt.textContent = fmtNum(d.f6 || 0) + '万';
+    list.appendChild(row.root);
+  });
+  Object.keys(focusFdCache).forEach(k => { if (!seen.has(k)) focusFdCache[k].root.remove(); });
+  const pctTxt = (focusFdPct > 0 ? '+' : '') + fmtNum(focusFdPct, 2) + '%';
+  $('fd-pct').textContent = pctTxt + ` · ${rows.length} 只成分股 · 自建板块`;
+}
+
 // 加载快讯（复用东财快讯 JSONP）→ 过滤光通信快讯
 async function loadFocusNews() {
   const list = await fetchNews();
@@ -6634,7 +6740,8 @@ function renderFocusNews() {
 function loadFocus() {
   loadFocusSectors();
   loadFocusStocks();
-  if (focusFdCode) loadFocusDetailStocks();
+  if (focusFdCode === FOCUS_ENGINE_CODE) loadFocusEngineDetailStocks();
+  else if (focusFdCode) loadFocusDetailStocks();
   loadFocusNews();
 }
 $('btn-focus-refresh').addEventListener('click', () => { focusSecCache = {}; focusStockCache = {}; $('focus-sectors').innerHTML = '<div class="news-empty">刷新中…</div>'; loadFocus(); });
@@ -6645,7 +6752,8 @@ setInterval(() => {
   if ($('page-focus').style.display === 'none') return;
   loadFocusSectors();
   loadFocusStocks();
-  if (focusFdCode) loadFocusDetailStocks();
+  if (focusFdCode === FOCUS_ENGINE_CODE) loadFocusEngineDetailStocks();
+  else if (focusFdCode) loadFocusDetailStocks();
 }, 10000);
 setInterval(() => {
   if ($('page-focus').style.display === 'none') return;
