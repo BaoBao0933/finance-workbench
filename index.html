@@ -7262,7 +7262,9 @@ setInterval(() => loadBoardRank(), 300000); // 板块榜首每 5 分钟重试一
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   // 需要跟随鼠标转动的所有卡片
-  var SEL = '.index-card, .ov-card, .pos-sum-card, .pos-chart-card, .senti-card, .senti-panel, .zt-card, .sec-hot-card, .fund-panel';
+  // 注：走势分析页的 .senti-card（4 张指标卡）与 .senti-panel（连板梯队 / 股吧人气 / 言论流）
+  //     已移出此列表 —— 该页不再有任何鼠标跟随倾斜效果
+  var SEL = '.index-card, .ov-card, .pos-sum-card, .pos-chart-card, .zt-card, .sec-hot-card, .fund-panel';
   var MAX_ANGLE = 14;  // 最大倾斜角度（度）
   var LIFT = -6;       // 悬停上浮位移（px）
   var cur = null, curRect = null, raf = null;
