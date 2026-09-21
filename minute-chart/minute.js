@@ -1,0 +1,718 @@
+/* ==========================================================================
+   分时图 —— 点击股票行查看当日分时走势
+   数据：东方财富 push2his / trends2（主） → 腾讯 web.ifzq（兜底）
+   视觉：完全复用工作台 CSS 变量与缓动，与整站保持一致
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  var byId = function (id) { return document.getElementById(id); };
+  var reduceMotion = function () {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  };
+  var isNum = function (v) { return typeof v === 'number' && isFinite(v); };
+
+  /* ---------------- 状态 ---------------- */
+  var S = {
+    secid: null, code: '', name: '',
+    pre: 0, pts: [], open: 0, high: 0, low: 0, vol: 0, amt: 0, avg: 0, lastTime: '',
+    progress: 0, cursor: -1,
+    raf: 0, timer: 0, token: 0, open: false, mx: -1, my: -1
+  };
+
+  var ROW_SEL = '.watch-row, .pos-row, .lhb-row, .sec-row';
+  var SKIP_SEL = 'button, a, input, select, textarea, .w-del, .w-pin, [data-act]';
+  var PAD = { l: 52, r: 56, t: 12, b: 17 };
+  var GAP = 13;
+  var SLOTS = 240;          // A 股全天 240 分钟
+
+  /* ---------------- 工具 ---------------- */
+  // 6 位代码 → 东财 secid（1=沪市，0=深市/北交所）
+  function guessSecid(code) {
+    code = String(code || '').replace(/\D/g, '');
+    if (!/^\d{6}$/.test(code)) return null;
+    var c = code.charAt(0);
+    if (c === '6' || c === '5' || c === '9') return '1.' + code;
+    return '0.' + code;
+  }
+  // 东财 secid → 腾讯代码
+  function toTxCode(secid) {
+    var p = String(secid).split('.');
+    return (p[0] === '1' ? 'sh' : 'sz') + p[1];
+  }
+  // "2026-09-21 10:31" → 当日分钟槽位 0..240
+  function slotOfHour(hh, mm) {
+    var m = hh * 60 + mm;
+    if (m <= 11 * 60 + 30) return Math.max(0, Math.min(SLOTS, m - (9 * 60 + 30)));
+    return Math.max(0, Math.min(SLOTS, 120 + (m - 13 * 60)));
+  }
+  function withAlpha(c, a) {
+    c = String(c || '').trim();
+    if (c.charAt(0) === '#') {
+      var h = c.slice(1);
+      if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      var n = parseInt(h, 16);
+      if (!isFinite(n)) return c;
+      return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+    }
+    var m = c.match(/rgba?\(([^)]+)\)/);
+    if (m) {
+      var p = m[1].split(',');
+      return 'rgba(' + p[0].trim() + ',' + p[1].trim() + ',' + p[2].trim() + ',' + a + ')';
+    }
+    return c;
+  }
+  var fmt = function (v, d) {
+    if (typeof window.fmtNum === 'function') return window.fmtNum(v, d === undefined ? 2 : d);
+    return (v === null || v === undefined || !isFinite(v)) ? '--' : Number(v).toFixed(d === undefined ? 2 : d);
+  };
+  var clsOfVal = function (v) {
+    return v > 0 ? 'up' : v < 0 ? 'down' : 'flat';
+  };
+
+  /* ---------------- 主题色（每次主题变化重读，保证与整站一致） ---------------- */
+  var TH = null, TH_KEY = '';
+  function theme() {
+    var key = document.documentElement.getAttribute('data-theme') || 'dark';
+    if (TH && TH_KEY === key) return TH;
+    var cs = getComputedStyle(document.documentElement);
+    var g = function (n, fb) { var v = cs.getPropertyValue(n); return (v && v.trim()) || fb; };
+    var light = key === 'light';
+    TH = {
+      up: g('--up', '#ff7a5c'),
+      down: g('--down', '#3ddc84'),
+      gold: g('--gold', '#e0a15b'),
+      sub: g('--text-sub', '#9aa1a9'),
+      main: g('--text-main', '#eef0f2'),
+      accent: g('--accent', '#ff8a6b'),
+      pane: light ? 'rgba(255,255,255,.55)' : 'rgba(24,25,30,.55)',
+      grid: light ? 'rgba(26,40,66,.10)' : 'rgba(255,255,255,.075)',
+      mono: g('--font-mono', 'monospace').replace(/\s+/g, ' ')
+    };
+    TH_KEY = key;
+    return TH;
+  }
+
+  /* ---------------- 数据获取 ---------------- */
+  function fetchEast(secid) {
+    var url = 'https://push2his.eastmoney.com/api/qt/stock/trends2/get?secid=' + encodeURIComponent(secid) +
+      '&fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13' +
+      '&fields2=f51,f52,f53,f54,f55,f56,f57,f58&iscr=0&ndays=1&iscca=0&_=' + Date.now();
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var timer = setTimeout(function () { if (!done) { done = true; reject(new Error('timeout')); } }, 8000);
+      fetch(url, { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('http ' + r.status);
+        return r.text();
+      }).then(function (t) {
+        var j = JSON.parse(t.replace(/^\uFEFF/, '').trim());
+        if (done) return; done = true; clearTimeout(timer);
+        var d = j && j.data;
+        if (!d || !d.trends || !d.trends.length) return reject(new Error('empty'));
+        resolve(parseEast(d));
+      }).catch(function (e) {
+        if (done) return; done = true; clearTimeout(timer); reject(e);
+      });
+    });
+  }
+
+  function parseEast(d) {
+    var pts = [];
+    d.trends.forEach(function (s) {
+      var f = String(s).split(',');
+      if (f.length < 8) return;
+      var hh = +f[0].slice(11, 13), mm = +f[0].slice(14, 16);
+      var price = parseFloat(f[2]);
+      if (!isFinite(price) || price <= 0) return;
+      pts.push({
+        slot: slotOfHour(hh, mm),
+        t: f[0].slice(11, 16),
+        price: price,
+        avg: parseFloat(f[7]) || 0,
+        vol: parseFloat(f[5]) || 0,
+        amt: parseFloat(f[6]) || 0
+      });
+    });
+    return { name: d.name || '', pre: parseFloat(d.preClose) || 0, pts: pts, date: (d.trends[0] || '').slice(0, 10) };
+  }
+
+  function fetchTencent(secid) {
+    var code = toTxCode(secid);
+    var url = 'https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=' + code + '&_=' + Date.now();
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var timer = setTimeout(function () { if (!done) { done = true; reject(new Error('timeout')); } }, 8000);
+      fetch(url, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+        if (done) return; done = true; clearTimeout(timer);
+        var node = j && j.data && j.data[code];
+        var d = node && node.data;
+        if (!d || !d.data || !d.data.length) return reject(new Error('empty'));
+        resolve(parseTx(node, code));
+      }).catch(function (e) {
+        if (done) return; done = true; clearTimeout(timer); reject(e);
+      });
+    });
+  }
+
+  function parseTx(node, code) {
+    var qt = (node.qt && node.qt[code]) || [];
+    var pre = parseFloat(qt[4]) || 0;
+    var rows = node.data.data;
+    if (!pre && rows.length) pre = parseFloat(rows[0].split(' ')[1]) || 0;
+    var cumAmt = 0, cumVol = 0, pts = [];
+    rows.forEach(function (s) {
+      var f = String(s).trim().split(/\s+/);
+      if (f.length < 3) return;
+      var hh = +f[0].slice(0, 2), mm = +f[0].slice(2, 4);
+      var price = parseFloat(f[1]);
+      if (!isFinite(price) || price <= 0) return;
+      var v = parseFloat(f[2]) || 0;
+      var a = parseFloat(f[3]) || 0;
+      cumVol += v; cumAmt += a;
+      pts.push({
+        slot: slotOfHour(hh, mm),
+        t: f[0].slice(0, 2) + ':' + f[0].slice(2, 4),
+        price: price,
+        avg: cumVol > 0 ? cumAmt / (cumVol * 100) : price,
+        vol: v, amt: a
+      });
+    });
+    return { name: '', pre: pre, pts: pts, date: '' };
+  }
+
+  function loadMinute(secid) {
+    return fetchEast(secid).catch(function () { return fetchTencent(secid); });
+  }
+
+  /* ---------------- 绘制 ---------------- */
+  function draw() {
+    var cv = byId('mm-canvas');
+    if (!cv || !S.pts.length) return;
+    var W = cv.clientWidth, H = cv.clientHeight;
+    if (!W || !H) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) {
+      cv.width = Math.round(W * dpr);
+      cv.height = Math.round(H * dpr);
+    }
+    var ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    var th = theme(), pts = S.pts, pre = S.pre || pts[0].price;
+    var totalH = H - PAD.t - PAD.b;
+    var volH = Math.max(34, Math.round(totalH * 0.22));
+    var plotH = totalH - volH - GAP;
+    var plotW = W - PAD.l - PAD.r;
+    if (plotW < 60 || plotH < 50) return;
+
+    /* ---- 纵轴：以昨收为中轴对称（券商软件画法） ---- */
+    var dev = 0;
+    pts.forEach(function (p) {
+      dev = Math.max(dev, Math.abs(p.price - pre));
+      if (isNum(p.avg) && p.avg > 0) dev = Math.max(dev, Math.abs(p.avg - pre));
+    });
+    if (!(dev > 0)) dev = Math.max(pre * 0.002, 0.01);
+    var yTop = pre + dev * 1.12, yBot = pre - dev * 1.12;
+    var yOf = function (v) { return PAD.t + (yTop - v) / (yTop - yBot) * plotH; };
+    var slotX = function (s) { return PAD.l + s / SLOTS * plotW; };
+
+    var volMax = 1;
+    pts.forEach(function (p) { if (p.vol > volMax) volMax = p.vol; });
+    var volBase = PAD.t + plotH + GAP;
+    var volBottom = volBase + volH;
+    var vOf = function (v) { return volBottom - (v / volMax) * volH; };
+
+    var last = pts[pts.length - 1];
+    var rising = last.price >= pre;
+    var lineColor = rising ? th.up : th.down;
+    var prog = S.progress > 0 ? S.progress : 1;
+
+    /* ---- 网格 ---- */
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = th.grid;
+    ctx.beginPath();
+    for (var k = 0; k <= 4; k++) {
+      var gy = Math.round(PAD.t + plotH * k / 4) + 0.5;
+      ctx.moveTo(PAD.l, gy); ctx.lineTo(PAD.l + plotW, gy);
+    }
+    [60, 120, 180].forEach(function (s) {
+      var gx = Math.round(slotX(s)) + 0.5;
+      ctx.moveTo(gx, PAD.t); ctx.lineTo(gx, volBottom);
+    });
+    ctx.stroke();
+
+    /* ---- 左轴价格 / 右轴涨跌幅 ---- */
+    ctx.font = '10px ' + th.mono;
+    ctx.textBaseline = 'middle';
+    for (var k2 = 0; k2 <= 4; k2++) {
+      var v = yTop - (yTop - yBot) * k2 / 4;
+      var pct = pre > 0 ? (v / pre - 1) * 100 : 0;
+      var yy = PAD.t + plotH * k2 / 4;
+      ctx.textAlign = 'right';
+      ctx.fillStyle = th.sub;
+      ctx.fillText(v.toFixed(2), PAD.l - 7, yy);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = Math.abs(pct) < 0.006 ? th.sub : (pct > 0 ? th.up : th.down);
+      ctx.fillText((pct > 0 ? '+' : '') + pct.toFixed(2) + '%', PAD.l + plotW + 6, yy);
+    }
+
+    /* ---- 时间轴 ---- */
+    ctx.textBaseline = 'top';
+    var times = ['09:30', '10:30', '11:30', '14:00', '15:00'];
+    times.forEach(function (t, i) {
+      var x = PAD.l + plotW * i / 4;
+      ctx.textAlign = i === 0 ? 'left' : (i === 4 ? 'right' : 'center');
+      ctx.fillStyle = th.sub;
+      ctx.fillText(t, x, volBottom + 5);
+    });
+
+    /* ---- 昨收基准线 ---- */
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = th.sub;
+    ctx.beginPath();
+    var yPre = Math.round(yOf(pre)) + 0.5;
+    ctx.moveTo(PAD.l, yPre); ctx.lineTo(PAD.l + plotW, yPre);
+    ctx.stroke();
+    ctx.restore();
+
+    /* ---- 分时线 + 面积（带从左扫出的绘制动画） ---- */
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, PAD.l + plotW * prog, H);
+    ctx.clip();
+
+    var grad = ctx.createLinearGradient(0, PAD.t, 0, PAD.t + plotH);
+    grad.addColorStop(0, withAlpha(lineColor, 0.24));
+    grad.addColorStop(1, withAlpha(lineColor, 0));
+    ctx.beginPath();
+    pts.forEach(function (p, i) {
+      var x = slotX(p.slot), y = yOf(p.price);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.lineTo(slotX(last.slot), PAD.t + plotH);
+    ctx.lineTo(slotX(pts[0].slot), PAD.t + plotH);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    ctx.beginPath();
+    pts.forEach(function (p, i) {
+      var x = slotX(p.slot), y = yOf(p.price);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 1.8;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.shadowColor = withAlpha(lineColor, 0.45);
+    ctx.shadowBlur = 9;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    /* ---- 均价线 ---- */
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, PAD.l + plotW * prog, H);
+    ctx.clip();
+    ctx.beginPath();
+    var started = false;
+    pts.forEach(function (p) {
+      if (!isNum(p.avg) || p.avg <= 0) return;
+      var x = slotX(p.slot), y = yOf(p.avg);
+      if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+    });
+    if (started) {
+      ctx.globalAlpha = 0.92;
+      ctx.strokeStyle = th.gold;
+      ctx.lineWidth = 1.1;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+
+    /* ---- 成交量柱（错峰长高） ---- */
+    var barW = Math.max(1, plotW / SLOTS * 0.66);
+    var shown = pts.length * prog;
+    for (var i = 0; i < pts.length; i++) {
+      var frac = Math.min(1, shown - i);
+      if (frac <= 0) break;
+      var p = pts[i];
+      var prevP = i > 0 ? pts[i - 1].price : pre;
+      var barUp = p.price >= prevP;
+      var h = (volBottom - vOf(p.vol)) * frac;
+      if (h < 0.7) continue;
+      ctx.fillStyle = withAlpha(barUp ? th.up : th.down, barUp ? 0.72 : 0.60);
+      ctx.fillRect(slotX(p.slot) - barW / 2, volBottom - h, barW, h);
+    }
+
+    /* ---- 最新价光点 ---- */
+    if (prog >= 1) {
+      var lx = slotX(last.slot), ly = yOf(last.price);
+      var pulse = reduceMotion() ? 1 : (0.55 + 0.45 * Math.sin(Date.now() / 520));
+      ctx.beginPath();
+      ctx.arc(lx, ly, 6 + pulse * 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = withAlpha(lineColor, 0.18 * pulse);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(lx, ly, 3, 0, Math.PI * 2);
+      ctx.fillStyle = lineColor;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(lx, ly, 3, 0, Math.PI * 2);
+      ctx.strokeStyle = withAlpha('#ffffff', 0.85);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    /* ---- 十字光标 + 浮动数据条 ---- */
+    if (S.cursor >= 0 && S.cursor < pts.length) {
+      var cp = pts[S.cursor];
+      var cx = slotX(cp.slot), cy = yOf(cp.price);
+      ctx.save();
+      ctx.setLineDash([3, 3]);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = withAlpha(th.main, light_alpha());
+      ctx.beginPath();
+      ctx.moveTo(Math.round(cx) + 0.5, PAD.t);
+      ctx.lineTo(Math.round(cx) + 0.5, volBottom);
+      ctx.moveTo(PAD.l, Math.round(cy) + 0.5);
+      ctx.lineTo(PAD.l + plotW, Math.round(cy) + 0.5);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = lineColor;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+      ctx.strokeStyle = withAlpha(lineColor, 0.30);
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+
+      // 浮动信息条
+      var dpct = pre > 0 ? (cp.price / pre - 1) * 100 : 0;
+      var cgain = dpct > 0.006 ? th.up : (dpct < -0.006 ? th.down : th.sub);
+      var txt = cp.t + '  ' + cp.price.toFixed(2) + '  ' +
+        (dpct > 0 ? '+' : '') + dpct.toFixed(2) + '%' +
+        (isNum(cp.avg) && cp.avg > 0 ? '  均价 ' + cp.avg.toFixed(2) : '') +
+        '  量 ' + fmtVol(cp.vol);
+      drawTip(ctx, PAD.l + 8, PAD.t + 6, txt, cp.t + ' · ' + cp.price.toFixed(2), cgain, th);
+    }
+  }
+
+  function light_alpha() {
+    return (document.documentElement.getAttribute('data-theme') === 'light') ? 0.42 : 0.5;
+  }
+
+  function drawTip(ctx, x, y, text, _k, color, th) {
+    ctx.font = '10.5px ' + th.mono;
+    var w = ctx.measureText(text).width + 18;
+    var h = 24;
+    if (x + w > PAD.l + (ctx.canvas.width)) w = Math.min(w, 420);
+    ctx.save();
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, 7);
+    else ctx.rect(x, y, w, h);
+    ctx.fillStyle = th.pane;
+    ctx.fill();
+    ctx.strokeStyle = withAlpha(color, 0.45);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x + 9, y + h / 2 + 0.5);
+    ctx.restore();
+  }
+
+  function fmtVol(v) {
+    if (!isNum(v)) return '--';
+    if (v >= 1e4) return (v / 1e4).toFixed(2) + '万手';
+    return v.toFixed(0) + '手';
+  }
+
+  /* ---------------- 绘制动画（从左扫出） ---------------- */
+  function animateIn() {
+    cancelAnimationFrame(S.raf);
+    if (reduceMotion()) { S.progress = 1; draw(); return; }
+    var t0 = performance.now(), DUR = 880;
+    S.progress = 0;
+    var step = function (now) {
+      var t = Math.min(1, (now - t0) / DUR);
+      S.progress = 1 - Math.pow(1 - t, 3);
+      draw();
+      if (t < 1) S.raf = requestAnimationFrame(step);
+      else { S.progress = 1; draw(); tickPulse(); }
+    };
+    S.raf = requestAnimationFrame(step);
+  }
+
+  // 结束后维持最新点脉冲
+  function tickPulse() {
+    if (reduceMotion() || !S.open) return;
+    S.raf = requestAnimationFrame(function () {
+      draw();
+      if (S.open) S.timer2 = setTimeout(tickPulse, 90);
+    });
+  }
+
+  /* ---------------- 统计与头部数字 ---------------- */
+  function applyStats(meta) {
+    var pts = S.pts;
+    if (!pts.length) return;
+    S.pre = meta.pre || S.pre || pts[0].price;
+    S.name = meta.name || S.name;
+    S.open = pts[0].price;
+    S.high = -Infinity; S.low = Infinity;
+    S.vol = 0; S.amt = 0;
+    pts.forEach(function (p) {
+      if (p.price > S.high) S.high = p.price;
+      if (p.price < S.low) S.low = p.price;
+      S.vol += p.vol; S.amt += p.amt;
+    });
+    var last = pts[pts.length - 1];
+    S.avg = (isNum(last.avg) && last.avg > 0) ? last.avg : (S.vol > 0 ? S.amt / (S.vol * 100) : last.price);
+    S.lastTime = last.t;
+
+    var pct = S.pre > 0 ? (last.price / S.pre - 1) * 100 : 0;
+    var chg = last.price - S.pre;
+    var cls = clsOfVal(pct);
+
+    var q = window.__mmName || '';
+    byId('mm-name').textContent = S.name || q || S.code;
+    byId('mm-code').textContent = S.code;
+    byId('mm-dot').className = 'mm-dot ' + cls;
+
+    var priceEl = byId('mm-price');
+    priceEl.className = 'mm-price ' + cls;
+    var pctEl = byId('mm-pct');
+    pctEl.className = 'mm-pct ' + cls;
+
+    // 头部数字沿用工作台的错峰弹入动画
+    var setD = window.setDigitAnim;
+    var pTxt = fmt(last.price);
+    var cTxt = (pct > 0 ? '+' : '') + fmt(pct) + '%';
+    if (typeof setD === 'function' && !S.drawn) {
+      try { setD(priceEl, pTxt); } catch (e) { priceEl.textContent = pTxt; }
+      try { setD(pctEl, cTxt); } catch (e) { pctEl.textContent = cTxt; }
+    } else {
+      priceEl.textContent = pTxt;
+      pctEl.textContent = cTxt;
+    }
+    S.drawn = true;
+
+    var setStat = function (id, txt, cls2) {
+      var el = byId(id);
+      if (!el) return;
+      el.textContent = txt;
+      if (cls2 !== undefined) el.className = cls2 || '';
+    };
+    setStat('mm-open', fmt(S.open), clsOfVal(S.open - S.pre));
+    setStat('mm-high', fmt(S.high), 'up');
+    setStat('mm-low', fmt(S.low), 'down');
+    setStat('mm-pre', fmt(S.pre), '');
+    setStat('mm-vol', fmtVol(S.vol), '');
+    setStat('mm-amt', (typeof window.fmtFund === 'function' ? window.fmtFund(S.amt) : (S.amt / 1e8).toFixed(2) + '亿'), '');
+    setStat('mm-avg', fmt(S.avg), clsOfVal(S.avg - S.pre));
+    setStat('mm-time', S.lastTime || '--', '');
+    void chg;
+  }
+
+  /* ---------------- 打开 / 关闭 ---------------- */
+  function openMinute(secid, codeHint) {
+    var mask = byId('minute-mask');
+    if (!mask || !secid) return;
+    S.secid = secid;
+    S.code = codeHint || String(secid).split('.')[1] || '';
+    S.pts = []; S.progress = 0; S.cursor = -1; S.drawn = false;
+    S.name = '';
+    var token = ++S.token;
+
+    byId('mm-name').textContent = '加载中…';
+    byId('mm-code').textContent = S.code || '------';
+    byId('mm-dot').className = 'mm-dot';
+    byId('mm-price').className = 'mm-price';
+    byId('mm-price').textContent = '--';
+    byId('mm-pct').className = 'mm-pct flat';
+    byId('mm-pct').textContent = '--';
+    ['mm-open', 'mm-high', 'mm-low', 'mm-pre', 'mm-vol', 'mm-amt', 'mm-avg', 'mm-time'].forEach(function (id) {
+      var el = byId(id); if (el) { el.textContent = '--'; el.className = ''; }
+    });
+    byId('mm-err').className = 'mm-err';
+    byId('mm-loading').className = 'mm-loading on';
+
+    if (!S.open) {
+      mask.className = 'on';
+      mask.setAttribute('aria-hidden', 'false');
+      S.open = true;
+      document.body.style.overflow = 'hidden';
+    }
+
+    loadMinute(secid).then(function (meta) {
+      if (token !== S.token) return;
+      if (!meta.pts.length) throw new Error('empty');
+      S.pts = meta.pts;
+      applyStats(meta);
+      byId('mm-loading').className = 'mm-loading';
+      byId('mm-err').className = 'mm-err';
+      // 让布局先完成，再启动扫出动画
+      requestAnimationFrame(function () { setTimeout(function () { animateIn(); }, 30); });
+      scheduleRefresh();
+    }).catch(function () {
+      if (token !== S.token) return;
+      byId('mm-loading').className = 'mm-loading';
+      var err = byId('mm-err');
+      err.className = 'mm-err on';
+      err.textContent = '分时数据获取失败，请稍后重试';
+    });
+  }
+
+  function closeMinute() {
+    var mask = byId('minute-mask');
+    if (!mask || !S.open) return;
+    S.open = false;
+    S.token++;
+    clearInterval(S.timer);
+    clearTimeout(S.timer2);
+    cancelAnimationFrame(S.raf);
+    mask.className = '';
+    mask.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    S.pts = []; S.cursor = -1; S.progress = 0;
+  }
+
+  /* ---------------- 实时刷新（仅交易时段） ---------------- */
+  function isTrading(now) {
+    var d = now || new Date();
+    var wd = d.getDay();
+    if (wd === 0 || wd === 6) return false;
+    var m = d.getHours() * 60 + d.getMinutes();
+    return (m >= 570 && m <= 692) || (m >= 779 && m <= 902);
+  }
+
+  function scheduleRefresh() {
+    clearInterval(S.timer);
+    if (!isTrading()) return;
+    S.timer = setInterval(function () {
+      if (document.hidden || !S.open || !S.secid) return;
+      var token = S.token;
+      loadMinute(S.secid).then(function (meta) {
+        if (token !== S.token || !meta.pts.length) return;
+        S.pts = meta.pts;
+        S.progress = 1;
+        applyStats(meta);
+        draw();
+      }).catch(function () { /* 静默失败，下轮再试 */ });
+    }, 6000);
+  }
+
+  /* ---------------- 交互 ---------------- */
+  function nearestIndex(clientX) {
+    var cv = byId('mm-canvas');
+    if (!cv || !S.pts.length) return -1;
+    var r = cv.getBoundingClientRect();
+    var x = clientX - r.left;
+    var plotW = cv.clientWidth - PAD.l - PAD.r;
+    if (plotW <= 0) return -1;
+    var slot = (x - PAD.l) / plotW * SLOTS;
+    var best = -1, bd = Infinity;
+    for (var i = 0; i < S.pts.length; i++) {
+      var d = Math.abs(S.pts[i].slot - slot);
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  }
+
+  function bind() {
+    var mask = byId('minute-mask');
+    if (!mask) return;
+    var cv = byId('mm-canvas');
+
+    byId('mm-close').addEventListener('click', closeMinute);
+    mask.addEventListener('click', function (e) {
+      if (e.target.closest('[data-mm="close"]')) closeMinute();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (S.open && e.key === 'Escape') { e.stopPropagation(); closeMinute(); }
+    });
+
+    // 十字光标
+    cv.addEventListener('mousemove', function (e) {
+      if (!S.pts.length) return;
+      var i = nearestIndex(e.clientX);
+      if (i !== S.cursor) { S.cursor = i; if (S.progress >= 1) draw(); }
+    });
+    cv.addEventListener('mouseleave', function () {
+      if (S.cursor !== -1) { S.cursor = -1; draw(); }
+    });
+    // 触摸滑动查看
+    cv.addEventListener('touchstart', function (e) {
+      if (!S.pts.length || !e.touches[0]) return;
+      S.cursor = nearestIndex(e.touches[0].clientX);
+      if (S.progress >= 1) draw();
+    }, { passive: true });
+    cv.addEventListener('touchmove', function (e) {
+      if (!S.pts.length || !e.touches[0]) return;
+      S.cursor = nearestIndex(e.touches[0].clientX);
+      if (S.progress >= 1) draw();
+    }, { passive: true });
+    cv.addEventListener('touchend', function () {
+      if (S.cursor !== -1) { S.cursor = -1; draw(); }
+    });
+
+    window.addEventListener('resize', function () {
+      if (S.open && S.pts.length) { S.progress = 1; draw(); }
+    });
+
+    // 全局点击：任意股票行 / 卡片 → 打开分时
+    document.addEventListener('click', function (e) {
+      if (e.defaultPrevented) return;
+      if (e.target.closest && e.target.closest(SKIP_SEL)) return;
+      var row = e.target.closest && e.target.closest(ROW_SEL);
+      if (!row) return;
+      var t = resolveRow(row);
+      if (!t) return;
+      openMinute(t.secid, t.code);
+    }, false);
+  }
+
+  // 从行元素解析出 secid（优先 data-secid，其次从 <small> 里的 6 位代码推断）
+  function resolveRow(row) {
+    var ds = row.getAttribute && row.getAttribute('data-secid');
+    if (ds && /^\d\.\d{6}$/.test(ds)) return { secid: ds, code: ds.split('.')[1] };
+    var small = row.querySelector && row.querySelector('small');
+    var txt = (small && small.textContent) || '';
+    if (!txt) {
+      var wc = row.querySelector && row.querySelector('.w-code');
+      txt = (wc && wc.textContent) || '';
+    }
+    var m = String(txt).match(/(\d{6})/);
+    if (!m) return null;
+    var secid = guessSecid(m[1]);
+    return secid ? { secid: secid, code: m[1] } : null;
+  }
+
+  /* ---------------- 启动 ---------------- */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bind);
+  } else {
+    bind();
+  }
+
+  // 供外部调用（例如从其他模块以名称打开）
+  window.openMinuteChart = function (secid, code) {
+    if (/^\d{6}$/.test(String(secid))) secid = guessSecid(secid);
+    openMinute(secid, code);
+  };
+
+  // 纯函数导出，供自动化测试使用（无副作用）
+  window.__minuteChartInternals = {
+    guessSecid: guessSecid, slotOfHour: slotOfHour, withAlpha: withAlpha,
+    parseEast: parseEast, parseTx: parseTx, fmtVol: fmtVol, state: S
+  };
+})();
