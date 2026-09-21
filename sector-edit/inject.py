@@ -121,12 +121,11 @@ def main():
         out = out[:m.start()] + to_eol(R1_REPL, eol) + out[m.end():]
         applied.append('R1')
 
-    # ---- R2：sectorCache 追加 hook（幂等） ----
-    R2_ANCHOR = 'const sectorCache = {}; // secid -> {valEl, pctEl, barEl, barClass}'
-    R2_REPL = R2_ANCHOR + to_eol("""
-/* SE: 暴露句柄给「热门行业板块」管理模块（sector-edit） */
+    # ---- R2：sectorCache 追加 hook（幂等；已存在则整块更新，保证新增字段能补上） ----
+    R2_REPL_BODY = """/* SE: 暴露句柄给「热门行业板块」管理模块（sector-edit） */
 window.__sectorsHook = {
   cache: sectorCache,
+  pool: SECTOR_POOL,
   getList: function () { return SECTORS.slice(); },
   setList: function (list) { SECTORS = list; saveSectorConfig(); },
   reload: function () {
@@ -134,13 +133,24 @@ window.__sectorsHook = {
     loadSectors(true);
   },
   toast: showToast
-};""", eol)
-    if '__sectorsHook' in out:
-        applied.append('R2(已应用,跳过)')
+};"""
+    R2_REPL = R2_REPL_BODY
+    R2_OLD = re.compile(r"/\* SE: 暴露句柄给「热门行业板块」管理模块（sector-edit） \*/\r?\nwindow\.__sectorsHook = \{.*?\r?\n\};", re.S)
+    m2 = R2_OLD.search(out)
+    if m2:
+        if 'pool: SECTOR_POOL' in m2.group(0):
+            applied.append('R2(已是最新,跳过)')
+        else:
+            out = out[:m2.start()] + to_eol(R2_REPL_BODY, eol) + out[m2.end():]
+            applied.append('R2(升级补 pool)')
+    elif '__sectorsHook' in out:
+        err('R2 异常：存在 __sectorsHook 但结构不匹配，请人工检查')
     else:
-        if out.count(R2_ANCHOR) != 1:
-            err('R2 锚点未命中或不唯一（count=%d）' % out.count(R2_ANCHOR))
-        out = out.replace(R2_ANCHOR, R2_REPL, 1)
+        if out.count('const sectorCache = {}; // secid -> {valEl, pctEl, barEl, barClass}') != 1:
+            err('R2 锚点未命中或不唯一')
+        out = out.replace(
+            'const sectorCache = {}; // secid -> {valEl, pctEl, barEl, barClass}',
+            'const sectorCache = {}; // secid -> {valEl, pctEl, barEl, barClass}\n' + R2_REPL, 1)
         applied.append('R2')
 
     # ---- 追加 CSS / JS 块 ----
