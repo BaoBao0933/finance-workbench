@@ -94,12 +94,16 @@
 .mm-price.down { color: var(--down); }
 .mm-pct {
   font-family: var(--font-mono); font-size: 13px; font-weight: 700;
-  padding: 3px 9px; border-radius: var(--r-pill);
+  padding: 4px 12px; border-radius: 999px;
   font-variant-numeric: tabular-nums;
+  letter-spacing: .3px;
 }
-.mm-pct.up   { color: var(--up);   background: var(--up-bg); }
-.mm-pct.down { color: var(--down); background: var(--down-bg); }
+/* 徽标底色向工作台的珊瑚橙靠拢（与 --accent 同族），描边内圈增加玻璃质感 */
+.mm-pct.up   { color: var(--up);   background: rgba(255, 138, 107, .16); box-shadow: inset 0 0 0 1px rgba(255, 138, 107, .28); }
+.mm-pct.down { color: var(--down); background: rgba(61, 220, 132, .14);  box-shadow: inset 0 0 0 1px rgba(61, 220, 132, .24); }
 .mm-pct.flat { color: var(--text-sub); background: var(--accent-soft); }
+:root[data-theme="light"] .mm-pct.up   { background: rgba(232, 93, 78, .13);  box-shadow: inset 0 0 0 1px rgba(232, 93, 78, .22); }
+:root[data-theme="light"] .mm-pct.down { background: rgba(11, 160, 107, .11); box-shadow: inset 0 0 0 1px rgba(11, 160, 107, .20); }
 
 .mm-close {
   flex: none; width: 30px; height: 30px; margin-left: 2px;
