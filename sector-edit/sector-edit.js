@@ -211,7 +211,7 @@
   /* ---------------- 添加面板 ---------------- */
   function openPanel() {
     closePanel();
-    var pool = (window.SECTOR_POOL || []).filter(function (s) {
+    var pool = (hook.pool || window.SECTOR_POOL || []).filter(function (s) {
       return !getList().some(function (x) { return x.secid === s.secid; });
     });
     if (!pool.length) { toast('板块都加上了，删一个再试'); return; }
