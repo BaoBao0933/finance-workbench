@@ -247,6 +247,101 @@ eq('不足万手', M.fmtVol(8600), '8600手');
 eq('万手', M.fmtVol(123456), '12.35万手');
 eq('非法值', M.fmtVol(NaN), '--');
 
+/* ================= G. 名字识别（过滤非股票项） ================= */
+group('G. looksLikeStockName —— 过滤「+3只」这类统计文字');
+ok('华瓷股份', M.looksLikeStockName('华瓷股份'));
+ok('*ST华瓷（带星号）', M.looksLikeStockName('*ST华瓷'));
+ok('N三态（新股前缀）', M.looksLikeStockName('N三态'));
+ok('C三态', M.looksLikeStockName('C三态'));
+ok('京东方A（带字母）', M.looksLikeStockName('京东方A'));
+eq('「+3只」被拒', M.looksLikeStockName('+3只'), false);
+eq('「共12只」被拒', M.looksLikeStockName('共12只'), false);
+eq('单个字被拒', M.looksLikeStockName('华'), false);
+eq('空串被拒', M.looksLikeStockName(''), false);
+eq('纯符号被拒', M.looksLikeStockName('----'), false);
+
+/* ================= H. 搜索结果匹配（按名字反查 secid） ================= */
+group('H. pickBestMatch —— 从搜索结果里挑出正确的那只');
+const hits = [
+  { Name: '华瓷转债', Code: '127055', QuoteID: '0.127055' },
+  { Name: '华瓷股份', Code: '300374', QuoteID: '0.300374' },
+  { Name: '华瓷B股', Code: '900957', QuoteID: '1.900957' }
+];
+const m1 = M.pickBestMatch(hits, '华瓷股份');
+ok('名称完全相等时优先命中它', !!m1 && m1.code === '300374', m1 ? m1.code : 'null');
+ok('返回的 secid 正确', !!m1 && m1.secid === '0.300374', m1 ? m1.secid : 'null');
+const m2 = M.pickBestMatch([{ Name: '别的名字', Code: '600000', QuoteID: '1.600000' }], '华瓷股份');
+ok('无完全匹配时取第一条有效项', !!m2 && m2.code === '600000', m2 ? m2.code : 'null');
+eq('空列表 → null', M.pickBestMatch([], '华瓷股份'), null);
+eq('QuoteID 非法 → null', M.pickBestMatch([{ Name: 'x', QuoteID: 'abc' }], 'x'), null);
+
+/* ================= I. 行解析（能否点开的关键逻辑） ================= */
+group('I. resolveRow —— 各种列表行的解析');
+
+// 迷你 DOM 构造器（只实现被测代码用到的 API；注意不要与上面的 mkEl 重名）
+function nd(s) { return { nodeType: 3, nodeValue: s }; }
+function mkNode(cls, children, text, q, attrs) {
+  return {
+    nodeType: 1, className: cls,
+    classList: { contains: function (c) { return (' ' + cls + ' ').indexOf(' ' + c + ' ') >= 0; } },
+    childNodes: children || [],
+    textContent: text || '',
+    getAttribute: function (k) { return (attrs && attrs[k] !== undefined) ? attrs[k] : null; },
+    querySelector: q || function () { return null; }
+  };
+}
+
+// ① 连板梯队：<span class="lad-stock">华瓷股份<span class="pct up">10.0%</span></span>
+//    —— 行里没有代码，只能靠名字反查
+const lad = mkNode('lad-stock', [nd('华瓷股份'), mkNode('pct up', [], '10.0%')], '华瓷股份10.0%');
+const r1 = M.resolveRow(lad);
+ok('连板梯队：只有名字也能被识别', !!r1, r1 ? JSON.stringify(r1) : 'null');
+eq('连板梯队：名字去掉涨跌幅', r1 && r1.name, '华瓷股份');
+eq('连板梯队：secid 留空等反查', r1 && r1.secid, null);
+
+// ② 非股票项「+3只」应被拒绝
+const plus = mkNode('lad-stock', [nd('+3只')], '+3只');
+eq('「+3只」不被当成股票', M.resolveRow(plus), null);
+
+// ③ 股吧人气榜：<div class="fund-row">…<div class="fn">华天科技</div><div class="fc">002185 · 人气第1名</div></div>
+const fnEl = mkNode('fn', [], '华天科技');
+const fcEl = mkNode('fc', [], '002185 · 人气第1名');
+const fundRow = mkNode('fund-row', [], '华天科技002185 · 人气第1名', function (sel) {
+  if (sel === '.fn') return fnEl;
+  if (sel === '.fc') return fcEl;
+  return null;
+});
+const r2 = M.resolveRow(fundRow);
+ok('人气榜：解析出 secid', !!r2 && r2.secid === '0.002185', r2 ? r2.secid : 'null');
+eq('人气榜：代码正确', r2 && r2.code, '002185');
+eq('人气榜：名字正确', r2 && r2.name, '华天科技');
+
+// ④ 资金流向的「板块」行（没有 .fc）应被排除
+const sectorRow = mkNode('fund-row', [], '光模块 +3.2%', function () { return null; });
+eq('资金流向板块行被排除', M.resolveRow(sectorRow), null);
+
+// ⑤ 自选行：带 data-secid，应最高优先级
+const watchRow = mkNode('watch-row', [], '浦发银行6000009.07', function (sel) {
+  return sel === '.w-name' ? mkNode('w-name', [nd('浦发银行')], '浦发银行') : null;
+}, { 'data-secid': '1.600000' });
+const r3 = M.resolveRow(watchRow);
+eq('自选行：data-secid 优先', r3 && r3.secid, '1.600000');
+eq('自选行：名字正确', r3 && r3.name, '浦发银行');
+
+// ⑥ 成分股行：<div class="sr-name">宁德时代<small>300750</small></div>
+const smallEl = mkNode('small', [], '300750');
+const srName = mkNode('sr-name', [nd('宁德时代'), smallEl], '宁德时代300750', function (sel) {
+  return sel === 'small' ? smallEl : null;
+});
+const secRow = mkNode('sec-row', [], '宁德时代300750', function (sel) {
+  if (sel === '.sr-name') return srName;
+  if (sel === 'small') return smallEl;
+  return null;
+});
+const r4 = M.resolveRow(secRow);
+eq('成分股行：secid 正确', r4 && r4.secid, '0.300750');
+eq('成分股行：名字不含代码', r4 && r4.name, '宁德时代');
+
 /* ================= 汇总 ================= */
 console.log('\n' + '='.repeat(52));
 console.log('通过 %d 项，失败 %d 项', pass, fail);
