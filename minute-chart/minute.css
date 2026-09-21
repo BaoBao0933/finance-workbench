@@ -131,14 +131,89 @@
 .mm-stat > b.up { color: var(--up); }
 .mm-stat > b.down { color: var(--down); }
 
-/* ---------- 图表区 ---------- */
+/* ---------- 图表区 + 右侧盘口 ---------- */
+.mm-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
 .mm-chart-wrap {
   position: relative;
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
   padding: 10px 10px 4px;
 }
 #mm-canvas { display: block; width: 100%; height: 330px; max-height: 44vh; touch-action: none; }
+
+/* ---------- 五档盘口（买5 ~ 卖5） ---------- */
+.mm-book {
+  flex: 0 0 182px;
+  min-height: 0;
+  padding: 10px 10px 6px;
+  border-left: 1px solid var(--card-border);
+  overflow: hidden;
+}
+.mb-head {
+  display: grid;
+  grid-template-columns: 38px 1fr 60px;
+  padding: 0 5px 6px;
+  font-size: 10.5px;
+  color: var(--text-sub);
+  letter-spacing: .3px;
+  border-bottom: 1px solid var(--card-border);
+}
+.mb-head span:nth-child(3) { text-align: right; }
+.mb-row {
+  display: grid;
+  grid-template-columns: 38px 1fr 60px;
+  align-items: center;
+  padding: 3px 5px;
+  border-radius: 5px;
+  transition: background .16s var(--panel-ease);
+}
+.mb-row:hover { background: var(--sidebar-hover); }
+:root[data-theme="light"] .mb-row:hover { background: rgba(40, 60, 100, .07); }
+.mb-lb { font-size: 11px; color: var(--text-sub); }
+.mb-p {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.mb-a {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-sub);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.mb-p.up { color: var(--up); }
+.mb-p.down { color: var(--down); }
+.mb-p.flat { color: var(--text-main); }
+.mb-mid {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 5px;
+  margin: 4px 0;
+  border-top: 1px dashed var(--card-border);
+  border-bottom: 1px dashed var(--card-border);
+}
+.mb-mid .mb-p { font-size: 17px; }
+.mb-mid-t { font-size: 10px; color: var(--text-sub); }
+.mb-ask .mb-lb { color: var(--down); opacity: .8; }
+.mb-bid .mb-lb { color: var(--up); opacity: .8; }
+.mb-empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 14px 8px;
+  font-size: 11.5px;
+  color: var(--text-sub);
+  text-align: center;
+  line-height: 1.6;
+}
 
 .mm-loading {
   position: absolute; inset: 0;
@@ -196,6 +271,18 @@
 /* 表头行不可点，排除在外 */
 .watch-list-head.watch-row { cursor: default; }
 .watch-list-head.watch-row:hover { outline: none; }
+
+/* ---------- 中窄屏：盘口移到图表下方 ---------- */
+@media (max-width: 820px) {
+  .mm-body { flex-direction: column; }
+  .mm-book {
+    flex: none;
+    border-left: 0;
+    border-top: 1px solid var(--card-border);
+    max-height: 156px;
+    overflow-y: auto;
+  }
+}
 
 /* ---------- 手机端：底部抽屉 ---------- */
 @media (max-width: 640px) {
