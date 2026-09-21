@@ -257,15 +257,22 @@
 #minute-panel .t-digit { display: inline-block; }
 
 /* ---------- 列表行：可点击提示（点击打开分时图） ---------- */
-.watch-row, .pos-row, .lhb-row, .sec-row { cursor: pointer; }
-.watch-row:hover, .pos-row:hover, .lhb-row:hover, .sec-row:hover {
+/* 覆盖：自选 / 持仓 / 龙虎榜 / 成分股 / 连板梯队个股 / 人气榜与资金流向个股
+   资金流向的「板块」行没有 .fc，用 :has() 排除，不给指针提示 */
+.watch-row, .pos-row, .lhb-row, .sec-row, .lad-stock { cursor: pointer; }
+.fund-row:has(.fc) { cursor: pointer; }
+
+.watch-row:hover, .pos-row:hover, .lhb-row:hover, .sec-row:hover,
+.lad-stock:hover, .fund-row:has(.fc):hover {
   outline: 1px solid rgba(255, 138, 107, .42);
   outline-offset: 1px;
 }
 :root[data-theme="light"] .watch-row:hover,
 :root[data-theme="light"] .pos-row:hover,
 :root[data-theme="light"] .lhb-row:hover,
-:root[data-theme="light"] .sec-row:hover {
+:root[data-theme="light"] .sec-row:hover,
+:root[data-theme="light"] .lad-stock:hover,
+:root[data-theme="light"] .fund-row:has(.fc):hover {
   outline-color: rgba(232, 93, 78, .38);
 }
 /* 表头行不可点，排除在外 */
