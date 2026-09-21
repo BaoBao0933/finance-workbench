@@ -1,0 +1,47 @@
+<!-- ============ 分时图弹层（点击股票行/卡片打开） ============ -->
+<div id="minute-mask" role="presentation">
+  <div class="mm-backdrop" data-mm="close"></div>
+  <div id="minute-panel" role="dialog" aria-modal="true" aria-label="分时图">
+    <div class="mm-head">
+      <div class="mm-title">
+        <span class="mm-dot" id="mm-dot"></span>
+        <span class="mm-name" id="mm-name">--</span>
+        <span class="mm-code" id="mm-code">------</span>
+      </div>
+      <div class="mm-quote">
+        <span class="mm-price" id="mm-price">--</span>
+        <span class="mm-pct flat" id="mm-pct">--</span>
+      </div>
+      <button class="mm-close" id="mm-close" type="button" title="关闭 (Esc)" aria-label="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="mm-stats">
+      <div class="mm-stat"><span>今开</span><b id="mm-open">--</b></div>
+      <div class="mm-stat"><span>最高</span><b id="mm-high">--</b></div>
+      <div class="mm-stat"><span>最低</span><b id="mm-low">--</b></div>
+      <div class="mm-stat"><span>昨收</span><b id="mm-pre">--</b></div>
+      <div class="mm-stat"><span>成交量</span><b id="mm-vol">--</b></div>
+      <div class="mm-stat"><span>成交额</span><b id="mm-amt">--</b></div>
+      <div class="mm-stat"><span>均价</span><b id="mm-avg">--</b></div>
+      <div class="mm-stat"><span>数据时间</span><b id="mm-time">--</b></div>
+    </div>
+
+    <div class="mm-chart-wrap">
+      <canvas id="mm-canvas"></canvas>
+      <div class="mm-loading" id="mm-loading">
+        <div class="mm-spin"></div>
+        <div>分时数据加载中…</div>
+      </div>
+      <div class="mm-err" id="mm-err"></div>
+    </div>
+
+    <div class="mm-foot">
+      <span class="mm-legend"><i class="lg-line"></i>分时</span>
+      <span class="mm-legend"><i class="lg-avg"></i>均价</span>
+      <span class="mm-legend"><i class="lg-vol"></i>成交量</span>
+      <span class="mm-src">数据：<b>东方财富</b> · 交易时段每 6 秒刷新</span>
+    </div>
+  </div>
+</div>
