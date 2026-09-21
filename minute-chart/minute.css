@@ -1,0 +1,221 @@
+/* ==========================================================================
+   分时图弹层 —— 完全复用工作台设计令牌，与整站视觉/动效一致
+   ========================================================================== */
+
+/* ---------- 遮罩 ---------- */
+#minute-mask { position: fixed; inset: 0; z-index: 99980; display: none; }
+#minute-mask.on { display: block; }
+
+#minute-mask .mm-backdrop {
+  position: absolute; inset: 0;
+  background: radial-gradient(900px 620px at 50% 18%, rgba(8, 9, 12, .40), rgba(8, 9, 12, .68));
+  -webkit-backdrop-filter: blur(7px) saturate(125%);
+  backdrop-filter: blur(7px) saturate(125%);
+  opacity: 0;
+  transition: opacity var(--panel-close-dur) var(--panel-ease);
+}
+:root[data-theme="light"] #minute-mask .mm-backdrop {
+  background: radial-gradient(900px 620px at 50% 18%, rgba(52, 66, 90, .26), rgba(34, 45, 64, .44));
+}
+#minute-mask.on .mm-backdrop {
+  opacity: 1;
+  transition-duration: var(--panel-open-dur);
+}
+
+/* ---------- 面板 ---------- */
+#minute-panel {
+  position: absolute;
+  left: 50%;
+  /* 桌面端存在自绘标题栏时整体下移，避免被标题栏压住 */
+  top: calc(50% + var(--dtb-h, 0px) / 2);
+  width: min(900px, calc(100vw - 40px));
+  max-height: calc(100vh - var(--dtb-h, 0px) - 40px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  backdrop-filter: blur(26px) saturate(170%);
+  box-shadow: 0 26px 70px -18px rgba(0, 0, 0, .66), 0 2px 10px rgba(0, 0, 0, .24);
+  opacity: 0;
+  filter: blur(var(--panel-blur));
+  transform: translate(-50%, calc(-50% + 24px)) scale(.965);
+  transition: opacity var(--panel-close-dur) var(--panel-ease),
+              transform var(--panel-close-dur) var(--panel-ease),
+              filter var(--panel-close-dur) var(--panel-ease);
+  will-change: opacity, transform;
+}
+/* 顶部一条发光细线，呼应工作台的科技感描边 */
+#minute-panel::before {
+  content: '';
+  position: absolute; left: 0; right: 0; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--gold), transparent);
+  opacity: .6;
+  pointer-events: none;
+}
+#minute-mask.on #minute-panel {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate(-50%, -50%) scale(1);
+  transition-duration: var(--panel-open-dur);
+}
+
+/* ---------- 头部 ---------- */
+.mm-head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 15px 16px 13px 18px;
+  border-bottom: 1px solid var(--card-border);
+  flex: none;
+}
+.mm-title { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.mm-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex: none;
+  background: var(--text-sub);
+  transition: background .3s, box-shadow .3s;
+}
+.mm-dot.up   { background: var(--up);   box-shadow: 0 0 10px var(--up-bg); animation: mmPulse 2.4s ease-in-out infinite; }
+.mm-dot.down { background: var(--down); box-shadow: 0 0 10px var(--down-bg); animation: mmPulse 2.4s ease-in-out infinite; }
+@keyframes mmPulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+.mm-name { font-size: 17px; font-weight: 800; letter-spacing: .2px; white-space: nowrap; }
+.mm-code {
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--text-sub);
+  padding: 2px 8px; border-radius: var(--r-pill);
+  background: var(--accent-soft); letter-spacing: .4px;
+}
+.mm-quote { margin-left: auto; display: flex; align-items: baseline; gap: 10px; }
+.mm-price {
+  font-family: var(--font-mono); font-size: 25px; font-weight: 700;
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.mm-price.up { color: var(--up); }
+.mm-price.down { color: var(--down); }
+.mm-pct {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+  padding: 3px 9px; border-radius: var(--r-pill);
+  font-variant-numeric: tabular-nums;
+}
+.mm-pct.up   { color: var(--up);   background: var(--up-bg); }
+.mm-pct.down { color: var(--down); background: var(--down-bg); }
+.mm-pct.flat { color: var(--text-sub); background: var(--accent-soft); }
+
+.mm-close {
+  flex: none; width: 30px; height: 30px; margin-left: 2px;
+  display: grid; place-items: center;
+  border: 1px solid transparent; border-radius: 50%;
+  background: transparent; color: var(--text-sub); cursor: pointer;
+  transition: background .18s var(--panel-ease), color .18s var(--panel-ease), transform .18s var(--panel-ease);
+}
+.mm-close svg { width: 15px; height: 15px; }
+.mm-close:hover { background: var(--sidebar-hover); color: var(--text-main); transform: rotate(90deg); }
+:root[data-theme="light"] .mm-close:hover { background: rgba(40, 60, 100, .10); color: #22273a; }
+
+/* ---------- 统计条 ---------- */
+.mm-stats {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 2px;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--card-border);
+  flex: none;
+}
+.mm-stat { display: flex; flex-direction: column; gap: 3px; padding: 0 6px; min-width: 0; }
+.mm-stat > span { font-size: 10.5px; color: var(--text-sub); letter-spacing: .3px; white-space: nowrap; }
+.mm-stat > b {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.mm-stat > b.up { color: var(--up); }
+.mm-stat > b.down { color: var(--down); }
+
+/* ---------- 图表区 ---------- */
+.mm-chart-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 10px 10px 4px;
+}
+#mm-canvas { display: block; width: 100%; height: 330px; max-height: 44vh; touch-action: none; }
+
+.mm-loading {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 11px;
+  font-size: 12.5px; color: var(--text-sub);
+  opacity: 0; pointer-events: none;
+  transition: opacity .22s var(--panel-ease);
+}
+.mm-loading.on { opacity: 1; }
+.mm-spin {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  animation: mmSpin .7s linear infinite;
+}
+@keyframes mmSpin { to { transform: rotate(360deg); } }
+.mm-err {
+  position: absolute; inset: 0;
+  display: none; place-items: center;
+  font-size: 13px; color: var(--text-sub); text-align: center; padding: 20px;
+}
+.mm-err.on { display: grid; }
+
+/* ---------- 底部 ---------- */
+.mm-foot {
+  display: flex; align-items: center; gap: 16px;
+  padding: 9px 18px 12px;
+  font-size: 11px; color: var(--text-sub);
+  flex: none;
+}
+.mm-legend { display: inline-flex; align-items: center; gap: 6px; }
+.mm-legend i { width: 14px; height: 2px; border-radius: 2px; display: inline-block; }
+.mm-legend i.lg-line { background: var(--accent); }
+.mm-legend i.lg-avg { background: var(--gold); }
+.mm-legend i.lg-vol { background: linear-gradient(90deg, var(--up), var(--down)); }
+.mm-src { margin-left: auto; opacity: .8; }
+.mm-src b { color: var(--text-main); font-family: var(--font-mono); font-weight: 600; }
+
+/* ---------- 入场：数字错峰弹入（复用工作台的 t-digit 动画） ---------- */
+#minute-panel .t-digit { display: inline-block; }
+
+/* ---------- 列表行：可点击提示（点击打开分时图） ---------- */
+.watch-row, .pos-row, .lhb-row, .sec-row { cursor: pointer; }
+.watch-row:hover, .pos-row:hover, .lhb-row:hover, .sec-row:hover {
+  outline: 1px solid rgba(255, 138, 107, .42);
+  outline-offset: 1px;
+}
+:root[data-theme="light"] .watch-row:hover,
+:root[data-theme="light"] .pos-row:hover,
+:root[data-theme="light"] .lhb-row:hover,
+:root[data-theme="light"] .sec-row:hover {
+  outline-color: rgba(232, 93, 78, .38);
+}
+/* 表头行不可点，排除在外 */
+.watch-list-head.watch-row { cursor: default; }
+.watch-list-head.watch-row:hover { outline: none; }
+
+/* ---------- 手机端：底部抽屉 ---------- */
+@media (max-width: 640px) {
+  #minute-panel {
+    width: calc(100vw - 14px);
+    top: auto; bottom: 8px;
+    max-height: calc(100vh - 24px);
+    transform: translate(-50%, 46px) scale(.98);
+  }
+  #minute-mask.on #minute-panel { transform: translate(-50%, 0) scale(1); }
+  .mm-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 9px; }
+  #mm-canvas { height: 250px; }
+  .mm-price { font-size: 21px; }
+  .mm-foot { gap: 11px; padding: 8px 14px 11px; }
+  .mm-src { display: none; }
+}
+
+/* ---------- 尊重减少动效偏好 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  #minute-panel, #minute-mask .mm-backdrop { transition-duration: .01ms !important; }
+  #minute-panel { filter: none !important; }
+  .mm-dot.up, .mm-dot.down, .mm-spin { animation: none !important; }
+}
