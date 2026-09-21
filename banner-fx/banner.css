@@ -1,0 +1,218 @@
+/* ==========================================================================
+   首页横幅「每日寄语」动效升级 · iOS 毛玻璃 + 流光边 + 液态高光
+   --------------------------------------------------------------------------
+   技法来源（三个开源库均为 MIT，作者 Jakub Antalik）：
+     · border-beam  → conic-gradient + mask 裁边的流光边框，@property 驱动角度
+     · liquid-gooey → SVG 滤镜只作用于装饰剪影层，内容层保持像素级清晰
+     · metal-fx     → 官方文档推荐的 CSS 近似路径（不做 WebGL 着色器）
+   --------------------------------------------------------------------------
+   原则：只加装饰层，不动横幅的文字与结构；全部动效 respect reduced-motion
+   ========================================================================== */
+
+/* ---------- 1. iOS 材质：更厚的毛玻璃 + 双层内高光 ---------- */
+.fun-banner {
+  border-radius: 22px;                            /* iOS 卡片圆角（原 16px 偏方） */
+  backdrop-filter: blur(32px) saturate(190%) brightness(1.06);
+  -webkit-backdrop-filter: blur(32px) saturate(190%) brightness(1.06);
+  border: 1px solid rgba(255, 255, 255, .10);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .16),       /* 顶部内高光（玻璃的受光边） */
+    inset 0 -1px 0 rgba(0, 0, 0, .12),            /* 底部内暗边，做出厚度 */
+    0 1px 2px rgba(0, 0, 0, .16),                 /* 贴合阴影 */
+    0 16px 44px -10px rgba(0, 0, 0, .36);         /* 大扩散柔影，iOS 的悬浮感 */
+  isolation: isolate;                             /* 内部层级自成一体 */
+  /* 背景压薄一些，让毛玻璃真正透出后面的内容 */
+  background:
+    radial-gradient(520px 220px at 6% -40%, rgba(255, 138, 107, .16), transparent 62%),
+    radial-gradient(400px 180px at 100% 120%, rgba(224, 160, 110, .10), transparent 58%),
+    linear-gradient(125deg, rgba(36, 36, 44, .60), rgba(44, 44, 52, .46) 52%, rgba(32, 32, 40, .58));
+}
+
+:root[data-theme="light"] .fun-banner {
+  border-color: rgba(255, 255, 255, .78);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .95),
+    inset 0 -1px 0 rgba(120, 132, 160, .07),
+    0 1px 2px rgba(120, 140, 180, .07),
+    0 16px 40px -12px rgba(120, 140, 180, .22);
+  background:
+    radial-gradient(520px 220px at 6% -40%, rgba(255, 150, 118, .17), transparent 62%),
+    radial-gradient(400px 180px at 100% 120%, rgba(224, 160, 120, .10), transparent 58%),
+    linear-gradient(125deg, rgba(255, 255, 255, .60), rgba(250, 248, 255, .48) 52%, rgba(255, 254, 252, .58));
+}
+
+/* 顶部那道原有的白色渐隐高光，压低一点避免和新的内高光叠加过亮 */
+.fun-banner::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 44%);
+}
+
+/* 内容层抬到装饰层之上 */
+.fun-banner .fb-left { position: relative; z-index: 2; }
+.fun-banner .fb-sparks { z-index: 1; }
+.fun-banner .fb-toggle { z-index: 3; }
+
+/* ---------- 2. 流光边框（border-beam 技法） ---------- */
+/* @property 让角度可动画；关键帧显式声明 0/50/100%，
+   不支持 @property 的浏览器会退化成阶跃动画，而不是整段坏掉 */
+@property --fb-beam {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes fbBeamSpin {
+  0%   { --fb-beam: 0deg; }
+  50%  { --fb-beam: 180deg; }
+  100% { --fb-beam: 360deg; }
+}
+
+.fun-banner .fb-beam {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border-radius: inherit;
+  pointer-events: none;
+  padding: 1px;                                   /* 光边粗细 */
+  /* 珊瑚橙 → 暖金 → 白，既有品牌色又保留 iOS 的白色受光边 */
+  background: conic-gradient(from var(--fb-beam),
+      rgba(255, 138, 107, 0)    0deg,
+      rgba(255, 138, 107, .85)  32deg,
+      rgba(255, 208, 150, .95)  62deg,
+      rgba(255, 255, 255, .80)  86deg,
+      rgba(224, 160, 107, .45) 118deg,
+      rgba(255, 138, 107, 0)   156deg,
+      rgba(255, 138, 107, 0)   360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+  opacity: .9;
+  animation: fbBeamSpin 6.5s linear infinite;
+}
+/* 光边外面再罩一层同色模糊，做出 bloom */
+.fun-banner .fb-beam::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: inherit;
+  filter: blur(7px);
+  opacity: .45;
+}
+
+:root[data-theme="light"] .fun-banner .fb-beam {
+  background: conic-gradient(from var(--fb-beam),
+      rgba(232, 93, 78, 0)     0deg,
+      rgba(232, 93, 78, .60)  32deg,
+      rgba(232, 160, 90, .75)  62deg,
+      rgba(255, 255, 255, .95) 86deg,
+      rgba(224, 140, 100, .40) 118deg,
+      rgba(232, 93, 78, 0)    156deg,
+      rgba(232, 93, 78, 0)    360deg);
+  opacity: .85;
+}
+
+/* ---------- 3. 表面高光流动（metal-fx 的 CSS 近似） ---------- */
+@property --fb-sheen {
+  syntax: '<percentage>';
+  initial-value: -30%;
+  inherits: false;
+}
+@keyframes fbSheenSweep {
+  0%, 40%   { --fb-sheen: -30%; }
+  74%, 100% { --fb-sheen: 130%; }
+}
+
+.fun-banner .fb-sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(105deg,
+      transparent calc(var(--fb-sheen) - 16%),
+      rgba(255, 255, 255, .14) var(--fb-sheen),
+      rgba(255, 255, 255, .05) calc(var(--fb-sheen) + 6%),
+      transparent calc(var(--fb-sheen) + 19%));
+  mix-blend-mode: screen;
+  opacity: .85;
+  animation: fbSheenSweep 8.5s cubic-bezier(.45, 0, .25, 1) infinite;
+}
+:root[data-theme="light"] .fun-banner .fb-sheen {
+  mix-blend-mode: overlay;
+  background: linear-gradient(105deg,
+      transparent calc(var(--fb-sheen) - 16%),
+      rgba(255, 255, 255, .55) var(--fb-sheen),
+      rgba(255, 244, 236, .28) calc(var(--fb-sheen) + 6%),
+      transparent calc(var(--fb-sheen) + 19%));
+}
+
+/* ---------- 4. 液态高光（liquid-gooey 技法：剪影层 + goo 滤镜） ---------- */
+/* 关键：goo 滤镜只加在这个装饰剪影层上，真实内容层绝不加 —— 内容才保持清晰 */
+.fun-banner .fb-goo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  filter: url(#fb-goo-filter);
+  opacity: 0;
+  transition: opacity .55s cubic-bezier(.22, 1, .36, 1);
+}
+.fun-banner:hover .fb-goo { opacity: .30; }
+
+.fun-banner .fb-blob {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 150px;
+  height: 150px;
+  margin: -75px 0 0 -75px;                        /* 让 translate 的坐标 = 圆心 */
+  border-radius: 50%;
+  background: #ff9a72;
+  will-change: transform;
+  transform: translate3d(-999px, -999px, 0);      /* 初始藏到画面外 */
+}
+.fun-banner .fb-blob.b2 { width: 112px; height: 112px; margin: -56px 0 0 -56px; background: #ffcf92; }
+.fun-banner .fb-blob.b3 { width: 88px;  height: 88px;  margin: -44px 0 0 -44px; background: #ffffff; }
+
+/* ---------- 5. emoji 呼吸光晕（iOS 的柔光感） ---------- */
+.fun-banner .fb-emoji { position: relative; }
+.fun-banner .fb-emoji::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  z-index: -1;
+  background: radial-gradient(circle, rgba(255, 138, 107, .38), rgba(255, 138, 107, 0) 70%);
+  animation: fbEmojiGlow 4.4s ease-in-out infinite;
+}
+@keyframes fbEmojiGlow {
+  0%, 100% { opacity: .5;  transform: scale(.90); }
+  50%      { opacity: 1;   transform: scale(1.10); }
+}
+:root[data-theme="light"] .fun-banner .fb-emoji::after {
+  background: radial-gradient(circle, rgba(232, 93, 78, .26), rgba(232, 93, 78, 0) 70%);
+}
+
+/* ---------- 6. 移动端：降采样，省电优先 ---------- */
+@media (max-width: 640px) {
+  .fun-banner {
+    border-radius: 18px;
+    backdrop-filter: blur(20px) saturate(170%);
+    -webkit-backdrop-filter: blur(20px) saturate(170%);
+  }
+  .fun-banner .fb-goo { display: none; }          /* 触屏没有 hover，液态光斑无意义 */
+  .fun-banner .fb-sheen { opacity: .6; }
+  .fun-banner .fb-beam { animation-duration: 9s; }
+}
+
+/* ---------- 7. 尊重「减少动效」偏好 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .fun-banner .fb-beam,
+  .fun-banner .fb-sheen,
+  .fun-banner .fb-emoji::after { animation: none !important; }
+  .fun-banner .fb-beam { opacity: .45; }          /* 保留静态光边，去掉旋转 */
+  .fun-banner .fb-sheen { opacity: 0 !important; }
+  .fun-banner .fb-goo { display: none !important; }
+}
