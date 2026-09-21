@@ -4695,6 +4695,51 @@ function fetchTencent() {
   });
 }
 
+// —— 腾讯 A 股批量行情备用通道（EM secid → 腾讯代码），push2 被限流/故障时顶上 ——
+// 字段映射：[3]现价 [4]昨收 [5]今开 [6]量(手) [31]涨跌 [32]涨跌幅 [33]最高 [34]最低 [37]成交额(万)
+function txCodeOf(secid) {
+  const parts = String(secid).split('.');
+  const mkt = parts[0], code = parts[1] || '';
+  if (/^(43|83|87|92)/.test(code)) return 'bj' + code;   // 北交所
+  return (mkt === '1' ? 'sh' : 'sz') + code;
+}
+function fetchTxAQuotes(secids) {
+  const list = (secids || []).filter(Boolean);
+  if (!list.length) return Promise.reject(new Error('empty'));
+  const pairs = list.map(s => [s, txCodeOf(s)]);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.charset = 'gbk';
+    script.referrerPolicy = 'no-referrer';
+    const timer = setTimeout(() => { script.remove(); reject(new Error('timeout')); }, 6000);
+    script.onload = () => {
+      clearTimeout(timer);
+      const out = {};
+      pairs.forEach(([secid, tx]) => {
+        const raw = window['v_' + tx];
+        if (!raw) return;
+        const f = raw.split('~');
+        const price = parseFloat(f[3]);
+        if (!isFinite(price) || price <= 0) return;
+        out[secid] = {
+          price: price,
+          pct: parseFloat(f[32]),
+          chg: parseFloat(f[31]),
+          open: parseFloat(f[5]),
+          high: parseFloat(f[33]),
+          low: parseFloat(f[34]),
+          amount: parseFloat(f[37]) * 1e4,   // 万 → 元
+        };
+      });
+      script.remove();
+      Object.keys(out).length ? resolve(out) : reject(new Error('empty'));
+    };
+    script.onerror = () => { clearTimeout(timer); script.remove(); reject(new Error('network')); };
+    script.src = 'https://qt.gtimg.cn/q=' + pairs.map(p => p[1]).join(',');
+    document.head.appendChild(script);
+  });
+}
+
 // 新浪全球指数（日经225 / 韩国KOSPI 专用兜底）
 function fetchSinaJpkr() {
   return new Promise((resolve, reject) => {
@@ -5397,6 +5442,18 @@ async function loadWatchQuotes() {
       return;
     } catch (e) { /* 下一域名 */ }
   }
+  // —— 备用：腾讯实时（push2 被限流/故障时顶上） ——
+  try {
+    const tx = await fetchTxAQuotes(watchlist.map(w => w.secid));
+    if (tx && Object.keys(tx).length) {
+      Object.assign(watchQuotes, tx);
+      updateWatchPrices();
+      const now = new Date();
+      const p = n => String(n).padStart(2, '0');
+      $('w-status').textContent = `实时 · 腾讯备用 · ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+      return;
+    }
+  } catch (e) { /* 腾讯也不通，走失败提示 */ }
   $('w-status').textContent = '行情获取失败，稍后自动重试…';
 }
 
@@ -5936,6 +5993,18 @@ async function loadHoldQuotes() {
     $('p-status').textContent = `实时 · ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
     return;
   }
+  // —— 备用：腾讯实时（push2 被限流/故障时顶上） ——
+  try {
+    const tx = await fetchTxAQuotes(holdings.map(h => h.secid));
+    if (tx && Object.keys(tx).length) {
+      Object.assign(holdQuotes, tx);
+      updateHoldPrices();
+      const now = new Date();
+      const p = n => String(n).padStart(2, '0');
+      $('p-status').textContent = `实时 · 腾讯备用 · ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+      return;
+    }
+  } catch (e) { /* 腾讯也不通，走失败提示 */ }
   $('p-status').textContent = '行情获取失败，稍后自动重试…';
 }
 
