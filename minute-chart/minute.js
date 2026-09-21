@@ -91,6 +91,7 @@
       main: g('--text-main', '#eef0f2'),
       accent: g('--accent', '#ff8a6b'),
       pane: light ? 'rgba(255,255,255,.55)' : 'rgba(24,25,30,.55)',
+      tipBg: light ? 'rgba(255,255,255,.90)' : 'rgba(20,21,27,.90)',
       grid: light ? 'rgba(26,40,66,.10)' : 'rgba(255,255,255,.075)',
       mono: g('--font-mono', 'monospace').replace(/\s+/g, ' ')
     };
@@ -463,14 +464,21 @@
       ctx.lineWidth = 1.4;
       ctx.stroke();
 
-      // 浮动信息条
+      // 浮动信息条（分段排版：时间灰 / 价格白 / 涨跌彩色 / 均价金 / 量白）
       var dpct = pre > 0 ? (cp.price / pre - 1) * 100 : 0;
       var cgain = dpct > 0.006 ? th.up : (dpct < -0.006 ? th.down : th.sub);
-      var txt = cp.t + '  ' + cp.price.toFixed(2) + '  ' +
-        (dpct > 0 ? '+' : '') + dpct.toFixed(2) + '%' +
-        (isNum(cp.avg) && cp.avg > 0 ? '  均价 ' + cp.avg.toFixed(2) : '') +
-        '  量 ' + fmtVol(cp.vol);
-      drawTip(ctx, PAD.l + 8, PAD.t + 6, txt, cp.t + ' · ' + cp.price.toFixed(2), cgain, th);
+      var segs = [
+        { t: cp.t, c: th.sub },
+        { t: cp.price.toFixed(2), c: cgain, b: true },
+        { t: (dpct > 0 ? '+' : '') + dpct.toFixed(2) + '%', c: cgain, b: true }
+      ];
+      if (isNum(cp.avg) && cp.avg > 0) {
+        segs.push({ t: '均价', c: th.sub });
+        segs.push({ t: cp.avg.toFixed(2), c: th.gold, b: true });
+      }
+      segs.push({ t: '量', c: th.sub });
+      segs.push({ t: fmtVol(cp.vol), c: th.main, b: true });
+      drawTip(ctx, PAD.l + 8, PAD.t + 6, segs, th);
     }
   }
 
@@ -478,24 +486,38 @@
     return (document.documentElement.getAttribute('data-theme') === 'light') ? 0.42 : 0.5;
   }
 
-  function drawTip(ctx, x, y, text, _k, color, th) {
-    ctx.font = '10.5px ' + th.mono;
-    var w = ctx.measureText(text).width + 18;
-    var h = 24;
-    if (x + w > PAD.l + (ctx.canvas.width)) w = Math.min(w, 420);
+  /* 浮动数据条：分段渲染，数字用工作台等宽字体，底色加实带投影，保证可读性 */
+  function drawTip(ctx, x, y, segs, th) {
+    var fs = 12, padX = 11, gap = 9, h = 27, r = 9;
+    var ws = segs.map(function (s) {
+      ctx.font = (s.b ? '700 ' : '400 ') + fs + 'px ' + th.mono;
+      return ctx.measureText(s.t).width;
+    });
+    var w = padX * 2 + ws.reduce(function (a, b) { return a + b; }, 0) + gap * (segs.length - 1);
+    var cw = ctx.canvas.width / (window.devicePixelRatio || 1);
+    if (x + w > cw - 6) x = Math.max(6, cw - w - 6);
     ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, .32)';
+    ctx.shadowBlur = 14;
+    ctx.shadowOffsetY = 4;
     ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(x, y, w, h, 7);
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
     else ctx.rect(x, y, w, h);
-    ctx.fillStyle = th.pane;
+    ctx.fillStyle = th.tipBg;
     ctx.fill();
-    ctx.strokeStyle = withAlpha(color, 0.45);
+    ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = withAlpha(th.main, 0.15);
     ctx.lineWidth = 1;
     ctx.stroke();
-    ctx.fillStyle = color;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, x + 9, y + h / 2 + 0.5);
+    var cx0 = x + padX;
+    segs.forEach(function (s, i) {
+      ctx.font = (s.b ? '700 ' : '400 ') + fs + 'px ' + th.mono;
+      ctx.fillStyle = s.c;
+      ctx.fillText(s.t, cx0, y + h / 2 + 0.5);
+      cx0 += ws[i] + gap;
+    });
     ctx.restore();
   }
 
