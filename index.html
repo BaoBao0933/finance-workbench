@@ -2998,7 +2998,210 @@
     border-color: rgba(232,106,96,.5) !important;
     box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 12px 32px rgba(232,109,94,.24);
   }
-</style><!-- MC:CSS:BEGIN -->
+</style><!-- SE:CSS:BEGIN -->
+<style id="sector-edit-style">
+/* ==========================================================================
+   首页「热门行业板块」自定义 —— 编辑态样式
+   动效语言与工作台一致：珊瑚橙 accent、玻璃拟态、cubic-bezier(.22,1,.36,1)
+   流光边框：border-beam 技法（@property 角度 + conic-gradient + mask 裁边）
+   ========================================================================== */
+
+/* @property 让 conic-gradient 的角度真正动起来（不支持的浏览器退化为静态描边） */
+@property --se-beam {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* ---------- 管理按钮 ---------- */
+.sector-head .se-right { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.se-edit-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 12px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: .3px;
+  color: var(--text-sub);
+  background: var(--glass, rgba(255, 255, 255, .06));
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+  transition: color .18s cubic-bezier(.22, 1, .36, 1),
+              background .18s cubic-bezier(.22, 1, .36, 1),
+              border-color .18s cubic-bezier(.22, 1, .36, 1),
+              transform .18s cubic-bezier(.22, 1, .36, 1);
+}
+.se-edit-btn svg { width: 12px; height: 12px; transition: transform .3s cubic-bezier(.22, 1, .36, 1); }
+.se-edit-btn:hover { color: var(--text-main); border-color: var(--accent); transform: translateY(-1px); }
+.se-edit-btn:hover svg { transform: rotate(-14deg); }
+.se-edit-btn.on {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover, var(--accent)));
+  border-color: transparent;
+  box-shadow: 0 4px 14px -4px var(--accent);
+}
+:root[data-theme="light"] .se-edit-btn:not(.on) { color: #6b5b3e; background: rgba(255, 253, 247, .55); border-color: rgba(214, 178, 130, .5); }
+:root[data-theme="light"] .se-edit-btn:not(.on):hover { color: #4a3d26; border-color: #d9c9a8; }
+
+/* ---------- 编辑态 ---------- */
+.sector-strip.se-editing {
+  padding: 7px 9px 10px;
+  margin: -7px -9px -2px;          /* 撑出边距，给删除角标和拖拽放大留空间 */
+  scroll-snap-type: none;          /* 编辑态关掉吸附，拖拽更顺 */
+}
+.sector-strip.se-editing .sector-chip {
+  overflow: visible;               /* 让删除角标能探出卡片 */
+  cursor: grab;
+  touch-action: none;              /* 拖拽期间接管触摸 */
+  animation: none;                 /* 关掉入场动画，避免 FLIP 打架 */
+  transition: box-shadow .2s cubic-bezier(.22, 1, .36, 1),
+              border-color .2s cubic-bezier(.22, 1, .36, 1);
+}
+.sector-strip.se-editing .sector-chip:hover { transform: none; }   /* 悬停上浮关闭，防干扰拖拽 */
+.sector-chip.se-drag {
+  cursor: grabbing;
+  z-index: 6;
+  box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .5), 0 0 0 1px var(--accent);
+  transition: box-shadow .2s cubic-bezier(.22, 1, .36, 1) !important;
+}
+
+/* 删除角标：珊瑚橙圆钉，弹入（backOut）+ 悬停放大 */
+.sc-del {
+  position: absolute; top: -7px; right: -7px; z-index: 3;
+  width: 21px; height: 21px;
+  display: grid; place-items: center;
+  border: 2px solid rgba(255, 255, 255, .9);
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover, var(--accent)));
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 3px 10px -2px rgba(232, 93, 78, .55);
+  animation: sePopIn .3s cubic-bezier(.34, 1.56, .64, 1) both;
+  transition: transform .16s cubic-bezier(.22, 1, .36, 1), filter .16s;
+}
+.sc-del:hover { transform: scale(1.18); filter: brightness(1.1); }
+.sc-del:active { transform: scale(.92); }
+:root[data-theme="light"] .sc-del { border-color: #fff; }
+@keyframes sePopIn {
+  from { transform: scale(.2); opacity: 0; }
+  to   { transform: scale(1);  opacity: 1; }
+}
+
+/* 删除退场：缩 + 模糊融掉（呼应 liquid-gooey 的「融化」感） */
+.sector-chip.sc-out {
+  transform: scale(.62) translateY(6px);
+  opacity: 0;
+  filter: blur(7px) saturate(140%);
+  transition: transform .26s cubic-bezier(.5, 0, .75, 0),
+              opacity .26s ease,
+              filter .26s ease;
+  pointer-events: none;
+}
+
+/* 新卡弹入（backOut 弹性，与工作台入场同族） */
+.sector-chip.sc-in { animation: seChipIn .46s cubic-bezier(.34, 1.56, .64, 1) both; }
+@keyframes seChipIn {
+  from { transform: scale(.55) translateY(10px); opacity: 0; filter: blur(5px); }
+  to   { transform: scale(1) translateY(0);      opacity: 1; filter: blur(0); }
+}
+
+/* ---------- 「添加」卡：流光边框 ---------- */
+.sc-add-chip {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 7px;
+  min-width: 96px;
+  min-height: 86px;
+  border-style: dashed;
+  color: var(--text-sub);
+  font-size: 12.5px; font-weight: 600;
+}
+.sc-add-chip .sc-add-ico {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  transition: transform .3s cubic-bezier(.22, 1, .36, 1), background .3s;
+}
+.sc-add-chip:hover .sc-add-ico { transform: rotate(90deg) scale(1.1); background: var(--accent); color: #fff; }
+.sc-add-chip::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  padding: 1.4px;
+  background: conic-gradient(from var(--se-beam),
+    transparent 0turn, transparent .78turn,
+    var(--accent) .9turn, var(--gold) .96turn, transparent 1turn);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+  animation: seBeamSpin 3s linear infinite;
+  pointer-events: none;
+}
+@keyframes seBeamSpin { to { --se-beam: 1turn; } }
+
+/* ---------- 添加面板 ---------- */
+.se-add-panel {
+  position: fixed; z-index: 99970;
+  width: 228px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: 14px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  backdrop-filter: blur(26px) saturate(170%);
+  box-shadow: 0 22px 56px -16px rgba(0, 0, 0, .6), 0 2px 8px rgba(0, 0, 0, .22);
+  opacity: 0;
+  transform: translateY(8px) scale(.96);
+  transform-origin: top right;
+  transition: opacity .2s cubic-bezier(.22, 1, .36, 1),
+              transform .2s cubic-bezier(.22, 1, .36, 1);
+  animation: sePanelIn .24s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+@keyframes sePanelIn { to { opacity: 1; transform: translateY(0) scale(1); } }
+.se-add-panel.se-closing { opacity: 0; transform: translateY(6px) scale(.97); transition-duration: .15s; }
+.se-ap-title {
+  padding: 4px 8px 8px;
+  font-size: 12px; font-weight: 700;
+  border-bottom: 1px solid var(--card-border);
+  margin-bottom: 5px;
+}
+.se-ap-title span { display: block; font-size: 10.5px; font-weight: 400; color: var(--text-sub); margin-top: 2px; }
+.se-ap-row {
+  width: 100%;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 9px;
+  border: 0; border-radius: 9px;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 12.5px; font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  opacity: 0;
+  animation: seRowIn .3s cubic-bezier(.22, 1, .36, 1) forwards;
+  transition: background .16s, color .16s;
+}
+@keyframes seRowIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+.se-ap-row:hover { background: var(--accent-soft); }
+.se-ap-row svg { margin-left: auto; color: var(--accent); flex: none; transition: transform .2s cubic-bezier(.22, 1, .36, 1); }
+.se-ap-row:hover svg { transform: scale(1.25); }
+.se-ap-code { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-sub); font-weight: 400; }
+:root[data-theme="light"] .se-ap-row:hover { background: rgba(232, 93, 78, .09); }
+
+/* ---------- 减少动效 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .sc-del, .sector-chip.sc-in, .se-add-panel, .se-ap-row { animation-duration: .01ms !important; }
+  .sc-add-chip::after { animation: none !important; }
+  .sector-chip, .se-edit-btn, .sc-del, .se-ap-row { transition-duration: .01ms !important; }
+}
+
+</style>
+<!-- SE:CSS:END -->
+<!-- MC:CSS:BEGIN -->
 <style id="minute-chart-style">
 /* ==========================================================================
    分时图弹层 —— 完全复用工作台设计令牌，与整站视觉/动效一致
@@ -3322,209 +3525,6 @@
 
 </style>
 <!-- MC:CSS:END -->
-<!-- SE:CSS:BEGIN -->
-<style id="sector-edit-style">
-/* ==========================================================================
-   首页「热门行业板块」自定义 —— 编辑态样式
-   动效语言与工作台一致：珊瑚橙 accent、玻璃拟态、cubic-bezier(.22,1,.36,1)
-   流光边框：border-beam 技法（@property 角度 + conic-gradient + mask 裁边）
-   ========================================================================== */
-
-/* @property 让 conic-gradient 的角度真正动起来（不支持的浏览器退化为静态描边） */
-@property --se-beam {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-
-/* ---------- 管理按钮 ---------- */
-.sector-head .se-right { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.se-edit-btn {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 12px;
-  font-size: 11.5px; font-weight: 600; letter-spacing: .3px;
-  color: var(--text-sub);
-  background: var(--glass, rgba(255, 255, 255, .06));
-  border: 1px solid var(--card-border);
-  border-radius: 999px;
-  cursor: pointer;
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
-  backdrop-filter: blur(14px) saturate(150%);
-  transition: color .18s cubic-bezier(.22, 1, .36, 1),
-              background .18s cubic-bezier(.22, 1, .36, 1),
-              border-color .18s cubic-bezier(.22, 1, .36, 1),
-              transform .18s cubic-bezier(.22, 1, .36, 1);
-}
-.se-edit-btn svg { width: 12px; height: 12px; transition: transform .3s cubic-bezier(.22, 1, .36, 1); }
-.se-edit-btn:hover { color: var(--text-main); border-color: var(--accent); transform: translateY(-1px); }
-.se-edit-btn:hover svg { transform: rotate(-14deg); }
-.se-edit-btn.on {
-  color: #fff;
-  background: linear-gradient(135deg, var(--accent), var(--accent-hover, var(--accent)));
-  border-color: transparent;
-  box-shadow: 0 4px 14px -4px var(--accent);
-}
-:root[data-theme="light"] .se-edit-btn:not(.on) { color: #6b5b3e; background: rgba(255, 253, 247, .55); border-color: rgba(214, 178, 130, .5); }
-:root[data-theme="light"] .se-edit-btn:not(.on):hover { color: #4a3d26; border-color: #d9c9a8; }
-
-/* ---------- 编辑态 ---------- */
-.sector-strip.se-editing {
-  padding: 7px 9px 10px;
-  margin: -7px -9px -2px;          /* 撑出边距，给删除角标和拖拽放大留空间 */
-  scroll-snap-type: none;          /* 编辑态关掉吸附，拖拽更顺 */
-}
-.sector-strip.se-editing .sector-chip {
-  overflow: visible;               /* 让删除角标能探出卡片 */
-  cursor: grab;
-  touch-action: none;              /* 拖拽期间接管触摸 */
-  animation: none;                 /* 关掉入场动画，避免 FLIP 打架 */
-  transition: box-shadow .2s cubic-bezier(.22, 1, .36, 1),
-              border-color .2s cubic-bezier(.22, 1, .36, 1);
-}
-.sector-strip.se-editing .sector-chip:hover { transform: none; }   /* 悬停上浮关闭，防干扰拖拽 */
-.sector-chip.se-drag {
-  cursor: grabbing;
-  z-index: 6;
-  box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .5), 0 0 0 1px var(--accent);
-  transition: box-shadow .2s cubic-bezier(.22, 1, .36, 1) !important;
-}
-
-/* 删除角标：珊瑚橙圆钉，弹入（backOut）+ 悬停放大 */
-.sc-del {
-  position: absolute; top: -7px; right: -7px; z-index: 3;
-  width: 21px; height: 21px;
-  display: grid; place-items: center;
-  border: 2px solid rgba(255, 255, 255, .9);
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent-hover, var(--accent)));
-  color: #fff;
-  cursor: pointer;
-  box-shadow: 0 3px 10px -2px rgba(232, 93, 78, .55);
-  animation: sePopIn .3s cubic-bezier(.34, 1.56, .64, 1) both;
-  transition: transform .16s cubic-bezier(.22, 1, .36, 1), filter .16s;
-}
-.sc-del:hover { transform: scale(1.18); filter: brightness(1.1); }
-.sc-del:active { transform: scale(.92); }
-:root[data-theme="light"] .sc-del { border-color: #fff; }
-@keyframes sePopIn {
-  from { transform: scale(.2); opacity: 0; }
-  to   { transform: scale(1);  opacity: 1; }
-}
-
-/* 删除退场：缩 + 模糊融掉（呼应 liquid-gooey 的「融化」感） */
-.sector-chip.sc-out {
-  transform: scale(.62) translateY(6px);
-  opacity: 0;
-  filter: blur(7px) saturate(140%);
-  transition: transform .26s cubic-bezier(.5, 0, .75, 0),
-              opacity .26s ease,
-              filter .26s ease;
-  pointer-events: none;
-}
-
-/* 新卡弹入（backOut 弹性，与工作台入场同族） */
-.sector-chip.sc-in { animation: seChipIn .46s cubic-bezier(.34, 1.56, .64, 1) both; }
-@keyframes seChipIn {
-  from { transform: scale(.55) translateY(10px); opacity: 0; filter: blur(5px); }
-  to   { transform: scale(1) translateY(0);      opacity: 1; filter: blur(0); }
-}
-
-/* ---------- 「添加」卡：流光边框 ---------- */
-.sc-add-chip {
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 7px;
-  min-width: 96px;
-  min-height: 86px;
-  border-style: dashed;
-  color: var(--text-sub);
-  font-size: 12.5px; font-weight: 600;
-}
-.sc-add-chip .sc-add-ico {
-  width: 28px; height: 28px;
-  display: grid; place-items: center;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--accent);
-  transition: transform .3s cubic-bezier(.22, 1, .36, 1), background .3s;
-}
-.sc-add-chip:hover .sc-add-ico { transform: rotate(90deg) scale(1.1); background: var(--accent); color: #fff; }
-.sc-add-chip::after {
-  content: '';
-  position: absolute; inset: 0;
-  border-radius: inherit;
-  padding: 1.4px;
-  background: conic-gradient(from var(--se-beam),
-    transparent 0turn, transparent .78turn,
-    var(--accent) .9turn, var(--gold) .96turn, transparent 1turn);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          mask-composite: exclude;
-  animation: seBeamSpin 3s linear infinite;
-  pointer-events: none;
-}
-@keyframes seBeamSpin { to { --se-beam: 1turn; } }
-
-/* ---------- 添加面板 ---------- */
-.se-add-panel {
-  position: fixed; z-index: 99970;
-  width: 228px;
-  max-height: 300px;
-  overflow-y: auto;
-  padding: 8px;
-  border-radius: 14px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  -webkit-backdrop-filter: blur(26px) saturate(170%);
-  backdrop-filter: blur(26px) saturate(170%);
-  box-shadow: 0 22px 56px -16px rgba(0, 0, 0, .6), 0 2px 8px rgba(0, 0, 0, .22);
-  opacity: 0;
-  transform: translateY(8px) scale(.96);
-  transform-origin: top right;
-  transition: opacity .2s cubic-bezier(.22, 1, .36, 1),
-              transform .2s cubic-bezier(.22, 1, .36, 1);
-  animation: sePanelIn .24s cubic-bezier(.22, 1, .36, 1) forwards;
-}
-@keyframes sePanelIn { to { opacity: 1; transform: translateY(0) scale(1); } }
-.se-add-panel.se-closing { opacity: 0; transform: translateY(6px) scale(.97); transition-duration: .15s; }
-.se-ap-title {
-  padding: 4px 8px 8px;
-  font-size: 12px; font-weight: 700;
-  border-bottom: 1px solid var(--card-border);
-  margin-bottom: 5px;
-}
-.se-ap-title span { display: block; font-size: 10.5px; font-weight: 400; color: var(--text-sub); margin-top: 2px; }
-.se-ap-row {
-  width: 100%;
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 9px;
-  border: 0; border-radius: 9px;
-  background: transparent;
-  color: var(--text-main);
-  font-size: 12.5px; font-weight: 600;
-  cursor: pointer;
-  text-align: left;
-  opacity: 0;
-  animation: seRowIn .3s cubic-bezier(.22, 1, .36, 1) forwards;
-  transition: background .16s, color .16s;
-}
-@keyframes seRowIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
-.se-ap-row:hover { background: var(--accent-soft); }
-.se-ap-row svg { margin-left: auto; color: var(--accent); flex: none; transition: transform .2s cubic-bezier(.22, 1, .36, 1); }
-.se-ap-row:hover svg { transform: scale(1.25); }
-.se-ap-code { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-sub); font-weight: 400; }
-:root[data-theme="light"] .se-ap-row:hover { background: rgba(232, 93, 78, .09); }
-
-/* ---------- 减少动效 ---------- */
-@media (prefers-reduced-motion: reduce) {
-  .sc-del, .sector-chip.sc-in, .se-add-panel, .se-ap-row { animation-duration: .01ms !important; }
-  .sc-add-chip::after { animation: none !important; }
-  .sector-chip, .se-edit-btn, .sc-del, .se-ap-row { transition-duration: .01ms !important; }
-}
-
-</style>
-<!-- SE:CSS:END -->
 
 <!-- Google Fonts: Space Grotesk + Space Mono (Nothing Design) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -4975,6 +4975,7 @@ const sectorCache = {}; // secid -> {valEl, pctEl, barEl, barClass}
 /* SE: 暴露句柄给「热门行业板块」管理模块（sector-edit） */
 window.__sectorsHook = {
   cache: sectorCache,
+  pool: SECTOR_POOL,
   getList: function () { return SECTORS.slice(); },
   setList: function (list) { SECTORS = list; saveSectorConfig(); },
   reload: function () {
@@ -8421,317 +8422,6 @@ setInterval(() => loadBoardRank(), 300000); // 板块榜首每 5 分钟重试一
 
 </script>
 <!-- BFX:JS:END -->
-<!-- SE:BODY:BEGIN -->
-<script id="sector-edit-js">
-/* ==========================================================================
-   首页「热门行业板块」自定义 —— 添加 / 删除 / 拖动排序
-   依赖主脚本暴露的 window.__sectorsHook（由 inject.py 注入）
-   动效：border-beam 流光边（@property + conic-gradient + mask 裁边）
-         FLIP 拖拽排序 / backOut 弹入 / blur 缩出删除 —— 与工作台缓动一致
-   ========================================================================== */
-(function () {
-  'use strict';
-  var hook = window.__sectorsHook;
-  var strip = document.getElementById('sector-strip');
-  if (!hook || !strip) return;
-
-  var MAX = 12;                 // 最多同时展示的板块数
-  var LS_KEY = 'finance-sectors';
-  var editMode = false;
-  var panel = null;
-  var toast = hook.toast || function () {};
-
-  function getList() { return hook.getList(); }
-  function setList(l) { hook.setList(l); }
-
-  /* ---------------- 编辑按钮 ---------------- */
-  var btn = null;
-  function ensureButton() {
-    if (btn) return;
-    var head = document.querySelector('.sector-head');
-    if (!head) return;
-    var source = head.querySelector('.sector-source');
-    var right = document.createElement('div');
-    right.className = 'se-right';
-    btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'se-edit-btn';
-    btn.id = 'btn-sector-edit';
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg><span>管理</span>';
-    btn.addEventListener('click', function () { setEdit(!editMode); });
-    if (source) {
-      head.replaceChild(right, source);
-      right.appendChild(source);
-      right.appendChild(btn);
-    } else {
-      head.appendChild(btn);
-    }
-  }
-
-  /* ---------------- 编辑模式 ---------------- */
-  function setEdit(on) {
-    editMode = on;
-    strip.classList.toggle('se-editing', on);
-    btn.classList.toggle('on', on);
-    btn.querySelector('span').textContent = on ? '完成' : '管理';
-    if (on) { decorate(); if (!strip.contains(addChip())) buildAddChip(); }
-    else { teardown(); closePanel(); }
-  }
-
-  function chips() {
-    return [].slice.call(strip.querySelectorAll('.sector-chip:not(.sc-add-chip)'));
-  }
-  function addChip() { return strip.querySelector('.sc-add-chip'); }
-
-  /* 给每只板块卡装上删除角标（幂等） */
-  function decorate() {
-    chips().forEach(function (chip, i) {
-      if (chip.querySelector('.sc-del')) return;
-      var d = document.createElement('button');
-      d.type = 'button';
-      d.className = 'sc-del';
-      d.style.animationDelay = (i * 30) + 'ms';
-      d.setAttribute('aria-label', '删除 ' + (chip.dataset.name || ''));
-      d.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
-      chip.appendChild(d);
-    });
-  }
-  function teardown() {
-    strip.querySelectorAll('.sc-del').forEach(function (d) { d.remove(); });
-    var ac = addChip();
-    if (ac) ac.remove();
-    chips().forEach(function (c) { c.classList.remove('se-drag'); c.style.transform = ''; });
-  }
-
-  /* ---------------- 添加入口（流光边框卡） ---------------- */
-  function buildAddChip() {
-    if (addChip()) return;
-    if (getList().length >= MAX) return;
-    var el = document.createElement('div');
-    el.className = 'sector-chip sc-add-chip';
-    el.setAttribute('role', 'button');
-    el.setAttribute('title', '添加板块');
-    el.innerHTML = '<span class="sc-add-ico"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span>添加</span>';
-    strip.appendChild(el);
-  }
-
-  /* ---------------- 编辑态点击拦截（捕获阶段，先于主脚本的打开成分股） ---------------- */
-  strip.addEventListener('click', function (e) {
-    if (!editMode) return;
-    var del = e.target.closest('.sc-del');
-    if (del) { e.stopPropagation(); e.preventDefault(); doDelete(del); return; }
-    if (e.target.closest('.sc-add-chip')) { e.stopPropagation(); e.preventDefault(); openPanel(); return; }
-    if (e.target.closest('.sector-chip')) { e.stopPropagation(); e.preventDefault(); }
-  }, true);
-
-  function doDelete(delBtn) {
-    var chip = delBtn.closest('.sector-chip');
-    if (!chip) return;
-    var id = chip.dataset.secid;
-    setList(getList().filter(function (s) { return s.secid !== id; }));
-    /* 其余卡片 FLIP 补位 */
-    var others = chips().filter(function (c) { return c !== chip; });
-    var oldLeft = {};
-    others.forEach(function (c) { oldLeft[c.dataset.secid] = c.getBoundingClientRect().left; });
-    chip.classList.add('sc-out');
-    setTimeout(function () {
-      chip.remove();
-      delete hook.cache[id];
-      renumber();
-      others.forEach(function (c) { flipFrom(c, oldLeft[c.dataset.secid]); });
-    }, 180);
-    toast('已删除「' + (chip.dataset.name || '') + '」');
-  }
-
-  /* ---------------- 拖拽排序（FLIP） ---------------- */
-  var drag = null;
-  strip.addEventListener('pointerdown', function (e) {
-    if (!editMode || e.button !== 0) return;
-    var chip = e.target.closest('.sector-chip');
-    if (!chip || chip.classList.contains('sc-add-chip')) return;
-    if (e.target.closest('.sc-del')) return;
-    e.preventDefault();
-    drag = {
-      chip: chip,
-      id: chip.dataset.secid,
-      startX: e.clientX,
-      baseLeft: chip.getBoundingClientRect().left,
-      moved: false,
-      width: chip.getBoundingClientRect().width
-    };
-    try { chip.setPointerCapture(e.pointerId); } catch (err) {}
-  });
-  strip.addEventListener('pointermove', function (e) {
-    if (!drag) return;
-    var dx = e.clientX - drag.startX;
-    if (!drag.moved && Math.abs(dx) < 5) return;
-    if (!drag.moved) {
-      drag.moved = true;
-      drag.chip.classList.add('se-drag');
-    }
-    drag.chip.style.transform = 'translateX(' + dx + 'px) scale(1.05)';
-    /* 拖拽卡中心（基准取拖拽起始位置，不受 DOM 重排影响） */
-    var center = drag.baseLeft + dx + drag.width / 2;
-    var target = null;
-    var list = chips();
-    for (var i = 0; i < list.length; i++) {
-      var c = list[i];
-      if (c === drag.chip) continue;
-      var r = c.getBoundingClientRect();
-      if (center < r.left + r.width / 2) { target = c; break; }
-    }
-    if (target !== drag.over) {
-      drag.over = target;
-      reorderDOM(drag.chip, target);
-    }
-  });
-  function endDrag(e) {
-    if (!drag) return;
-    var d = drag; drag = null;
-    d.chip.classList.remove('se-drag');
-    d.chip.style.transform = '';
-    if (d.moved) commitOrder();
-  }
-  strip.addEventListener('pointerup', endDrag);
-  strip.addEventListener('pointercancel', endDrag);
-
-  function reorderDOM(chip, before) {
-    var others = chips().filter(function (c) { return c !== chip; });
-    var oldLeft = {};
-    others.forEach(function (c) { oldLeft[c.dataset.secid] = c.getBoundingClientRect().left; });
-    if (before) strip.insertBefore(chip, before);
-    else strip.insertBefore(chip, addChip());   /* 拖到最右：插到「添加」卡之前 */
-    others.forEach(function (c) { flipFrom(c, oldLeft[c.dataset.secid]); });
-  }
-
-  /* FLIP：从旧位置平滑滑到新位置 */
-  function flipFrom(el, oldLeft) {
-    var newLeft = el.getBoundingClientRect().left;
-    var dx = oldLeft - newLeft;
-    if (Math.abs(dx) < 1) return;
-    el.style.transition = 'none';
-    el.style.transform = 'translateX(' + dx + 'px)';
-    requestAnimationFrame(function () {
-      el.style.transition = 'transform .3s cubic-bezier(.22, 1, .36, 1)';
-      el.style.transform = '';
-      setTimeout(function () { el.style.transition = ''; }, 320);
-    });
-  }
-
-  function commitOrder() {
-    var order = chips().map(function (c) { return c.dataset.secid; });
-    var byId = {};
-    getList().forEach(function (s) { byId[s.secid] = s; });
-    setList(order.map(function (id) { return byId[id]; }).filter(Boolean));
-    renumber();
-  }
-  function renumber() {
-    var i = 0;
-    chips().forEach(function (c) {
-      var r = c.querySelector('.sc-rank');
-      if (r) r.textContent = '#' + (++i);
-    });
-  }
-
-  /* ---------------- 添加面板 ---------------- */
-  function openPanel() {
-    closePanel();
-    var pool = (window.SECTOR_POOL || []).filter(function (s) {
-      return !getList().some(function (x) { return x.secid === s.secid; });
-    });
-    if (!pool.length) { toast('板块都加上了，删一个再试'); return; }
-    panel = document.createElement('div');
-    panel.className = 'se-add-panel';
-    panel.innerHTML =
-      '<div class="se-ap-title">添加板块 <span>点击即加入，最多 ' + MAX + ' 个</span></div>' +
-      pool.map(function (s, i) {
-        return '<button type="button" class="se-ap-row" data-secid="' + s.secid + '" data-name="' + s.name + '" style="animation-delay:' + (i * 26) + 'ms">' +
-          '<span class="se-ap-name">' + s.name + '</span>' +
-          '<span class="se-ap-code">' + s.secid.split('.')[1] + '</span>' +
-          '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>' +
-          '</button>';
-      }).join('');
-    document.body.appendChild(panel);
-    var ac = addChip();
-    if (ac) {
-      var r = ac.getBoundingClientRect();
-      var vw = window.innerWidth;
-      var left = Math.min(Math.max(8, r.right - 236), vw - 244);
-      panel.style.left = left + 'px';
-      panel.style.top = Math.min(r.bottom + 8, window.innerHeight - panel.offsetHeight - 12) + 'px';
-    }
-    panel.addEventListener('click', function (e) {
-      var row = e.target.closest('.se-ap-row');
-      if (!row) return;
-      doAdd(row.dataset.secid, row.dataset.name);
-    });
-    setTimeout(function () {
-      document.addEventListener('pointerdown', outsideClose, true);
-      document.addEventListener('keydown', escClose, true);
-    }, 0);
-  }
-  function outsideClose(e) {
-    if (panel && !panel.contains(e.target) && !e.target.closest('.sc-add-chip')) closePanel();
-  }
-  function escClose(e) { if (e.key === 'Escape') closePanel(); }
-  function closePanel() {
-    if (!panel) return;
-    var p = panel; panel = null;
-    p.classList.add('se-closing');
-    setTimeout(function () { p.remove(); }, 160);
-    document.removeEventListener('pointerdown', outsideClose, true);
-    document.removeEventListener('keydown', escClose, true);
-  }
-
-  function doAdd(secid, name) {
-    if (getList().length >= MAX) { toast('最多 ' + MAX + ' 个板块'); return; }
-    var list = getList();
-    list.push({ secid: secid, name: name });
-    setList(list);
-    buildSectorChip({ secid: secid, name: name, pct: null, price: null });
-    closePanel();
-    toast('已添加「' + name + '」，行情刷新中…');
-  }
-
-  /* 按主脚本同款结构造一只新卡（数据留空，由下一轮 updateSectors 填充） */
-  function buildSectorChip(s) {
-    var el = document.createElement('div');
-    el.className = 'sector-chip sc-in';
-    el.setAttribute('tabindex', '0');
-    el.setAttribute('role', 'button');
-    el.dataset.secid = s.secid;
-    el.dataset.code = s.secid.split('.').pop();
-    el.dataset.name = s.name;
-    el.dataset.pct = '0';
-    el.title = s.name + ' · 点击查看成分股';
-    el.innerHTML =
-      '<div class="sc-top"><span class="sc-name">' + s.name + '</span><span class="sc-rank">#0</span></div>' +
-      '<div class="sc-val flat">--%</div>' +
-      '<div class="sc-bar"><i style="width:0%"></i></div>' +
-      '<div class="sc-price">-- 点</div>';
-    var anchor = addChip();
-    if (anchor) strip.insertBefore(el, anchor); else strip.appendChild(el);
-    hook.cache[s.secid] = {
-      root: el,
-      pctEl: el.querySelector('.sc-val'),
-      barEl: el.querySelector('.sc-bar i'),
-      priceEl: el.querySelector('.sc-price')
-    };
-    renumber();
-    if (editMode) decorate();
-    setTimeout(function () { el.classList.remove('sc-in'); }, 500);
-  }
-
-  /* ---------------- 启动 ---------------- */
-  ensureButton();
-  /* 编辑态下重建 DOM 后自动补角标（比如刷新后） */
-  new MutationObserver(function () {
-    if (editMode) { decorate(); if (!addChip()) buildAddChip(); renumber(); }
-  }).observe(strip, { childList: true });
-})();
-
-</script>
-<!-- SE:BODY:END -->
 <!-- MC:BODY:BEGIN -->
 <!-- ============ 分时图弹层（点击股票行/卡片打开） ============ -->
 <div id="minute-mask" role="presentation">
@@ -9813,5 +9503,316 @@ setInterval(() => loadBoardRank(), 300000); // 板块榜首每 5 分钟重试一
 
 </script>
 <!-- MC:BODY:END -->
+<!-- SE:BODY:BEGIN -->
+<script id="sector-edit-js">
+/* ==========================================================================
+   首页「热门行业板块」自定义 —— 添加 / 删除 / 拖动排序
+   依赖主脚本暴露的 window.__sectorsHook（由 inject.py 注入）
+   动效：border-beam 流光边（@property + conic-gradient + mask 裁边）
+         FLIP 拖拽排序 / backOut 弹入 / blur 缩出删除 —— 与工作台缓动一致
+   ========================================================================== */
+(function () {
+  'use strict';
+  var hook = window.__sectorsHook;
+  var strip = document.getElementById('sector-strip');
+  if (!hook || !strip) return;
+
+  var MAX = 12;                 // 最多同时展示的板块数
+  var LS_KEY = 'finance-sectors';
+  var editMode = false;
+  var panel = null;
+  var toast = hook.toast || function () {};
+
+  function getList() { return hook.getList(); }
+  function setList(l) { hook.setList(l); }
+
+  /* ---------------- 编辑按钮 ---------------- */
+  var btn = null;
+  function ensureButton() {
+    if (btn) return;
+    var head = document.querySelector('.sector-head');
+    if (!head) return;
+    var source = head.querySelector('.sector-source');
+    var right = document.createElement('div');
+    right.className = 'se-right';
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'se-edit-btn';
+    btn.id = 'btn-sector-edit';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg><span>管理</span>';
+    btn.addEventListener('click', function () { setEdit(!editMode); });
+    if (source) {
+      head.replaceChild(right, source);
+      right.appendChild(source);
+      right.appendChild(btn);
+    } else {
+      head.appendChild(btn);
+    }
+  }
+
+  /* ---------------- 编辑模式 ---------------- */
+  function setEdit(on) {
+    editMode = on;
+    strip.classList.toggle('se-editing', on);
+    btn.classList.toggle('on', on);
+    btn.querySelector('span').textContent = on ? '完成' : '管理';
+    if (on) { decorate(); if (!strip.contains(addChip())) buildAddChip(); }
+    else { teardown(); closePanel(); }
+  }
+
+  function chips() {
+    return [].slice.call(strip.querySelectorAll('.sector-chip:not(.sc-add-chip)'));
+  }
+  function addChip() { return strip.querySelector('.sc-add-chip'); }
+
+  /* 给每只板块卡装上删除角标（幂等） */
+  function decorate() {
+    chips().forEach(function (chip, i) {
+      if (chip.querySelector('.sc-del')) return;
+      var d = document.createElement('button');
+      d.type = 'button';
+      d.className = 'sc-del';
+      d.style.animationDelay = (i * 30) + 'ms';
+      d.setAttribute('aria-label', '删除 ' + (chip.dataset.name || ''));
+      d.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+      chip.appendChild(d);
+    });
+  }
+  function teardown() {
+    strip.querySelectorAll('.sc-del').forEach(function (d) { d.remove(); });
+    var ac = addChip();
+    if (ac) ac.remove();
+    chips().forEach(function (c) { c.classList.remove('se-drag'); c.style.transform = ''; });
+  }
+
+  /* ---------------- 添加入口（流光边框卡） ---------------- */
+  function buildAddChip() {
+    if (addChip()) return;
+    if (getList().length >= MAX) return;
+    var el = document.createElement('div');
+    el.className = 'sector-chip sc-add-chip';
+    el.setAttribute('role', 'button');
+    el.setAttribute('title', '添加板块');
+    el.innerHTML = '<span class="sc-add-ico"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span>添加</span>';
+    strip.appendChild(el);
+  }
+
+  /* ---------------- 编辑态点击拦截（捕获阶段，先于主脚本的打开成分股） ---------------- */
+  strip.addEventListener('click', function (e) {
+    if (!editMode) return;
+    var del = e.target.closest('.sc-del');
+    if (del) { e.stopPropagation(); e.preventDefault(); doDelete(del); return; }
+    if (e.target.closest('.sc-add-chip')) { e.stopPropagation(); e.preventDefault(); openPanel(); return; }
+    if (e.target.closest('.sector-chip')) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
+
+  function doDelete(delBtn) {
+    var chip = delBtn.closest('.sector-chip');
+    if (!chip) return;
+    var id = chip.dataset.secid;
+    setList(getList().filter(function (s) { return s.secid !== id; }));
+    /* 其余卡片 FLIP 补位 */
+    var others = chips().filter(function (c) { return c !== chip; });
+    var oldLeft = {};
+    others.forEach(function (c) { oldLeft[c.dataset.secid] = c.getBoundingClientRect().left; });
+    chip.classList.add('sc-out');
+    setTimeout(function () {
+      chip.remove();
+      delete hook.cache[id];
+      renumber();
+      others.forEach(function (c) { flipFrom(c, oldLeft[c.dataset.secid]); });
+    }, 180);
+    toast('已删除「' + (chip.dataset.name || '') + '」');
+  }
+
+  /* ---------------- 拖拽排序（FLIP） ---------------- */
+  var drag = null;
+  strip.addEventListener('pointerdown', function (e) {
+    if (!editMode || e.button !== 0) return;
+    var chip = e.target.closest('.sector-chip');
+    if (!chip || chip.classList.contains('sc-add-chip')) return;
+    if (e.target.closest('.sc-del')) return;
+    e.preventDefault();
+    drag = {
+      chip: chip,
+      id: chip.dataset.secid,
+      startX: e.clientX,
+      baseLeft: chip.getBoundingClientRect().left,
+      moved: false,
+      width: chip.getBoundingClientRect().width
+    };
+    try { chip.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  strip.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.startX;
+    if (!drag.moved && Math.abs(dx) < 5) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      drag.chip.classList.add('se-drag');
+    }
+    drag.chip.style.transform = 'translateX(' + dx + 'px) scale(1.05)';
+    /* 拖拽卡中心（基准取拖拽起始位置，不受 DOM 重排影响） */
+    var center = drag.baseLeft + dx + drag.width / 2;
+    var target = null;
+    var list = chips();
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i];
+      if (c === drag.chip) continue;
+      var r = c.getBoundingClientRect();
+      if (center < r.left + r.width / 2) { target = c; break; }
+    }
+    if (target !== drag.over) {
+      drag.over = target;
+      reorderDOM(drag.chip, target);
+    }
+  });
+  function endDrag(e) {
+    if (!drag) return;
+    var d = drag; drag = null;
+    d.chip.classList.remove('se-drag');
+    d.chip.style.transform = '';
+    if (d.moved) commitOrder();
+  }
+  strip.addEventListener('pointerup', endDrag);
+  strip.addEventListener('pointercancel', endDrag);
+
+  function reorderDOM(chip, before) {
+    var others = chips().filter(function (c) { return c !== chip; });
+    var oldLeft = {};
+    others.forEach(function (c) { oldLeft[c.dataset.secid] = c.getBoundingClientRect().left; });
+    if (before) strip.insertBefore(chip, before);
+    else strip.insertBefore(chip, addChip());   /* 拖到最右：插到「添加」卡之前 */
+    others.forEach(function (c) { flipFrom(c, oldLeft[c.dataset.secid]); });
+  }
+
+  /* FLIP：从旧位置平滑滑到新位置 */
+  function flipFrom(el, oldLeft) {
+    var newLeft = el.getBoundingClientRect().left;
+    var dx = oldLeft - newLeft;
+    if (Math.abs(dx) < 1) return;
+    el.style.transition = 'none';
+    el.style.transform = 'translateX(' + dx + 'px)';
+    requestAnimationFrame(function () {
+      el.style.transition = 'transform .3s cubic-bezier(.22, 1, .36, 1)';
+      el.style.transform = '';
+      setTimeout(function () { el.style.transition = ''; }, 320);
+    });
+  }
+
+  function commitOrder() {
+    var order = chips().map(function (c) { return c.dataset.secid; });
+    var byId = {};
+    getList().forEach(function (s) { byId[s.secid] = s; });
+    setList(order.map(function (id) { return byId[id]; }).filter(Boolean));
+    renumber();
+  }
+  function renumber() {
+    var i = 0;
+    chips().forEach(function (c) {
+      var r = c.querySelector('.sc-rank');
+      if (r) r.textContent = '#' + (++i);
+    });
+  }
+
+  /* ---------------- 添加面板 ---------------- */
+  function openPanel() {
+    closePanel();
+    var pool = (hook.pool || window.SECTOR_POOL || []).filter(function (s) {
+      return !getList().some(function (x) { return x.secid === s.secid; });
+    });
+    if (!pool.length) { toast('板块都加上了，删一个再试'); return; }
+    panel = document.createElement('div');
+    panel.className = 'se-add-panel';
+    panel.innerHTML =
+      '<div class="se-ap-title">添加板块 <span>点击即加入，最多 ' + MAX + ' 个</span></div>' +
+      pool.map(function (s, i) {
+        return '<button type="button" class="se-ap-row" data-secid="' + s.secid + '" data-name="' + s.name + '" style="animation-delay:' + (i * 26) + 'ms">' +
+          '<span class="se-ap-name">' + s.name + '</span>' +
+          '<span class="se-ap-code">' + s.secid.split('.')[1] + '</span>' +
+          '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>' +
+          '</button>';
+      }).join('');
+    document.body.appendChild(panel);
+    var ac = addChip();
+    if (ac) {
+      var r = ac.getBoundingClientRect();
+      var vw = window.innerWidth;
+      var left = Math.min(Math.max(8, r.right - 236), vw - 244);
+      panel.style.left = left + 'px';
+      panel.style.top = Math.min(r.bottom + 8, window.innerHeight - panel.offsetHeight - 12) + 'px';
+    }
+    panel.addEventListener('click', function (e) {
+      var row = e.target.closest('.se-ap-row');
+      if (!row) return;
+      doAdd(row.dataset.secid, row.dataset.name);
+    });
+    setTimeout(function () {
+      document.addEventListener('pointerdown', outsideClose, true);
+      document.addEventListener('keydown', escClose, true);
+    }, 0);
+  }
+  function outsideClose(e) {
+    if (panel && !panel.contains(e.target) && !e.target.closest('.sc-add-chip')) closePanel();
+  }
+  function escClose(e) { if (e.key === 'Escape') closePanel(); }
+  function closePanel() {
+    if (!panel) return;
+    var p = panel; panel = null;
+    p.classList.add('se-closing');
+    setTimeout(function () { p.remove(); }, 160);
+    document.removeEventListener('pointerdown', outsideClose, true);
+    document.removeEventListener('keydown', escClose, true);
+  }
+
+  function doAdd(secid, name) {
+    if (getList().length >= MAX) { toast('最多 ' + MAX + ' 个板块'); return; }
+    var list = getList();
+    list.push({ secid: secid, name: name });
+    setList(list);
+    buildSectorChip({ secid: secid, name: name, pct: null, price: null });
+    closePanel();
+    toast('已添加「' + name + '」，行情刷新中…');
+  }
+
+  /* 按主脚本同款结构造一只新卡（数据留空，由下一轮 updateSectors 填充） */
+  function buildSectorChip(s) {
+    var el = document.createElement('div');
+    el.className = 'sector-chip sc-in';
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('role', 'button');
+    el.dataset.secid = s.secid;
+    el.dataset.code = s.secid.split('.').pop();
+    el.dataset.name = s.name;
+    el.dataset.pct = '0';
+    el.title = s.name + ' · 点击查看成分股';
+    el.innerHTML =
+      '<div class="sc-top"><span class="sc-name">' + s.name + '</span><span class="sc-rank">#0</span></div>' +
+      '<div class="sc-val flat">--%</div>' +
+      '<div class="sc-bar"><i style="width:0%"></i></div>' +
+      '<div class="sc-price">-- 点</div>';
+    var anchor = addChip();
+    if (anchor) strip.insertBefore(el, anchor); else strip.appendChild(el);
+    hook.cache[s.secid] = {
+      root: el,
+      pctEl: el.querySelector('.sc-val'),
+      barEl: el.querySelector('.sc-bar i'),
+      priceEl: el.querySelector('.sc-price')
+    };
+    renumber();
+    if (editMode) decorate();
+    setTimeout(function () { el.classList.remove('sc-in'); }, 500);
+  }
+
+  /* ---------------- 启动 ---------------- */
+  ensureButton();
+  /* 编辑态下重建 DOM 后自动补角标（比如刷新后） */
+  new MutationObserver(function () {
+    if (editMode) { decorate(); if (!addChip()) buildAddChip(); renumber(); }
+  }).observe(strip, { childList: true });
+})();
+
+</script>
+<!-- SE:BODY:END -->
 </body>
 </html>
