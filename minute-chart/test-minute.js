@@ -154,24 +154,42 @@ fixtures.forEach(function (fn) {
   ok(tag + ' 最高 ≥ 最低', hi >= lo, 'high=' + hi + ' low=' + lo);
   ok(tag + ' 成交量合计 > 0', vol > 0, 'vol=' + vol);
   ok(tag + ' 成交额合计 > 0', amt > 0, 'amt=' + amt.toFixed(0));
+  ok(tag + ' 全天总量 = 分钟增量累加（东财口径）', Math.abs(r.totalVol - vol) < 1,
+     'totalVol=' + r.totalVol + ' 累加=' + vol.toFixed(0));
 });
 
-/* ================= E. 腾讯兜底解析 ================= */
-group('E. parseTx —— 腾讯兜底源（构造数据）');
+/* ================= E. 腾讯兜底解析（当日累计口径） ================= */
+group('E. parseTx —— 腾讯兜底源（量/额是当日累计，必须差分）');
+
+// 构造 qt：买1~买5 在 [9]~[18]，卖1~卖5 在 [19]~[28]（价/量成对）
+const txQt = [];
+txQt[1] = '浦发银行';
+txQt[4] = '9.04';                       // 昨收
+[9.02, 9.01, 9.00, 8.99, 8.98].forEach(function (p, i) {
+  txQt[9 + i * 2] = String(p);
+  txQt[10 + i * 2] = String(1000 * (5 - i));
+});
+[9.05, 9.06, 9.07, 9.08, 9.09].forEach(function (p, i) {
+  txQt[19 + i * 2] = String(p);
+  txQt[20 + i * 2] = String(800 * (5 - i));
+});
+
+// 逐分钟数据：第 3 列(量)/第 4 列(额) 都是「当日累计」，单调递增
 const txNode = {
-  qt: { sh600000: ['1', '600000', '浦发银行', '9.07', '9.04', '9.10', '9.00'] },
+  qt: { sh600000: txQt },
   data: {
     data: [
       '0930 9.04 1798 1625392.00',
-      '0931 9.05 74256 66744900.00',
-      '1130 9.03 1000 900000.00',
-      '1301 9.02 2000 1800000.00',
-      '1500 9.01 1500 1350000.00'
+      '0931 9.05 76054 68370292.00',
+      '1130 9.03 130000 117650000.00',
+      '1301 9.02 132000 119450000.00',
+      '1500 9.01 133500 120800000.00'
     ]
   }
 };
 const tx = M.parseTx(txNode, 'sh600000');
 eq('解析 5 个点', tx.pts.length, 5);
+eq('名称取自 qt[1]', tx.name, '浦发银行');
 eq('昨收取 qt[4] = 9.04', tx.pre, 9.04);
 eq('首点槽位 0', tx.pts[0].slot, 0);
 eq('11:30 → 120', tx.pts[2].slot, 120);
@@ -179,11 +197,49 @@ eq('13:01 → 121（午后无缝）', tx.pts[3].slot, 121);
 eq('15:00 → 240', tx.pts[4].slot, 240);
 eq('时间格式 09:30', tx.pts[0].t, '09:30');
 eq('末点价格 9.01', tx.pts[4].price, 9.01);
+
+// 关键 1：每分钟的量必须是「差分」（本分钟累计 − 上一分钟累计）
+eq('第1分钟增量 = 1798', tx.pts[0].vol, 1798);
+eq('第2分钟增量 = 76054−1798 = 74256', tx.pts[1].vol, 74256);
+eq('第3分钟增量 = 130000−76054 = 53946', tx.pts[2].vol, 53946);
+
+// 关键 2：全天总量必须是「末值」，绝不能累加
+eq('全天总量 = 末值 133500', tx.totalVol, 133500);
+eq('全天总额 = 末值 120800000', tx.totalAmt, 120800000);
+
+// 防回归：若哪天又写成累加，这条会立刻失败
+const naiveVolSum = 1798 + 76054 + 130000 + 132000 + 133500;
+ok('累加式会偏大约 ' + (naiveVolSum / tx.totalVol).toFixed(1) + ' 倍（此断言防回归）',
+   naiveVolSum > tx.totalVol * 3);
+
 // 均价 = 累计额 / (累计手数 × 100)
-const cumAmt = 1625392 + 66744900 + 900000 + 1800000 + 1350000;
-const cumVol = 1798 + 74256 + 1000 + 2000 + 1500;
-ok('均价按累计额/累计量计算', Math.abs(tx.pts[4].avg - cumAmt / (cumVol * 100)) < 1e-9,
-   'avg=' + tx.pts[4].avg + ' 期望=' + (cumAmt / (cumVol * 100)));
+const lastCumV = 133500, lastCumA = 120800000;
+ok('均价按累计额/累计量计算',
+   Math.abs(tx.pts[4].avg - lastCumA / (lastCumV * 100)) < 1e-6,
+   'avg=' + tx.pts[4].avg + ' 期望=' + (lastCumA / (lastCumV * 100)));
+
+/* ================= E2. 五档盘口解析 ================= */
+group('E2. parseBook —— 五档盘口');
+ok('盘口已解析', !!tx.book);
+eq('买档 5 条', tx.book.bids.length, 5);
+eq('卖档 5 条', tx.book.asks.length, 5);
+eq('买一价 = 9.02', tx.book.bids[0].p, 9.02);
+eq('买一量 = 5000', tx.book.bids[0].v, 5000);
+eq('买五量 = 1000', tx.book.bids[4].v, 1000);
+eq('卖一价 = 9.05', tx.book.asks[0].p, 9.05);
+eq('卖一量 = 4000', tx.book.asks[0].v, 4000);
+eq('卖五量 = 800', tx.book.asks[4].v, 800);
+
+eq('qt 为 null → null', M.parseBook(null), null);
+eq('qt 过短 → null', M.parseBook(['1', 'x']), null);
+eq('全 0 → null（收盘后无挂单）', M.parseBook(new Array(29).fill('0')), null);
+
+/* ================= E3. 盘口金额格式化 ================= */
+group('E3. fmtBookAmt（价 × 手数 × 100）');
+eq('9.02 × 5000手 = 451万', M.fmtBookAmt(9.02, 5000), '451万');
+eq('17.19 × 30000手 = 5157万', M.fmtBookAmt(17.19, 30000), '5157万');
+eq('17.19 × 300000手 = 5.16亿', M.fmtBookAmt(17.19, 300000), '5.16亿');
+eq('量为 0 → --', M.fmtBookAmt(9.02, 0), '--');
 
 /* ================= F. 成交量格式化 ================= */
 group('F. fmtVol');
