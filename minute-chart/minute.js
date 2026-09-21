@@ -1007,6 +1007,43 @@
     bind();
   }
 
+  /* ---------------- 缩放（0.7x ~ 2.0x，记忆偏好；Ctrl+滚轮 / 底部按钮） ---------------- */
+  var ZKEY = 'minute-zoom', ZMIN = 0.7, ZMAX = 2, ZSTEP = 0.1, ZDEF = 1.1;
+  var mmZoom = ZDEF;
+  try {
+    var _zSaved = parseFloat(localStorage.getItem(ZKEY));
+    if (isFinite(_zSaved) && _zSaved >= ZMIN && _zSaved <= ZMAX) mmZoom = _zSaved;
+  } catch (e) {}
+
+  function applyZoom() {
+    var p = byId('minute-panel');
+    if (!p || !p.style || typeof p.style.setProperty !== 'function') return;
+    p.style.setProperty('--mm-z', String(mmZoom));
+    var zv = byId('mm-zval');
+    if (zv) zv.textContent = Math.round(mmZoom * 100) + '%';
+    try { localStorage.setItem(ZKEY, String(mmZoom)); } catch (e) {}
+    if (S.pts.length) draw();          /* 画布按新尺寸重绘（draw 自适应 clientWidth/Height） */
+  }
+  function setZoom(z) {
+    mmZoom = Math.max(ZMIN, Math.min(ZMAX, Math.round(z * 10) / 10));
+    applyZoom();
+  }
+  (function bindZoom() {
+    var p = byId('minute-panel');
+    if (!p || typeof p.addEventListener !== 'function') return;
+    var zin = byId('mm-zin'), zout = byId('mm-zout'), zreset = byId('mm-zreset');
+    if (zin) zin.addEventListener('click', function () { setZoom(mmZoom + ZSTEP); });
+    if (zout) zout.addEventListener('click', function () { setZoom(mmZoom - ZSTEP); });
+    if (zreset) zreset.addEventListener('click', function () { setZoom(ZDEF); });
+    /* Ctrl / ⌘ + 滚轮缩放（触控板捏合同样触发）；不带 ctrl 的滚轮不拦，不影响页面滚动 */
+    p.addEventListener('wheel', function (e) {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setZoom(mmZoom + (e.deltaY < 0 ? ZSTEP : -ZSTEP));
+    }, { passive: false });
+  })();
+  applyZoom();   /* 初始就应用记忆的缩放，避免打开后闪变 */
+
   // 供外部调用（例如从其他模块以名称打开）
   window.openMinuteChart = function (secid, code, name) {
     if (/^\d{6}$/.test(String(secid))) secid = guessSecid(secid);
