@@ -21,7 +21,11 @@
     raf: 0, timer: 0, token: 0, open: false, mx: -1, my: -1
   };
 
-  var ROW_SEL = '.watch-row, .pos-row, .lhb-row, .sec-row';
+  // 可点击查看分时的行：
+  //   .watch-row 自选 / .pos-row 持仓 / .lhb-row 龙虎榜 / .sec-row 成分股与核心个股
+  //   .lad-stock 连板梯队里的单只（注意不要用 .ladder-row，那行有多只股票）
+  //   .fund-row  人气榜 / 资金流向个股（板块类型的 fund-row 会在解析时被排除）
+  var ROW_SEL = '.watch-row, .pos-row, .lhb-row, .sec-row, .lad-stock, .fund-row';
   var SKIP_SEL = 'button, a, input, select, textarea, .w-del, .w-pin, [data-act]';
   var PAD = { l: 52, r: 56, t: 12, b: 17 };
   var GAP = 13;
@@ -638,16 +642,43 @@
   /* ---------------- 打开 / 关闭 ---------------- */
   function openMinute(secid, codeHint, nameHint) {
     var mask = byId('minute-mask');
-    if (!mask || !secid) return;
+    if (!mask || (!secid && !nameHint)) return;
+
+    var code = codeHint || (secid ? String(secid).split('.')[1] : '');
+    var token = preparePanel(code, nameHint);
+
+    // 没拿到代码（例如连板梯队里只有股票名）→ 先开面板，再按名字反查
+    if (!secid) {
+      var pending = nameHint;
+      searchSecidByName(pending).then(function (r) {
+        if (token !== S.token) return;
+        if (!r) {
+          byId('mm-loading').className = 'mm-loading';
+          var err = byId('mm-err');
+          err.className = 'mm-err on';
+          err.textContent = '没找到「' + pending + '」对应的股票';
+          return;
+        }
+        S.secid = r.secid;
+        S.code = r.code;
+        byId('mm-code').textContent = r.code;
+        startLoad(r.secid, token);
+      });
+      return;
+    }
     S.secid = secid;
-    S.code = codeHint || String(secid).split('.')[1] || '';
-    S.nameHint = nameHint || '';        // 点击行里的名字，接口没返回名字时兜底
+    startLoad(secid, token);
+  }
+
+  // 清空面板并显示，返回本轮 token
+  function preparePanel(code, nameHint) {
+    var mask = byId('minute-mask');
+    S.code = code || '';
+    S.nameHint = nameHint || '';
     S.pts = []; S.progress = 0; S.cursor = -1; S.drawn = false;
-    S.name = '';
-    S.book = null;
+    S.name = ''; S.book = null;
     var token = ++S.token;
 
-    // 名字立刻显示（不等接口）；有传入行名就直接用
     byId('mm-name').textContent = S.nameHint || '加载中…';
     byId('mm-code').textContent = S.code || '------';
     byId('mm-dot').className = 'mm-dot';
@@ -668,13 +699,15 @@
       S.open = true;
       document.body.style.overflow = 'hidden';
     }
+    return token;
+  }
 
-    // 盘口与分时并行请求；盘口失败只隐藏盘口区，不影响分时图
+  // 拉取分时 + 盘口（盘口失败只隐藏盘口区，不影响分时图）
+  function startLoad(secid, token) {
     fetchBook(secid).then(function (book) {
       if (token !== S.token) return;
       if (book) { S.book = book; renderBook(book); }
     });
-
     loadMinute(secid).then(function (meta) {
       if (token !== S.token) return;
       if (!meta.pts.length) throw new Error('empty');
@@ -809,9 +842,9 @@
     }, false);
   }
 
-  // 从行元素里取股票名（不同列表的行结构不同）
+  // 从行元素里取股票名（不同列表的行结构不一样，逐个适配）
   function pickName(row) {
-    // 自选 / 持仓行：<span class="w-name">名称 <span class="w-flag">A股</span></span>
+    // 1) 自选 / 持仓行：<span class="w-name">名称 <span class="w-flag">A股</span></span>
     var wn = row.querySelector && row.querySelector('.w-name');
     if (wn) {
       var flag = wn.querySelector('.w-flag');
@@ -819,35 +852,130 @@
       t1 = (t1 || '').trim();
       if (t1) return t1;
     }
-    // 榜单 / 成分股行：<div class="sr-name">名称<small>代码</small></div>
-    var sn = row.querySelector && row.querySelector('.sr-name');
-    if (sn && sn.childNodes) {
-      var buf = '';
-      for (var i = 0; i < sn.childNodes.length; i++) {
-        var node = sn.childNodes[i];
-        if (node.nodeType === 3) buf += node.nodeValue;   // 只取文本节点，跳过 <small>
-      }
-      buf = buf.trim();
-      if (buf) return buf;
+    // 2) 榜单 / 成分股行：<div class="sr-name">名称<small>代码</small></div>
+    var t2 = textBeforeChild(row.querySelector && row.querySelector('.sr-name'), 'small');
+    if (t2) return t2;
+
+    // 3) 人气榜 / 资金流向：<div class="fund-name"><div class="fn">名称</div>…</div>
+    var fn = row.querySelector && row.querySelector('.fn');
+    if (fn) {
+      var t3 = (fn.textContent || '').trim();
+      if (t3) return t3;
     }
-    return '';
+    // 4) 连板梯队：<span class="lad-stock">名称<span class="pct">10.0%</span></span>
+    //    只取纯文本节点，跳过涨跌幅等子元素
+    return textNodesOnly(row);
   }
 
-  // 从行元素解析出 secid（优先 data-secid，其次从 <small> 里的 6 位代码推断）
+  // 取容器内、某个子标签之前的文本（适配「名称<small>代码</small>」结构）
+  function textBeforeChild(el, childTag) {
+    if (!el || !el.childNodes) return '';
+    var skip = el.querySelector && el.querySelector(childTag);
+    var buf = '';
+    for (var i = 0; i < el.childNodes.length; i++) {
+      var n = el.childNodes[i];
+      if (n === skip) break;
+      if (n.nodeType === 3) buf += n.nodeValue;
+    }
+    return buf.trim();
+  }
+
+  // 只取元素自身的文本节点，跳过所有子元素
+  function textNodesOnly(el) {
+    if (!el || !el.childNodes) return '';
+    var buf = '';
+    for (var i = 0; i < el.childNodes.length; i++) {
+      var n = el.childNodes[i];
+      if (n.nodeType === 3) buf += n.nodeValue;
+    }
+    return buf.trim();
+  }
+
+  // 名字像不像一只股票（用来过滤「+3只」这类统计文字）
+  function looksLikeStockName(s) {
+    s = String(s || '').trim();
+    if (!s || s.charAt(0) === '+') return false;
+    if (s.length < 2 || s.length > 12) return false;
+    if (/\d只$/.test(s)) return false;
+    return /^[\u4e00-\u9fa5A-Za-z0-9*·\s]+$/.test(s);
+  }
+
+  // 从行元素解析出 secid，三级兜底：
+  //   1) 行上带 data-secid（最准）
+  //   2) 行内有 6 位代码（<small> / .w-code / .fc / 整行文本）
+  //   3) 只有名字 → secid 留空，由调用方走「按名字反查」
   function resolveRow(row) {
+    // 资金流向页的「板块」行不接个股点击（没有 .fc 即为板块行）
+    if (row.classList && row.classList.contains('fund-row') &&
+        !(row.querySelector && row.querySelector('.fc'))) return null;
+
     var name = pickName(row);
     var ds = row.getAttribute && row.getAttribute('data-secid');
-    if (ds && /^\d\.\d{6}$/.test(ds)) return { secid: ds, code: ds.split('.')[1], name: name };
-    var small = row.querySelector && row.querySelector('small');
-    var txt = (small && small.textContent) || '';
-    if (!txt) {
-      var wc = row.querySelector && row.querySelector('.w-code');
-      txt = (wc && wc.textContent) || '';
+    if (ds && /^\d\.\d{6}$/.test(ds)) {
+      return { secid: ds, code: ds.split('.')[1], name: name };
     }
-    var m = String(txt).match(/(\d{6})/);
-    if (!m) return null;
-    var secid = guessSecid(m[1]);
-    return secid ? { secid: secid, code: m[1], name: name } : null;
+    var cands = [];
+    var push = function (sel) {
+      var el = row.querySelector && row.querySelector(sel);
+      if (el && el.textContent) cands.push(el.textContent);
+    };
+    push('small');
+    push('.w-code');
+    push('.fc');
+    cands.push(row.textContent || '');
+    for (var i = 0; i < cands.length; i++) {
+      var m = String(cands[i] || '').match(/(?:^|\D)(\d{6})(?:\D|$)/);
+      if (m) {
+        var sid = guessSecid(m[1]);
+        if (sid) return { secid: sid, code: m[1], name: name };
+      }
+    }
+    if (looksLikeStockName(name)) return { secid: null, code: '', name: name };
+    return null;
+  }
+
+  // 只有股票名时，调东财搜索接口反查 secid
+  function searchSecidByName(name) {
+    return new Promise(function (resolve) {
+      var url = 'https://searchapi.eastmoney.com/api/suggest/get?input=' +
+        encodeURIComponent(name) + '&type=14&count=8&token=D43BF722C8E33BDC906FB84D85E326E8';
+      var done = false;
+      var timer = setTimeout(function () { if (!done) { done = true; resolve(null); } }, 6000);
+      function finish(v) { if (done) return; done = true; clearTimeout(timer); resolve(v); }
+      function handle(j) {
+        var list = (j && j.QuotationCodeTable && j.QuotationCodeTable.Data) || [];
+        finish(pickBestMatch(list, name));
+      }
+      // 宿主页面已有 jsonp() 就直接用（该接口本身是 JSONP 风格）
+      var jp = window.jsonp;
+      if (typeof jp === 'function') {
+        try {
+          jp(url, 6000).then(handle).catch(function () { finish(null); });
+        } catch (e) { finish(null); }
+        return;
+      }
+      fetch(url, { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(handle)
+        .catch(function () { finish(null); });
+    });
+  }
+
+  // 从搜索结果里挑最匹配的一条：名称完全相等优先，其次第一条有效 A 股
+  function pickBestMatch(list, name) {
+    if (!list || !list.length) return null;
+    var target = String(name || '').trim();
+    var exact = null, fallback = null;
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i];
+      var qid = String(it.QuoteID || '');
+      if (!/^\d\.\d{6}$/.test(qid)) continue;
+      if (!fallback) fallback = it;
+      if (String(it.Name || '').trim() === target) { exact = it; break; }
+    }
+    var pick = exact || fallback;
+    if (!pick) return null;
+    return { secid: pick.QuoteID, code: String(pick.Code || pick.QuoteID.split('.')[1]) };
   }
 
   /* ---------------- 启动 ---------------- */
@@ -867,6 +995,9 @@
   window.__minuteChartInternals = {
     guessSecid: guessSecid, slotOfHour: slotOfHour, withAlpha: withAlpha,
     parseEast: parseEast, parseTx: parseTx, parseBook: parseBook,
-    fmtVol: fmtVol, fmtBookAmt: fmtBookAmt, state: S
+    fmtVol: fmtVol, fmtBookAmt: fmtBookAmt,
+    looksLikeStockName: looksLikeStockName, pickBestMatch: pickBestMatch,
+    pickName: pickName, resolveRow: resolveRow, searchSecidByName: searchSecidByName,
+    state: S
   };
 })();
