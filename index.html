@@ -4530,6 +4530,21 @@ function marketStatus(now) {
   if (m >= 555 && m < 570) return { text: '集合竞价', cls: 'auction' };
   return { text: '休市', cls: 'closed' };
 }
+/* —— 自适应轮询：交易时段（含集合竞价）用快速间隔，收盘/午休/周末降到慢速间隔。
+   收盘后行情数据不会变，高频轮询纯属浪费请求，还会触发数据源 IP 限流（2026-09-21 实测）。 —— */
+function marketTradingNow() {
+  const s = marketStatus(new Date());
+  return s.cls === 'open' || s.cls === 'auction';
+}
+function pollAdaptive(fn, fastMs, slowMs) {
+  let timer = 0;
+  const tick = () => {
+    clearTimeout(timer);
+    try { fn(); } catch (e) {}
+    timer = setTimeout(tick, marketTradingNow() ? fastMs : slowMs);
+  };
+  tick();
+}
 function tickClock() {
   const now = new Date();
   const p = n => String(n).padStart(2, '0');
@@ -6079,10 +6094,10 @@ $('pos-list').addEventListener('click', e => {
 loadHoldings();
 renderHoldings(); // 首次渲染（基于 localStorage 数据）
 if (holdings.length) loadHoldQuotes();
-// 持仓行情每 2 秒同步刷新（仅页面可见时）
-setInterval(() => {
+// 持仓行情同步刷新（仅页面可见时；盘中 2s，收盘 60s）
+pollAdaptive(() => {
   if ($('page-holdings').style.display !== 'none' && holdings.length) loadHoldQuotes();
-}, 2000);
+}, 2000, 60000);
 
 /* ================= 财经要闻 ================= */
 let activeNewsTag = '全部';
@@ -8238,10 +8253,10 @@ scheduleDailyQuote();      // 每天 0 点自动换一句
 refresh(false);
 loadSectors(true);
 loadBoardRank();
-setInterval(() => refresh(false), REFRESH_MS);
-setInterval(() => loadWatchQuotes(), 2000); // 自选行情每 2 秒同步刷新
-setInterval(() => loadSectors(), 5000);   // 板块每 5 秒刷新
-setInterval(() => loadBoardRank(), 300000); // 板块榜首每 5 分钟重试一次
+pollAdaptive(() => refresh(false), REFRESH_MS, 60000);   // 首页指数：盘中 2s，收盘 60s
+pollAdaptive(() => loadWatchQuotes(), 2000, 60000);      // 自选行情：盘中 2s，收盘 60s
+pollAdaptive(() => loadSectors(), 5000, 120000);         // 板块：盘中 5s，收盘 2min
+pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘中 5min，收盘 15min
 
 /* ============ 卡片鼠标悬停跟随转动动效（Uiverse kennyotsu 灵感） ============ */
 (function () {
