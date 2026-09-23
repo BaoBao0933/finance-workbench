@@ -4787,6 +4787,84 @@ const lastQuotes = {};
 let lastAmount = null;
 const cardCache = {}; // code -> {priceEl, pctEl, chgEl, openEl, highEl, lowEl, extraEl, root}
 
+/* ================= 板块数据备用通道（新浪） =================
+   实测：东财 clist（列表接口）被 IP 限流时表现为连接被拒，但 ulist（个股行情）正常。
+   受影响的是「行业板块」与「资金流向」两页 —— 它们都依赖 clist。
+   这里给两者加新浪备用通道；东财恢复后自动回主源。 */
+const SINA_JSONP = 'https://vip.stock.finance.sina.com.cn/quotes_service/api/jsonp.php/';
+
+// 通用新浪 JSONP（script 注入，免 CORS；gbk 编码）
+function sinaJsonp(path, query, timeout) {
+  return new Promise((resolve, reject) => {
+    const cb = '_sinaCb' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    script.charset = 'gbk';
+    script.referrerPolicy = 'no-referrer';
+    const timer = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, timeout || 8000);
+    function cleanup() { clearTimeout(timer); delete window[cb]; script.remove(); }
+    window[cb] = data => { cleanup(); resolve(data); };
+    script.onerror = () => { cleanup(); reject(new Error('network')); };
+    script.src = SINA_JSONP + cb + '/' + path + '?' + query;
+    document.head.appendChild(script);
+  });
+}
+
+// 新浪板块列表（type: 2=行业 3=概念）→ 与东财 clist 同形的行
+// 行格式：代码,名称,家数,均价,涨跌额,涨跌幅%,成交量,成交额,领涨股代码,领涨股价,…,领涨股名
+function sinaBoardList(type) {
+  const isHy = type === 2;
+  const varName = isHy ? 'S_Finance_bankuai_sinaindustry' : 'S_Finance_bankuai_class';
+  const url = isHy
+    ? 'https://vip.stock.finance.sina.com.cn/q/view/newSinaHy.php'
+    : 'https://vip.stock.finance.sina.com.cn/q/view/newFLJK.php?param=class';
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.charset = 'gbk';
+    script.referrerPolicy = 'no-referrer';
+    const timer = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, 9000);
+    function cleanup() { clearTimeout(timer); script.remove(); }
+    script.onload = () => {
+      cleanup();
+      const obj = window[varName];
+      if (!obj) return reject(new Error('empty'));
+      const rows = Object.keys(obj).map(k => {
+        const f = String(obj[k]).split(',');
+        return {
+          f12: f[0], f14: f[1],
+          f2: parseFloat(f[3]),      // 均价
+          f3: parseFloat(f[5]),      // 涨跌幅 %
+          f6: parseFloat(f[7]),      // 成交额（元）
+          _sina: 1,
+        };
+      }).filter(r => r.f14 && isFinite(r.f3));
+      rows.sort((a, b) => b.f3 - a.f3);
+      rows.length ? resolve(rows) : reject(new Error('empty'));
+    };
+    script.onerror = () => { cleanup(); reject(new Error('network')); };
+    script.src = url;
+    document.head.appendChild(script);
+  });
+}
+
+// 新浪资金流（sector=板块 / stock=个股）→ 与东财 clist 同形的行
+// dirIn=true 取净流入榜（降序），false 取净流出榜（升序）
+async function sinaFundFlow(type, dirIn, size) {
+  const asc = dirIn ? 0 : 1;
+  const n = Math.max(size || 10, 10);
+  const data = type === 'sector'
+    ? await sinaJsonp('MoneyFlow.ssl_bkzj_bk', `page=1&num=${n}&sort=netamount&asc=${asc}&fenlei=0`, 9000)
+    : await sinaJsonp('MoneyFlow.ssl_bkzj_ssggzj', `page=1&num=${n}&sort=netamount&asc=${asc}&bankuai=&shangzhang=`, 9000);
+  if (!Array.isArray(data) || !data.length) throw new Error('empty');
+  return data.map(x => ({
+    f12: String(x.symbol || x.category || '').replace(/^(sh|sz|bj)/, ''),
+    f14: x.name || '',
+    f2: parseFloat(x.trade !== undefined ? x.trade : x.avg_price),
+    f3: parseFloat(x.changeratio !== undefined ? x.changeratio : x.avg_changeratio) * 100,
+    f62: parseFloat(x.netamount),
+    f184: parseFloat(x.ratioamount) * 100,
+  }));
+}
+
 function buildCardNode(cfg, focus) {
   const div = document.createElement('div');
   div.className = 'index-card' + (focus ? ' focus-card' : '');
@@ -5177,6 +5255,20 @@ async function loadBoardRank() {
       return;
     } catch (e) { /* 下一域名 */ }
   }
+  // —— 备用：新浪行业板块榜首 / 榜尾 ——
+  try {
+    const rows = await sinaBoardList(2);
+    if (rows.length) {
+      const top = rows[0], bot = rows[rows.length - 1];
+      $('ov-top').textContent = `${top.f14} ${top.f3 > 0 ? '+' : ''}${fmtNum(top.f3, 2)}%`;
+      $('ov-top').dataset.code = top.f12; $('ov-top').dataset.name = top.f14; $('ov-top').dataset.pct = top.f3;
+      $('ov-top').dataset.src = 'sina';
+      $('ov-bottom').textContent = `${bot.f14} ${fmtNum(bot.f3, 2)}%`;
+      $('ov-bottom').dataset.code = bot.f12; $('ov-bottom').dataset.name = bot.f14; $('ov-bottom').dataset.pct = bot.f3;
+      $('ov-bottom').dataset.src = 'sina';
+      return;
+    }
+  } catch (e) { /* 备用源也不通 */ }
   $('ov-top').textContent = '待接入';
   $('ov-bottom').textContent = '待接入';
 }
@@ -6641,21 +6733,32 @@ async function loadFunds() {
   // 只加载当前选中市场的面板
   const panels = FUND_PANELS.filter(p => p.mkt === fundMkt);
   const hosts = ['push2.eastmoney.com', 'push2delay.eastmoney.com'];
-  let okCnt = 0;
+  let okCnt = 0, sinaUsed = false;
   for (const panel of panels) {
+    let done = false;
     for (const host of hosts) {
       try {
         const list = await fetchFundList(panel, host);
         renderFundPanel(panel, list);
-        okCnt++;
+        okCnt++; done = true;
         break;
       } catch (e) { /* 换域名重试 */ }
+    }
+    // —— 备用：新浪资金流（A股；东财 clist 被限流时顶上。美股无新浪等价源） ——
+    if (!done && fundMkt === 'A股') {
+      try {
+        const list = await sinaFundFlow(panel.type, panel.po === 1, panel.pz);
+        renderFundPanel(panel, list);
+        okCnt++; sinaUsed = true;
+      } catch (e) { /* 备用源也不通 */ }
     }
   }
   const now = new Date();
   const p = n => String(n).padStart(2, '0');
   if (okCnt > 0) {
-    $('fund-status').textContent = `${fundMkt}主力资金 · 数据源：东方财富 · 10秒刷新 · 更新 ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+    $('fund-status').textContent = sinaUsed
+      ? `${fundMkt}主力资金 · 数据源：新浪（备用）· 10秒刷新 · 更新 ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`
+      : `${fundMkt}主力资金 · 数据源：东方财富 · 10秒刷新 · 更新 ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
   } else {
     $('fund-status').textContent = '资金数据获取失败，稍后自动重试…';
   }
@@ -7036,6 +7139,16 @@ async function loadSectorBoard() {
       return;
     } catch (e) { /* 换域名 */ }
   }
+  // —— 备用：新浪板块列表（东财 clist 被限流时顶上） ——
+  try {
+    const rows = await sinaBoardList(secBoardType);
+    secAllList = rows.map(d => ({ code: d.f12, name: d.f14, pct: d.f3, price: d.f2, src: 'sina' }));
+    renderSecList();
+    const now = new Date();
+    const p = n => String(n).padStart(2, '0');
+    $('sec-status').textContent = `${secBoardType === 2 ? '行业' : '概念'}板块 ${secAllList.length} 个 · 备用源：新浪 · 更新 ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+    return;
+  } catch (e) { /* 备用源也不通 */ }
   if (!secAllList.length) {
     $('sec-grid').innerHTML = '<div class="news-empty">板块数据加载失败，稍后自动重试…</div>';
   }
@@ -7209,6 +7322,22 @@ async function loadSectorStocks() {
       return;
     } catch (e) { /* 换域名 */ }
   }
+  // —— 备用：新浪成分股（按板块 node 取；东财 clist 被限流时顶上） ——
+  try {
+    const arr = await fetchJson('https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData?page=1&num=100&sort=changepercent&asc=0&node=' + encodeURIComponent(curSector.code), 9000);
+    if (Array.isArray(arr) && arr.length) {
+      const diff = arr.map(x => ({
+        f12: String(x.code), f14: x.name,
+        f2: parseFloat(x.trade), f3: parseFloat(x.changepercent),
+        f4: parseFloat(x.pricechange), f6: parseFloat(x.amount),
+      }));
+      renderSecStocks(diff);
+      const pctTxt = (curSector.pct > 0 ? '+' : '') + fmtNum(curSector.pct, 2) + '%';
+      $('sec-d-pct').textContent = pctTxt + ` · ${diff.length} 只成分股 · 新浪源`;
+      $('sec-d-pct').className = 'sec-d-pct ' + clsOf(curSector.pct);
+      return;
+    }
+  } catch (e) { /* 备用源也不通 */ }
   $('sec-stocks').innerHTML = '<div class="news-empty">成分股数据加载失败，稍后自动重试…</div>';
 }
 
