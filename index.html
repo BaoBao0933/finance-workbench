@@ -3556,12 +3556,9 @@
 </style>
 <!-- SE:CSS:END -->
 
-<!-- Google Fonts: Space Grotesk + Space Mono (Nothing Design) -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<!-- anime.js 动画库（通过 CDN 快速引入，供页面动画使用） -->
-<script src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
+<!-- PB: perf-boost 已移除 Google Fonts 渲染阻塞（国内不可达，原阻塞 20s+）— 字体改用本地系统栈，见 PB:CSS 块 -->
+<!-- anime.js 动画库（perf-boost：改为 defer 非阻塞加载；全站调用点均带 typeof 守卫，脚本未就绪时自动走 CSS 回退动效） -->
+<script defer src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
 <script>
 try {
   var __t = localStorage.getItem('finance-theme');
@@ -3793,6 +3790,163 @@ try {
 
 </style>
 <!-- BFX:CSS:END -->
+<!-- PB:CSS:BEGIN -->
+<style id="pb-style">
+/* ==========================================================================
+   perf-boost / perf.css —— 首屏加速样式层
+   作用：
+   1. 本地字体栈（不再等待 Google Fonts，彻底消除渲染阻塞）
+   2. 首屏骨架屏：立刻可见内容，消除白屏
+   3. 关键动效降本：backdrop-filter 只在关键面保留，列表项不参与合成
+   ========================================================================== */
+
+/* ---------- 1. 字体：本地栈，零网络等待 ----------
+   Space Grotesk / Space Mono 均为拉丁字形，中文自动回落到系统黑体。
+   系统自带字体在渲染前即可用，blocking 时间归零。 */
+:root {
+  --pb-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui,
+                  'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Roboto, sans-serif;
+  --pb-font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'JetBrains Mono',
+                  Consolas, 'Courier New', monospace;
+}
+
+.fun-banner,
+.fun-banner .fb-title {
+  font-family: var(--pb-font-sans) !important;
+}
+
+.fun-banner .fb-author {
+  font-family: var(--pb-font-mono) !important;
+}
+
+/* ---------- 2. 首屏骨架屏 ---------- */
+.pb-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  background: #0f0f14;
+  transition: opacity .28s ease;
+}
+
+html[data-theme="light"] .pb-boot {
+  background: #f6f7fb;
+}
+
+.pb-boot.pb-boot--out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pb-boot__mark {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  color: #e8eaee;
+  font-family: var(--pb-font-sans);
+}
+
+html[data-theme="light"] .pb-boot__mark {
+  color: #1b1d22;
+}
+
+.pb-boot__mark small {
+  display: block;
+  margin-top: 7px;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: .3em;
+  color: rgba(255, 255, 255, .38);
+  font-family: var(--pb-font-mono);
+}
+
+html[data-theme="light"] .pb-boot__mark small {
+  color: rgba(0, 0, 0, .38);
+}
+
+/* 骨架条 */
+.pb-boot__bars {
+  display: flex;
+  gap: 10px;
+}
+
+.pb-boot__bar {
+  width: 46px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .10);
+  overflow: hidden;
+  position: relative;
+}
+
+html[data-theme="light"] .pb-boot__bar {
+  background: rgba(0, 0, 0, .08);
+}
+
+.pb-boot__bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, #ff8a6b, transparent);
+  animation: pb-boot-sweep 1.05s ease-in-out infinite;
+}
+
+.pb-boot__bar:nth-child(2)::after { animation-delay: .12s; }
+.pb-boot__bar:nth-child(3)::after { animation-delay: .24s; }
+
+@keyframes pb-boot-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pb-boot__bar::after { animation: none; }
+}
+
+/* ---------- 3. 动效降本 ----------
+   列表内的高频小元素取消独立合成层，减少每帧重绘成本。
+   玻璃效果仍保留在大面板/侧栏上，视觉观感不变。 */
+.watch-row,
+.pos-row,
+.lhb-row,
+.sec-row,
+.lad-stock,
+.fund-row,
+.fc-item {
+  will-change: auto !important;
+  contain: layout style !important;
+}
+
+/* 列表容器：限制重排影响范围 */
+#watch-list,
+#pos-list,
+#lhb-list,
+#sec-list {
+  contain: layout style !important;
+}
+
+/* ---------- 4. 进度条/波浪的合成优化 ---------- */
+[class*="prog"] {
+  transform: translateZ(0);
+}
+
+/* ---------- 5. 侧边栏切换：即时反馈 ----------
+   点击后立刻给高亮，不等 JS 处理完毕，主观「快」感提升明显。 */
+.nav-item {
+  transition: background-color .14s ease, color .14s ease !important;
+}
+
+.nav-item:active {
+  transform: scale(.985);
+}
+
+</style>
+<!-- PB:CSS:END -->
 </head>
 <body>
 
@@ -4536,15 +4690,34 @@ function marketTradingNow() {
   const s = marketStatus(new Date());
   return s.cls === 'open' || s.cls === 'auction';
 }
+// 轮询调度：盘中用 fastMs，非盘中用 slowMs
+// perf-boost 增强：标签页隐藏时挂起（不再空转请求），回到前台立刻补一次
+const __pbPollers = [];
 function pollAdaptive(fn, fastMs, slowMs) {
   let timer = 0;
+  let running = false;
   const tick = () => {
     clearTimeout(timer);
+    // 后台标签页：不同步数据，等回到前台再补
+    if (document.hidden) { running = false; return; }
+    running = true;
     try { fn(); } catch (e) {}
     timer = setTimeout(tick, marketTradingNow() ? fastMs : slowMs);
   };
+  const poller = {
+    kick: () => { if (document.hidden) return; if (!running) tick(); },
+    stop: () => { clearTimeout(timer); running = false; },
+  };
+  __pbPollers.push(poller);
   tick();
 }
+
+// 回到前台：所有轮询立刻补一轮（用户切换回来时数据是新的）
+window.__pbOnVisible = function () {
+  for (let i = 0; i < __pbPollers.length; i++) {
+    try { __pbPollers[i].kick(); } catch (e) {}
+  }
+};
 function tickClock() {
   const now = new Date();
   const p = n => String(n).padStart(2, '0');
@@ -5385,9 +5558,8 @@ navItems.forEach(n => n.addEventListener('click', () => switchPage(n.dataset.pag
 $('btn-back-home').addEventListener('click', () => switchPage('home'));
 
 // 页面可见时立即刷新
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) refresh(false);
-});
+// perf-boost：此处原为 refresh(false) 单点补刷，现已由 window.__pbOnVisible 统一接管
+// （回到前台会 kick 全部 4 条轮询链，覆盖面更全，且不会与轮询自身重复触发）
 
 /* ================= 自选股票 ================= */
 const LS_WATCH = 'fw_watchlist_v1';
@@ -8379,9 +8551,17 @@ function scheduleDailyQuote() {
 renderDailyQuote();        // 显示当日投资格言
 scheduleDailyQuote();      // 每天 0 点自动换一句
 
-refresh(false);
-loadSectors(true);
-loadBoardRank();
+// perf-boost：首屏并发拉取
+// 原实现 refresh() 内部先 loadQuotes() 再 loadNorth()，而 pollAdaptive 又各起一条链，
+// 实际是「指数 → 北向 → 板块 → 榜首」四串糖葫芦，首屏被最慢一环拖住。
+// 这里把四个互不依赖的请求同时发出，首屏数据到齐时间 ≈ 最慢的那一个。
+requestAnimationFrame(() => {
+  try { refresh(false); } catch (e) {}
+  try { loadSectors(true); } catch (e) {}
+  try { loadBoardRank(); } catch (e) {}
+  try { if (watchlist.length) loadWatchQuotes(); } catch (e) {}
+});
+
 pollAdaptive(() => refresh(false), REFRESH_MS, 60000);   // 首页指数：盘中 2s，收盘 60s
 pollAdaptive(() => loadWatchQuotes(), 2000, 60000);      // 自选行情：盘中 2s，收盘 60s
 pollAdaptive(() => loadSectors(), 5000, 120000);         // 板块：盘中 5s，收盘 2min
@@ -10100,5 +10280,133 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
 </script>
 <!-- MC:BODY:END -->
+<!-- PB:BOOT:BEGIN -->
+<div id="pb-boot" class="pb-boot">
+  <div class="pb-boot__mark">
+    包包财经
+    <small>BAOBAO FINANCE</small>
+  </div>
+  <div class="pb-boot__bars">
+    <span class="pb-boot__bar"></span>
+    <span class="pb-boot__bar"></span>
+    <span class="pb-boot__bar"></span>
+  </div>
+</div>
+<!-- PB:BOOT:END -->
+<!-- PB:JS:BEGIN -->
+<script id="pb-js">
+/* ==========================================================================
+   perf-boost / perf.js —— 首屏加速运行时
+   1. 立刻摘掉 Google Fonts（国内不可达，原为 20s+ 渲染阻塞）
+   2. 骨架屏在首屏有内容后立刻淡出
+   3. 页面可见性联动：后台标签页暂停轮询，回前台立刻补一次
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  var t0 = (window.performance && performance.now) ? performance.now() : Date.now();
+
+  /* ---------- 1. 摘除 Google Fonts ---------- */
+  function killRemoteFonts() {
+    var nodes = document.querySelectorAll(
+      'link[href*="fonts.googleapis.com"], link[href*="fonts.gstatic.com"]'
+    );
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      // 去掉 media 让它先不生效，再移除，避免触发一次无用请求
+      n.media = 'not all';
+      if (n.parentNode) n.parentNode.removeChild(n);
+    }
+    return nodes.length;
+  }
+
+  // 立即执行：此时 <head> 里的 link 已解析，趁浏览器还没把它升级为阻塞请求
+  var killed = 0;
+  try { killed = killRemoteFonts(); } catch (e) {}
+
+  // 兜底：DOM 就绪后再扫一次（防止运行时晚插入）
+  document.addEventListener('DOMContentLoaded', function () {
+    try { killRemoteFonts(); } catch (e) {}
+  });
+
+  /* ---------- 2. 骨架屏淡出 ---------- */
+  var hidden = false;
+  function hideBoot(force) {
+    if (hidden) return;
+    var el = document.getElementById('pb-boot');
+    if (!el) { hidden = true; return; }
+
+    // 等到主内容真的有节点了再撤，避免「骨架完了还是空白」
+    var main = document.querySelector('.main');
+    var ready = force || (main && main.querySelector('.index-card, .ov-card, .watch-row, .sec-hot-card'));
+
+    if (!ready) {
+      return false;
+    }
+    hidden = true;
+    el.classList.add('pb-boot--out');
+    setTimeout(function () {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }, 340);
+
+    try {
+      var dt = ((window.performance && performance.now ? performance.now() : Date.now()) - t0);
+      console.log('[perf-boost] 首屏可见耗时 ' + dt.toFixed(0) + 'ms · 摘除远程字体 ' + killed + ' 个');
+    } catch (e) {}
+    return true;
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // 观察主区变化，一旦有卡片就撤骨架
+    var tick = 0;
+    var iv = setInterval(function () {
+      tick++;
+      if (hideBoot(false) || tick > 100) {   // 最长 5s 保护
+        clearInterval(iv);
+        hideBoot(true);
+      }
+    }, 50);
+
+    // 双保险：就算 50ms 轮询错过，window.load 后也强制撤
+    window.addEventListener('load', function () { setTimeout(function () { hideBoot(true); }, 120); });
+  });
+
+  /* ---------- 3. 可见性联动 ---------- */
+  window.__pbVisible = !document.hidden;
+  document.addEventListener('visibilitychange', function () {
+    var vis = !document.hidden;
+    window.__pbVisible = vis;
+    if (vis && typeof window.__pbOnVisible === 'function') {
+      try { window.__pbOnVisible(); } catch (e) {}
+    }
+  });
+
+  /* ---------- 4. 网络预热：提前建连，省掉首次 TLS 握手 ---------- */
+  // 行情域名 + anime.js CDN（defer 后仍希望尽快到达）
+  (function prewarm() {
+    var pc = [
+      'https://qt.gtimg.cn',
+      'https://push2.eastmoney.com',
+      'https://push2his.eastmoney.com',
+      'https://vip.stock.finance.sina.com.cn'
+    ];
+    for (var i = 0; i < pc.length; i++) {
+      var l = document.createElement('link');
+      l.rel = 'preconnect';
+      l.href = pc[i];
+      l.crossOrigin = 'anonymous';
+      document.head.appendChild(l);
+    }
+    // anime.js CDN：dns+建连即可，实际下载交给它自己的 defer script
+    var cdn = document.createElement('link');
+    cdn.rel = 'preconnect';
+    cdn.href = 'https://cdn.jsdelivr.net';
+    cdn.crossOrigin = 'anonymous';
+    document.head.appendChild(cdn);
+  })();
+})();
+
+</script>
+<!-- PB:JS:END -->
 </body>
 </html>
