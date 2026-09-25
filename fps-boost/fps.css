@@ -1,0 +1,225 @@
+/* ==========================================================================
+   fps-boost / fps.css —— 帧率优化层
+
+   问题（2026-09-25 诊断）
+   ----------------------
+   主文件里有三组「组合起来就掉帧」的写法：
+     1. backdrop-filter 75 处，多数 blur(28~32px) —— 成本 ∝ 半径²，且每个元素
+        都要对背景重新采样 + 高斯模糊
+     2. body::before / body::after 两层全屏 position:fixed 装饰层（4 个 radial-gradient
+        + 3px 平铺噪点）—— 它们正是上面那些毛玻璃要采样的「背景」，背景一变，
+        全部毛玻璃都要重算
+     3. 40+ 个 infinite 循环动画在持续触发重绘
+
+   策略
+   ----
+   默认档（high）——**零视觉变化**，只做不改外观的优化：
+     · 全屏静态装饰层提升为合成层 → 缓存成纹理，不再每帧重绘
+     · 视口外的卡片用 content-visibility 跳过布局与绘制
+     · 明确滚动容器边界，把重绘范围局部化
+
+   降级档（medium / low）——仅在自适应监控检测到掉帧时启用（见 fps.js）：
+     · medium：毛玻璃半径砍到 ~50%
+     · low   ：半径砍到 ~28%，并暂停纯装饰动画
+
+   注意：这里**不删毛玻璃**。科技感的磨砂是产品的一部分，我们只让它变便宜。
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. 全屏静态装饰层 —— 缓存为纹理
+   body::before（3px 平铺噪点）和 body::after（4 个大 radial-gradient）都覆盖整个
+   视口且自身永不变化。显式提升为合成层后浏览器会缓存成纹理，毛玻璃采样时
+   无需每帧重绘这一层 —— 这是收益最大、且完全不影响观感的一条。
+   -------------------------------------------------------------------------- */
+body::before,
+body::after {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   2. 视口外卡片跳过渲染
+   .content 是滚动容器，里面常有几十张卡片。content-visibility: auto 让视口外的
+   卡片完全跳过布局与绘制；contain-intrinsic-size 用 auto 形式先给估计值、
+   渲染过后记住真实高度，滚动条不会跳动。
+   -------------------------------------------------------------------------- */
+.ov-card,
+.index-card,
+.sec-hot-card,
+.sector-chip,
+.lhb-row,
+.pos-row,
+.sec-cell,
+.sec-row,
+.fund-panel,
+.fund-row,
+.news-item,
+.feed-item,
+.ladder-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 112px;
+}
+
+/* 高度差异大的单独给估值（必须与上面的 content-visibility 列表成对，
+   否则 contain-intrinsic-size 不生效） */
+.news-item,
+.feed-item,
+.fund-row {
+  contain-intrinsic-size: auto 96px;
+}
+.index-card,
+.ov-card {
+  contain-intrinsic-size: auto 152px;
+}
+.lhb-row,
+.pos-row,
+.sec-row {
+  contain-intrinsic-size: auto 52px;
+}
+
+/* --------------------------------------------------------------------------
+   3. 常驻毛玻璃元素 —— 独立合成层
+   放在滚动容器里的毛玻璃，滚动时会因为兄弟节点重绘被牵连。单独提升后
+   各自独立合成，滚动只需重新合成、不需要重新栅格化背景。
+   用 translate（独立于 transform 的新属性）避免覆盖已有的 hover/动画 transform。
+   -------------------------------------------------------------------------- */
+.ov-card,
+.index-card,
+.sec-hot-card,
+.sector-chip,
+.live-bar,
+.fund-panel,
+.pos-chart-card,
+.fun-banner {
+  translate: 0 0;
+}
+
+/* --------------------------------------------------------------------------
+   4. 滚动容器边界 —— 把重绘范围锁在容器内
+   -------------------------------------------------------------------------- */
+.content {
+  contain: layout paint style;
+  overscroll-behavior: contain;
+}
+
+.ladder-list,
+.feed-list,
+.focus-col .news-list {
+  contain: layout paint style;
+  overscroll-behavior: contain;
+}
+
+/* --------------------------------------------------------------------------
+   5. 降级档位（由 fps.js 写 html[data-fps-q] 触发）
+   默认不带该属性 → 全部规则不生效 → 视觉与优化前完全一致。
+   -------------------------------------------------------------------------- */
+
+/* ---- medium：毛玻璃半径砍到约一半（视觉几乎无感，成本降约 70%）---- */
+html[data-fps-q="medium"] .ov-card,
+html[data-fps-q="medium"] .index-card,
+html[data-fps-q="medium"] .live-bar,
+html[data-fps-q="medium"] .index-card.focus-card,
+html[data-fps-q="medium"] .pos-row,
+html[data-fps-q="medium"] .lhb-row,
+html[data-fps-q="medium"] .fund-panel,
+html[data-fps-q="medium"] .ladder-row,
+html[data-fps-q="medium"] .sec-hot-card,
+html[data-fps-q="medium"] .sector-chip,
+html[data-fps-q="medium"] .fun-banner,
+html[data-fps-q="medium"] .se-add-panel,
+html[data-fps-q="medium"] .ov-card:hover,
+html[data-fps-q="medium"] .index-card:hover,
+html[data-fps-q="medium"] .sec-hot-card:hover,
+html[data-fps-q="medium"] .sector-chip:hover {
+  -webkit-backdrop-filter: blur(14px) saturate(190%) !important;
+  backdrop-filter: blur(14px) saturate(190%) !important;
+}
+
+/* ---- low：半径再砍，并停掉纯装饰动画 ---- */
+html[data-fps-q="low"] .ov-card,
+html[data-fps-q="low"] .index-card,
+html[data-fps-q="low"] .live-bar,
+html[data-fps-q="low"] .index-card.focus-card,
+html[data-fps-q="low"] .pos-row,
+html[data-fps-q="low"] .lhb-row,
+html[data-fps-q="low"] .fund-panel,
+html[data-fps-q="low"] .ladder-row,
+html[data-fps-q="low"] .sec-hot-card,
+html[data-fps-q="low"] .sector-chip,
+html[data-fps-q="low"] .fun-banner,
+html[data-fps-q="low"] .se-add-panel,
+html[data-fps-q="low"] .ov-card:hover,
+html[data-fps-q="low"] .index-card:hover,
+html[data-fps-q="low"] .sec-hot-card:hover,
+html[data-fps-q="low"] .sector-chip:hover {
+  -webkit-backdrop-filter: blur(8px) saturate(180%) !important;
+  backdrop-filter: blur(8px) saturate(180%) !important;
+}
+
+/* low 档：全屏噪点层直接关掉（观感影响极小，但吃满屏像素）*/
+html[data-fps-q="low"] body::before {
+  display: none !important;
+}
+
+/* low 档：暂停纯装饰性循环动画（功能性动效保留）——
+   logo 呼吸、横幅流光、emoji 浮动这类「一直跑但没人盯着看」的 */
+html[data-fps-q="low"] .logo-icon,
+html[data-fps-q="low"] .fun-banner .fb-emoji,
+html[data-fps-q="low"] .fun-banner .spark,
+html[data-fps-q="low"] .fun-banner .fb-beam,
+html[data-fps-q="low"] .fun-banner .fb-sheen,
+html[data-fps-q="low"] .fun-banner::before,
+html[data-fps-q="low"] .fun-banner::after,
+html[data-fps-q="low"] .module-header .m-ico,
+html[data-fps-q="low"] .title-ico,
+html[data-fps-q="low"] .rise-pop .rp-ico img,
+html[data-fps-q="low"] .home-congrats .hc-emoji img,
+html[data-fps-q="low"] .mm-dot {
+  animation-play-state: paused !important;
+}
+
+/* low 档：悬停放大这类「必须合成」的动效，直接取消位移只留颜色变化 */
+html[data-fps-q="low"] .index-card:hover,
+html[data-fps-q="low"] .ov-card:hover,
+html[data-fps-q="low"] .sec-hot-card:hover,
+html[data-fps-q="low"] .sector-chip:hover {
+  translate: 0 0 !important;
+}
+
+/* --------------------------------------------------------------------------
+   6. 尊重系统「减少动效」偏好（与主文件、perf-boost 保持一致）
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .ov-card,
+  .index-card,
+  .sec-hot-card,
+  .sector-chip,
+  .live-bar,
+  .fund-panel,
+  .pos-chart-card,
+  .fun-banner {
+    translate: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   7. 老旧/低端设备：命中粗指针（触屏）且小屏时直接给 medium 档
+   手机端 GPU 弱得多，与其掉帧再降级，不如一开始就稳在 medium。
+   -------------------------------------------------------------------------- */
+@media (max-width: 820px) and (pointer: coarse) {
+  html:not([data-fps-q]) .ov-card,
+  html:not([data-fps-q]) .index-card,
+  html:not([data-fps-q]) .live-bar,
+  html:not([data-fps-q]) .index-card.focus-card,
+  html:not([data-fps-q]) .pos-row,
+  html:not([data-fps-q]) .lhb-row,
+  html:not([data-fps-q]) .fund-panel,
+  html:not([data-fps-q]) .ladder-row,
+  html:not([data-fps-q]) .sec-hot-card,
+  html:not([data-fps-q]) .sector-chip,
+  html:not([data-fps-q]) .fun-banner {
+    -webkit-backdrop-filter: blur(14px) saturate(190%);
+    backdrop-filter: blur(14px) saturate(190%);
+  }
+}
