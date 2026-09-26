@@ -25,9 +25,9 @@ function ok(name, cond, extra) {
 function eq(name, a, b) { ok(name, a === b, `期望 ${JSON.stringify(b)}，实际 ${JSON.stringify(a)}`); }
 
 /* ======================================================================
-   1. setDigitAnim —— DOM 桩
+   1. setDigitAnim v2 —— 数字滚动列（DOM 桩）
    ====================================================================== */
-console.log('\n=== 1. setDigitAnim 补丁（运行时） ===');
+console.log('\n=== 1. setDigitAnim v2（数字滚动列） ===');
 
 function makeEl(tag) {
   const el = {
@@ -37,6 +37,8 @@ function makeEl(tag) {
     _cls: new Set(),
     offsetHeight: 120,
     dataset: {},
+    style: {},
+    className: '',
     classList: {
       add(c) { el._cls.add(c); },
       remove(c) { el._cls.delete(c); },
@@ -56,7 +58,7 @@ function makeEl(tag) {
   return el;
 }
 
-/* 计数桩：统计 createElement / 回流 次数 */
+/* 计数桩：统计 createElement 次数 */
 let created = 0;
 const doc = {
   createElement(tag) { created++; return makeEl(tag); },
@@ -72,6 +74,7 @@ const fnSrc = (function () {
 })();
 
 ok('能从主文件抽出 setDigitAnim', !!fnSrc);
+ok('是 v2 滚动列实现', fnSrc.includes('FPS:digit-cache v2'), fnSrc.slice(0, 80));
 
 const sandbox = { document: doc, String, console, Number };
 sandbox.globalThis = sandbox;
@@ -79,60 +82,73 @@ vm.createContext(sandbox);
 vm.runInContext(fnSrc.replace(/\r\n/g, '\n'), sandbox, { filename: 'setDigitAnim' });
 const setDigitAnim = sandbox.setDigitAnim;
 
-/* --- 场景 A：首次渲染 --- */
+function colOf(el, i) { return el.__dgCols[i]; }
+
+/* --- 场景 A：首次渲染（922.50 → 5 个数字位 + 1 个 '.'） --- */
 created = 0;
 let el = makeEl();
-setDigitAnim(el, '+1.23%');
-const firstCreated = created;
-ok('首次渲染创建了 span 节点', firstCreated > 0, `created=${firstCreated}`);
-eq('文本内容正确', el.textContent, '+1.23%');
-ok('挂了 is-animating', el.classList.contains('is-animating'));
+setDigitAnim(el, '922.50');
+const wins = el._kids.filter(k => k.className === 'dg-win');
+const fixes = el._kids.filter(k => k.className === 'dg-fix');
+eq('数字位窗口数 = 5', wins.length, 5);
+eq('静态位（小数点）数 = 1', fixes.length, 1);
+eq('静态位内容', fixes[0].textContent, '.');
+eq('每列 0-9 十格', wins[0]._kids[0]._kids.length, 10);
+eq('第 1 位滚动到 9', colOf(el, 0).style.transform, 'translateY(-10.08em)');
+eq('末位 0 在原位', colOf(el, 4).style.transform, 'translateY(-0.00em)');
+ok('首次渲染创建了节点', created > 0);
 
-/* --- 场景 B：同值重复调用 → 零 DOM 操作 --- */
+/* --- 场景 B：同值重复调用 → 零操作 --- */
 created = 0;
-const kidsBefore = el._kids.slice();
-setDigitAnim(el, '+1.23%');
+const colRef = colOf(el, 0);
+const tfRef = colRef.style.transform;
+setDigitAnim(el, '922.50');
 eq('同值调用不创建节点', created, 0);
-ok('同值调用节点对象未被替换', el._kids.length === kidsBefore.length && el._kids[0] === kidsBefore[0]);
+ok('列对象未替换', colOf(el, 0) === colRef);
+eq('transform 未被重写', colRef.style.transform, tfRef);
 
-/* --- 场景 C：同长度不同值 → 增量更新，不重建 --- */
+/* --- 场景 C：同结构增量（922.50 → 921.80） --- */
 created = 0;
-const firstKid = el._kids[0];
-setDigitAnim(el, '+4.56%');
-eq('同长度调用不创建节点', created, 0);
-ok('节点对象被复用（未重建）', el._kids[0] === firstKid);
-eq('文本已更新', el.textContent, '+4.56%');
+setDigitAnim(el, '921.80');
+eq('同结构不重建', created, 0);
+ok('列对象被复用', colOf(el, 0) === colRef);
+eq('位 3 滚动 2→1', colOf(el, 2).style.transform, 'translateY(-1.12em)');
+eq('位 4 滚动 5→8', colOf(el, 3).style.transform, 'translateY(-8.96em)');
+eq('未变位 9 不动', colOf(el, 0).style.transform, 'translateY(-10.08em)');
+eq('未变位 0 不动', colOf(el, 4).style.transform, 'translateY(-0.00em)');
 
-/* --- 场景 D：长度变化 → 回退重建 --- */
+/* --- 场景 D：只有末位变（921.80 → 921.81） --- */
+const c4 = colOf(el, 3);
+setDigitAnim(el, '921.81');
+eq('只末位变', colOf(el, 4).style.transform, 'translateY(-1.12em)');
+eq('其他位对象未动', colOf(el, 3) === c4, true);
+
+/* --- 场景 E：结构变化（出现 '%'）→ 重建 --- */
 created = 0;
-setDigitAnim(el, '-12.34%');
-ok('长度变化时重建了节点', created > 0, `created=${created}`);
-eq('重建后文本正确', el.textContent, '-12.34%');
+setDigitAnim(el, '+1.35%');
+ok('结构变化时重建', created > 0, `created=${created}`);
+eq('新结构数字位 = 3', el.__dgCols.length, 3);
+eq('新结构静态位 = 3（+ . %）', el.__dgFix.length, 3);
+eq('静态位依次为 + . %', el.__dgFix.map(f => f.textContent).join(''), '+.%');
 
-/* --- 场景 E：变化字符以外不动 --- */
+/* --- 场景 F：负号与小数（-12.34） --- */
 el = makeEl();
-setDigitAnim(el, '100');
-const k0 = el._kids[0], k1 = el._kids[1], k2 = el._kids[2];
-setDigitAnim(el, '100');
-ok('无变化时三个节点都保留', el._kids[0] === k0 && el._kids[1] === k1 && el._kids[2] === k2);
-setDigitAnim(el, '105');
-ok('只有末位节点内容变了', k2.textContent === '5' && k0.textContent === '1' && k1.textContent === '0');
-ok('首两个节点对象仍未替换', el._kids[0] === k0 && el._kids[1] === k1);
+setDigitAnim(el, '-12.34');
+eq('负号是静态位', el.__dgFix[0].textContent, '-');
+eq('数字位 = 4', el.__dgCols.length, 4);
+eq('位 1 滚到 1', colOf(el, 0).style.transform, 'translateY(-1.12em)');
 
-/* --- 场景 F：错峰标记保留 --- */
+/* --- 场景 G：千分位逗号（1,234） --- */
 el = makeEl();
-setDigitAnim(el, '12.3');
-const n = el._kids.length;
-ok('后两位带 stagger 标记',
-  el._kids[n - 2].dataset.stagger === '1' && el._kids[n - 1].dataset.stagger === '2',
-  JSON.stringify([el._kids[n - 2].dataset, el._kids[n - 1].dataset]));
+setDigitAnim(el, '1,234');
+eq('逗号是静态位', el.__dgFix[0].textContent, ',');
+eq('数字位 = 4', el.__dgCols.length, 4);
 
-/* --- 场景 G：动画 class 在值变化时重播 --- */
+/* --- 场景 H：v2 不再产出 t-digit / is-animating --- */
 el = makeEl();
-setDigitAnim(el, '1.0');
-el.classList.remove('is-animating');
-setDigitAnim(el, '2.0');
-ok('值变化后重新挂上 is-animating', el.classList.contains('is-animating'));
+setDigitAnim(el, '123');
+const hasTDigit = el._kids.some(k => k.className === 't-digit');
+ok('不再产出 .t-digit（旧入场动画结构）', !hasTDigit);
 
 /* ======================================================================
    2. fps.js 自适应状态机
