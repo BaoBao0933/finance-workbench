@@ -110,6 +110,30 @@ body::after {
   overscroll-behavior: contain;
 }
 
+/* ---- 数字滚动列（setDigitAnim v2，借鉴 Spectrum UI number-ticker）----
+   数字位 = 0-9 纵向列 + overflow 窗口，变化位只 translateY。
+   基线对齐：dg-win 用 inline-flex（overflow:hidden 的 inline-block 基线会
+   退化为底边，与相邻文字错位；inline-flex 取首个 item 的真实基线）。 */
+.dg-win {
+  display: inline-flex;
+  height: 1.12em;
+  width: 1ch;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.dg-col {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  transition: transform .6s cubic-bezier(.22, 1, .36, 1);
+}
+.dg-col i { font-style: normal; height: 1.12em; line-height: 1.12em; }
+.dg-fix { display: inline-block; }
+@media (prefers-reduced-motion: reduce) {
+  .dg-col { transition: none !important; }
+}
+
 /* --------------------------------------------------------------------------
    5. 降级档位（由 fps.js 写 html[data-fps-q] 触发）
    默认不带该属性 → 全部规则不生效 → 视觉与优化前完全一致。
