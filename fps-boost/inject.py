@@ -57,42 +57,59 @@ ORIG_SETDIGIT = (
     "}"
 )
 
-# ---- 优化后的实现 ----
+# ---- 优化后的实现（v2：数字滚动列，借鉴 Spectrum UI number-ticker）----
 NEW_SETDIGIT = (
     "function setDigitAnim(el, val) {\r\n"
-    "  /* FPS:digit-cache —— 值未变化直接跳过；长度一致时只改变化的字符节点。\r\n"
-    "     原实现每次调用都清空 innerHTML + 重建 N 个 span + 强制回流，\r\n"
-    "     而盘中每 2 秒就全量刷新一轮，绝大部分数字其实没变。 */\r\n"
+    "  /* FPS:digit-cache v2 —— 数字滚动列（借鉴 Spectrum UI number-ticker）。\r\n"
+    "     数字位 = 0-9 纵向列 + overflow 窗口，变化的位只 translateY 滚动；\r\n"
+    "     非数字字符为静态位。首次构建后零重建、零强制回流。 */\r\n"
     "  const s = String(val);\r\n"
     "  if (el.__tDigitVal === s && el.firstChild) return;\r\n"
     "  el.__tDigitVal = s;\r\n"
-    "  const chars = s.split('');\r\n"
-    "  const kids = el.children;\r\n"
-    "  if (kids.length === chars.length) {\r\n"
-    "    let changed = false;\r\n"
-    "    for (let i = 0; i < chars.length; i++) {\r\n"
-    "      if (kids[i].textContent !== chars[i]) { kids[i].textContent = chars[i]; changed = true; }\r\n"
+    "  let shape = '';\r\n"
+    "  for (const ch of s) shape += /\\d/.test(ch) ? 'd' : ch;\r\n"
+    "  if (el.__dgShape !== shape) {\r\n"
+    "    el.__dgShape = shape;\r\n"
+    "    const cols = el.__dgCols = [];\r\n"
+    "    const fix = el.__dgFix = [];\r\n"
+    "    el.innerHTML = '';\r\n"
+    "    for (const ch of s) {\r\n"
+    "      if (/\\d/.test(ch)) {\r\n"
+    "        const win = document.createElement('span');\r\n"
+    "        win.className = 'dg-win';\r\n"
+    "        const col = document.createElement('span');\r\n"
+    "        col.className = 'dg-col';\r\n"
+    "        col.__cur = -1;\r\n"
+    "        for (let n = 0; n <= 9; n++) {\r\n"
+    "          const dg = document.createElement('i');\r\n"
+    "          dg.textContent = n;\r\n"
+    "          col.appendChild(dg);\r\n"
+    "        }\r\n"
+    "        win.appendChild(col);\r\n"
+    "        el.appendChild(win);\r\n"
+    "        cols.push(col);\r\n"
+    "      } else {\r\n"
+    "        const p = document.createElement('span');\r\n"
+    "        p.className = 'dg-fix';\r\n"
+    "        p.textContent = ch;\r\n"
+    "        el.appendChild(p);\r\n"
+    "        fix.push(p);\r\n"
+    "      }\r\n"
     "    }\r\n"
-    "    if (!changed) return;\r\n"
-    "    el.classList.remove('is-animating');\r\n"
-    "    void el.offsetHeight; // 强制回流（仅重启动画时需要）\r\n"
-    "    el.classList.add('is-animating');\r\n"
-    "    return;\r\n"
     "  }\r\n"
-    "  el.classList.remove('is-animating');\r\n"
-    "  el.innerHTML = '';\r\n"
-    "  chars.forEach((ch, i) => {\r\n"
-    "    const span = document.createElement('span');\r\n"
-    "    span.className = 't-digit';\r\n"
-    "    // 数字/符号用字符，小数点/分隔符特殊处理\r\n"
-    "    span.textContent = ch;\r\n"
-    "    // 后两位错峰\r\n"
-    "    if (i === chars.length - 2) span.dataset.stagger = '1';\r\n"
-    "    else if (i === chars.length - 1) span.dataset.stagger = '2';\r\n"
-    "    el.appendChild(span);\r\n"
-    "  });\r\n"
-    "  void el.offsetHeight; // 强制回流\r\n"
-    "  el.classList.add('is-animating');\r\n"
+    "  let di = 0, fi = 0;\r\n"
+    "  for (const ch of s) {\r\n"
+    "    if (/\\d/.test(ch)) {\r\n"
+    "      const col = el.__dgCols[di++];\r\n"
+    "      const d = +ch;\r\n"
+    "      if (col.__cur !== d) {\r\n"
+    "        col.__cur = d;\r\n"
+    "        col.style.transform = 'translateY(-' + (d * 1.12).toFixed(2) + 'em)';\r\n"
+    "      }\r\n"
+    "    } else {\r\n"
+    "      el.__dgFix[fi++].textContent = ch;\r\n"
+    "    }\r\n"
+    "  }\r\n"
     "}"
 )
 
@@ -226,15 +243,28 @@ def main():
     js_block = to_eol(
         JS_B + '\n<script id="fps-js">\n' + js + '\n</script>\n' + JS_E + '\n', eol)
 
-    m = re.search(r'</head>', clean)
-    if not m:
-        err('找不到 </head> 锚点')
-    out = clean[:m.start()] + css_block + clean[m.start():]
+    # --- 锚点 1：CSS 插在 </head> 前 ---
+    # 若 apple-fx 已注入（同为 </head> 前锚点），锚到它的前面 ——
+    # 固定「FPS 在前、AF 在后」的规范顺序，两个注入器任意重跑 md5 稳定（幂等）。
+    mAF = re.search(r'<!-- AF:CSS:BEGIN -->', clean)
+    if mAF:
+        pos = mAF.start()
+    else:
+        m = re.search(r'</head>', clean)
+        if not m:
+            err('找不到 </head> 锚点')
+        pos = m.start()
+    out = clean[:pos] + css_block + clean[pos:]
 
-    k = out.rfind('</body>')
-    if k < 0:
-        err('找不到 </body> 锚点')
-    out = out[:k] + js_block + out[k:]
+    # --- 锚点 2：骨架屏 + JS 插在 </body> 前（同理保序在 AF:HTML 之前） ---
+    mAF = re.search(r'<!-- AF:HTML:BEGIN -->', out)
+    if mAF:
+        pos = mAF.start()
+    else:
+        pos = out.rfind('</body>')
+        if pos < 0:
+            err('找不到 </body> 锚点')
+    out = out[:pos] + js_block + out[pos:]
 
     # ---- 校验 ----
     problems = []
