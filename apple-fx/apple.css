@@ -1,0 +1,39 @@
+/* ==========================================================================
+   apple-fx / apple.css —— 苹果风质感层（技法借鉴 Spectrum UI，Apache-2.0）
+
+   1. 液态玻璃：首页四张指数卡（克制使用：全站仅此 4 张上折射）
+   2. 小角度倾斜：同卡 hover（用户要求倾斜不要太多 → maxTilt 5°，JS 侧）
+
+   降级关系（无需本模块做任何事）：
+   fps-boost 的 medium/low 档用 !important 磨砂规则直接覆盖本层 url() 折射
+   —— 掉帧时自动退回纯磨砂；prefers-reduced-motion 时倾斜整体关闭。
+   ========================================================================== */
+
+/* ---- 1. 液态玻璃 ----
+   兼容写法：url(#apple-lg) 折射版是独立声明。
+   Firefox / Safari 对 backdrop-filter 里的 url() 滤镜引用不支持，
+   会整条丢弃 → 落回主文件原有 blur(30px) 纯磨砂，零 JS 检测。 */
+#page-home .index-card {
+  -webkit-backdrop-filter: url(#apple-lg) blur(22px) saturate(200%);
+  backdrop-filter: url(#apple-lg) blur(22px) saturate(200%);
+}
+#page-home .index-card:hover {
+  -webkit-backdrop-filter: url(#apple-lg) blur(26px) saturate(210%);
+  backdrop-filter: url(#apple-lg) blur(26px) saturate(210%);
+}
+
+/* ---- 2. 小角度倾斜 ----
+   pointermove 由 apple.js 写 CSS 变量（--af-rx/--af-ry/--af-sc），
+   transition 负责平滑与回位 —— 无 rAF 循环，静止零消耗。
+   perspective 写进 transform 函数本身，不用动父容器。
+   双段时长模拟原版双弹簧手感：hover 内跟手快，离开回位慢。 */
+#page-home .index-card {
+  transform: perspective(900px) rotateX(var(--af-rx, 0deg)) rotateY(var(--af-ry, 0deg)) scale(var(--af-sc, 1));
+  transition: transform .45s cubic-bezier(.22, 1, .36, 1);
+}
+#page-home .index-card:hover {
+  transition: transform .2s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  #page-home .index-card { transform: none !important; }
+}
