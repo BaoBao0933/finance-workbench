@@ -3968,7 +3968,48 @@ html[data-theme="light"] .pb-boot__bar {
 }
 
 </style>
-<!-- PB:CSS:END -->
+<!-- PB:CSS:END --><!-- FM:CSS:BEGIN -->
+<style id="fm-style">
+/* ==========================================================================
+   focus-manage —— 「重点关注」板块自定义管理（添加 / 删除 / 隐藏恢复）
+   复用首页 sector-edit 的 se-add-panel / se-ap-* 面板样式（同页全局生效）
+   ========================================================================== */
+#focus-sectors .sec-cell { position: relative; }
+.fmc-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 28px; padding: 0 11px; border-radius: 9px;
+  border: 1px solid var(--glass-border);
+  background: rgba(127,127,127,.10); color: var(--text);
+  font-size: 12px; cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.fmc-btn:hover { border-color: var(--accent); }
+.fmc-btn.on { border-color: var(--accent); background: rgba(255,122,89,.14); color: var(--accent); }
+.fmc-del {
+  position: absolute; top: 6px; right: 6px; z-index: 3;
+  width: 18px; height: 18px; border-radius: 50%;
+  border: none; cursor: pointer;
+  background: rgba(229,72,77,.85); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  animation: fmc-pop .25s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes fmc-pop { from { transform: scale(0); } to { transform: scale(1); } }
+.fmc-add-cell {
+  border: 1.5px dashed var(--glass-border);
+  border-radius: 14px; min-height: 74px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  color: var(--text-sub); font-size: 12px; cursor: pointer;
+  transition: border-color .2s, color .2s;
+}
+.fmc-add-cell:hover { border-color: var(--accent); color: var(--accent); }
+#focus-sectors.fmc-editing .sec-cell { cursor: pointer; box-shadow: 0 0 0 1px var(--glass-border); }
+
+.se-ap-restore { padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11px; }
+.se-restore-chip { height: 22px; padding: 0 8px; border-radius: 7px; border: 1px solid var(--glass-border); background: rgba(127,127,127,.10); color: var(--text); font-size: 11px; cursor: pointer; }
+.se-restore-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+</style>
+<!-- FM:CSS:END -->
 <!-- FPS:CSS:BEGIN -->
 <style id="fps-style">
 /* ==========================================================================
@@ -10733,6 +10774,18 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
 </script>
 <!-- PB:JS:END -->
+
+
+
+
+
+
+
+
+
+
+
+
 <!-- FPS:JS:BEGIN -->
 <script id="fps-js">
 /* ==========================================================================
@@ -10958,10 +11011,6 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
 </script>
 <!-- FPS:JS:END -->
-
-
-
-
 <!-- SE:BODY:BEGIN -->
 <script id="sector-edit-js">
 /* ==========================================================================
@@ -11611,52 +11660,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script>
-<!-- AF:JS:END -->
-
-
-<!-- FM:CSS:BEGIN -->
-<style id="fm-style">
-/* ==========================================================================
-   focus-manage —— 「重点关注」板块自定义管理（添加 / 删除 / 隐藏恢复）
-   复用首页 sector-edit 的 se-add-panel / se-ap-* 面板样式（同页全局生效）
-   ========================================================================== */
-#focus-sectors .sec-cell { position: relative; }
-.fmc-btn {
-  display: inline-flex; align-items: center; gap: 5px;
-  height: 28px; padding: 0 11px; border-radius: 9px;
-  border: 1px solid var(--glass-border);
-  background: rgba(127,127,127,.10); color: var(--text);
-  font-size: 12px; cursor: pointer;
-  transition: border-color .2s, background .2s;
-}
-.fmc-btn:hover { border-color: var(--accent); }
-.fmc-btn.on { border-color: var(--accent); background: rgba(255,122,89,.14); color: var(--accent); }
-.fmc-del {
-  position: absolute; top: 6px; right: 6px; z-index: 3;
-  width: 18px; height: 18px; border-radius: 50%;
-  border: none; cursor: pointer;
-  background: rgba(229,72,77,.85); color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  animation: fmc-pop .25s cubic-bezier(.34,1.56,.64,1) both;
-}
-@keyframes fmc-pop { from { transform: scale(0); } to { transform: scale(1); } }
-.fmc-add-cell {
-  border: 1.5px dashed var(--glass-border);
-  border-radius: 14px; min-height: 74px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  color: var(--text-sub); font-size: 12px; cursor: pointer;
-  transition: border-color .2s, color .2s;
-}
-.fmc-add-cell:hover { border-color: var(--accent); color: var(--accent); }
-#focus-sectors.fmc-editing .sec-cell { cursor: pointer; box-shadow: 0 0 0 1px var(--glass-border); }
-
-.se-ap-restore { padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11px; }
-.se-restore-chip { height: 22px; padding: 0 8px; border-radius: 7px; border: 1px solid var(--glass-border); background: rgba(127,127,127,.10); color: var(--text); font-size: 11px; cursor: pointer; }
-.se-restore-chip:hover { border-color: var(--accent); color: var(--accent); }
-
-</style>
-<!-- FM:CSS:END -->
-<!-- FM:JS:BEGIN -->
+<!-- AF:JS:END --><!-- FM:JS:BEGIN -->
 <script id="fm-js">
 /* ==========================================================================
    focus-manage：「重点关注」板块自定义管理
