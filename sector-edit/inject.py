@@ -167,7 +167,10 @@ window.__sectorsHook = {
 
     had_body = BODY_B in out
     if not had_body:
-        k = out.rfind('</body>')
+        # 保序：SE:JS 锚到 QF:JS 之前（否则 rfind('</body>') 会把本块移到
+        # AF:JS 之后，重跑注入器会互换块顺序、破坏幂等）。规范顺序 SE<QF<FPS<AF。
+        mQF = re.search(r'<!-- QF:JS:BEGIN -->', out)
+        k = mQF.start() if mQF else out.rfind('</body>')
         if k < 0:
             err('找不到 </body> 锚点')
         out = out[:k] + body_block + out[k:]
