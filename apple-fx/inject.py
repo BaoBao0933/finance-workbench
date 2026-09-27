@@ -71,7 +71,7 @@ def to_eol(txt, eol):
 
 def strip_blocks(html):
     for b, e in ((CSS_B, CSS_E), (HTML_B, HTML_E), (JS_B, JS_E)):
-        html = re.sub(re.escape(b) + r'.*?' + re.escape(e) + r'[ \t]*\r?\n?',
+        html = re.sub(r'\r?\n?' + re.escape(b) + r'.*?' + re.escape(e) + r'[ \t]*\r?\n?',
                       '', html, flags=re.S)
     return html
 
@@ -140,8 +140,9 @@ def main():
     # apple-fx 与 quote-fallback 曾经都锚 </body> 前 —— 谁后注入谁更靠末尾，
     # 重跑任一注入器两块就互换位置，md5 不稳定（幂等被破坏）。
     # 规范链（文档位置）：FPS < SE < AF < QF < </body>，每个位置只有一个插入者。
-    mQF = re.search(r'<!-- QF:JS:BEGIN -->', out)
-    k = mQF.start() if mQF else out.rfind('</body>')
+    # 保序：锚 FM:JS 之前（链条 FPS<SE<AF<FM<QF</body，每个锚一个插入者）
+    mFM = re.search(r'<!-- FM:JS:BEGIN -->', out)
+    k = mFM.start() if mFM else out.rfind('</body>')
     if k < 0:
         err('找不到 </body> 锚点')
     out = out[:k] + html_block + js_block + out[k:]
