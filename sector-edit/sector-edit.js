@@ -517,6 +517,10 @@
       if (cnt) cnt.textContent = panel.__all.length ? '共 ' + panel.__all.length + ' 个可选' : '都加上了';
       renderList(panel.__kw || '');
     }
+    /* 立即拉一次行情。必须显式触发 —— 否则只能等主文件的轮询：
+       交易时段 5s、非交易时段 120s，且页面隐藏时完全不跑。
+       用户会觉得「添加了但一直没数据」。 */
+    if (hook.refreshQuotes) { try { hook.refreshQuotes(); } catch (e) {} }
     toast('已添加「' + name + '」，行情刷新中…');
   }
 
