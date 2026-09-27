@@ -208,6 +208,13 @@
             var pct = parseFloat(x.bd_zdf);
             if (!x.bd_name || !isFinite(pct)) return;
             all.push({
+              /* 明确的目标格式。消费方一律优先读 secid —— 曾经因为下游
+                 只看到 f12 就把腾讯码当成东财码加 '90.' 前缀，整批报错丢弃。 */
+              secid: 'qq.' + (x.bd_code || ''),
+              name: x.bd_name,
+              bd_code: x.bd_code || '',
+              bd_name: x.bd_name,
+              /* 东财同形字段：保留，供 quote-fallback 自己的 patch.js 复用 */
               f12: x.bd_code || '',        // 板块码
               f14: x.bd_name,              // 板块名
               f2: parseFloat(x.bd_zxj),    // 板块最新价（指数点位）
@@ -236,7 +243,7 @@
     fetchFuturesSina: fetchFuturesSina,
     fetchStocksSina: fetchStocksSina,
     fetchQQBoards: fetchQQBoards,
-    version: '1.1.0'
+    version: '1.2.0'
   };
 
   if (typeof window !== 'undefined') window.QF = API;
