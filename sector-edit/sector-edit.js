@@ -65,6 +65,16 @@
   function chips() {
     return [].slice.call(strip.querySelectorAll('.sector-chip:not(.sc-add-chip)'));
   }
+
+  /* 行情轮询的 renderSectors 会重建整条 strip，把编辑模式的删除角标/添加卡清掉。
+     用 MutationObserver 监听重建，编辑态开着就立刻补回 —— 否则会出现
+     「编辑模式下等几秒角标全消失，没法删」。 */
+  var stripMo = new MutationObserver(function () {
+    if (!editMode) return;
+    decorate();
+    if (!strip.contains(addChip()) && getList().length < MAX) buildAddChip();
+  });
+  stripMo.observe(strip, { childList: true });
   function addChip() { return strip.querySelector('.sc-add-chip'); }
 
   /* 给每只板块卡装上删除角标（幂等） */
