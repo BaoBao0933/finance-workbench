@@ -219,18 +219,69 @@
 
   /* ================= 添加面板（v2：全量板块 + 搜索） ================= */
 
-  /* 统一行格式：{secid:'90.BKxxxx', name} */
+  /* 统一行格式：{secid, name}
+     secid 两种：'90.BKxxxx'（东财源，可拉成分股）/'qq.pt02GNxxxx'（腾讯源）。
+     兼容三种输入：clist 行（f12/f14）、secAllList 项（code/name，注意是 code 不是 f12）、
+     腾讯板块（bd_code/bd_name，用 qq 前缀避免与东财码混淆）。 */
   function normRows(rows) {
     return (rows || []).map(function (r) {
-      var secid = r.secid || (r.f12 ? '90.' + r.f12 : '');
-      var name = r.name || r.f14 || '';
-      return (secid && name && /^90\.BK\d+$/.test(secid)) ? { secid: secid, name: name } : null;
+      var secid = '', name = '';
+      if (r.secid) {                       // 已是目标格式
+        secid = r.secid; name = r.name || '';
+      } else if (r.f12) {                  // 东财 clist 行
+        secid = '90.' + r.f12; name = r.f14 || '';
+      } else if (r.code) {                  // 主文件 secAllList（code 字段）
+        secid = '90.' + r.code; name = r.name || '';
+      } else if (r.bd_code) {               // 腾讯板块
+        secid = 'qq.' + r.bd_code; name = r.bd_name || '';
+      } else if (r.name && r.qq) {          // sector-edit 内部格式
+        secid = 'qq.' + r.qq; name = r.name;
+      }
+      var ok = /^90\.BK\d+$/.test(secid) || /^qq\.\w+$/.test(secid);
+      return (secid && name && ok) ? { secid: secid, name: name } : null;
     }).filter(Boolean);
   }
 
+  /* 东财全量拿不到时的兜底：腾讯板块（行业 124 + 概念 803） */
+  function fetchQQAll() {
+    var Q = window.QF;
+    if (!Q || typeof Q.fetchQQBoards !== 'function') return Promise.reject(new Error('no QF'));
+    return Promise.all([Q.fetchQQBoards('industry'), Q.fetchQQBoards('concept')])
+      .then(function (rs) {
+        return normRows(rs[0].concat(rs[1]));
+      });
+  }
+
+  /* 去重（按 secid，再按板块名去重——同名时保留东财码那条，它能拉成分股）+ 剔除已添加 */
+  function dedupe(rows) {
+    var added = addedMap();
+    var seenSecid = {}, seenName = {}, out = [];
+    rows.forEach(function (s) {
+      if (seenSecid[s.secid] || added[s.secid] || added['n:' + s.name]) return;
+      // 同名板块优先保留东财码（90.BK），腾讯码只在没有东财版本时保留
+      var nameKey = s.name.toLowerCase();
+      if (seenName[nameKey]) {
+        if (s.secid.indexOf('90.BK') === 0 && out[seenName[nameKey] - 1].secid.indexOf('qq.') === 0) {
+          out[seenName[nameKey] - 1] = s;   // 用东财版替换腾讯版
+        }
+        return;
+      }
+      seenSecid[s.secid] = 1;
+      seenName[nameKey] = out.length + 1;   // 1-based 位置
+      out.push(s);
+    });
+    return out;
+  }
+
+  /* 已添加集合：secid 与板块名双索引。
+     必须按名字也索引 —— 同一板块在东财是 '90.BK1136'、在腾讯是 'qq.pt02GN2190'，
+     只比 secid 会让「已加过的板块」在另一个源的列表里再次出现，导致重复添加。 */
   function addedMap() {
     var m = {};
-    getList().forEach(function (s) { m[s.secid] = 1; });
+    getList().forEach(function (s) {
+      m[s.secid] = 1;
+      if (s.name) m['n:' + s.name] = 1;
+    });
     return m;
   }
 
@@ -270,18 +321,27 @@
 
   function refreshAll() {
     if (allCache && (Date.now() - allCache.t) < ALL_TTL && allCache.list.length >= 100) return;
-    Promise.all([fetchBoardType('2'), fetchBoardType('3')]).then(function (rs) {
-      var added = addedMap();
-      var seen = {}, out = [];
-      normRows(rs[0].concat(rs[1])).forEach(function (s) {
-        if (seen[s.secid] || added[s.secid]) return;
-        seen[s.secid] = 1;
-        out.push(s);
-      });
-      if (!out.length) return;
+
+    function apply(list) {
+      var out = dedupe(list);
+      if (out.length < 30) return false;     // 太少视为无效（避免被 11 个静态池顶掉真实全量）
       allCache = { t: Date.now(), list: out };
-      if (panel) fillList(out);   // 拉到了就原地刷新（保留搜索词）
-    }).catch(function () { /* 限流/断网：面板保持当前数据 */ });
+      if (panel) fillList(out);              // 原地刷新（保留搜索词）
+      return true;
+    }
+
+    // 1) 东财 clist 全量（有东财码，能拉成分股，最优）
+    Promise.all([fetchBoardType('2'), fetchBoardType('3')])
+      .then(function (rs) {
+        if (apply(normRows(rs[0].concat(rs[1])))) return;
+        throw new Error('east empty');       // 200 但空数据 → 也要走备用
+      })
+      .catch(function () {
+        // 2) 东财不可用（push2 被限流）→ 腾讯板块全量
+        fetchQQAll().then(function (rows) {
+          apply(rows);
+        }).catch(function () { /* 两个源都不通：面板保持当前数据 */ });
+      });
   }
 
   /* ---- 面板 ---- */
