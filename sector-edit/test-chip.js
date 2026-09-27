@@ -81,8 +81,10 @@ const strip = {
   querySelectorAll() { return this._kids; },
   querySelector() { return this._kids[0] || null; },
 };
+const sourceEl = { textContent: '' };
 const documentStub = {
-  getElementById: id => (id === 'sector-strip' ? strip : null),
+  getElementById: id => (id === 'sector-strip' ? strip
+    : id === 'sector-source' ? sourceEl : null),
   querySelector: sel => (String(sel).indexOf('sector-chip') >= 0 ? (strip._kids[0] || null) : null),
   querySelectorAll: () => strip._kids,
 };
@@ -137,6 +139,9 @@ sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(code, sandbox, { filename: 'sector-chain' });
 
+function sb2Run(src) {
+  vm.runInContext(src, sandbox, { filename: 'chip-inline' });
+}
 const T = sandbox.__T;
 const chipBy = secid => strip._kids.find(c => c.dataset.secid === secid);
 
@@ -201,6 +206,37 @@ const chipBy = secid => strip._kids.find(c => c.dataset.secid === secid);
   ok('该卡片显示 -- 点 占位', chipBy('qq.ptNOTEXIST') && chipBy('qq.ptNOTEXIST')._price.textContent === '-- 点',
      chipBy('qq.ptNOTEXIST') ? chipBy('qq.ptNOTEXIST')._price.textContent : '-');
 
+  /* ---- 5.5 行业源失败 → 概念不受牵连 + 徽标诊断（行业/概念分开请求） ---- */
+  console.log('\n场景 5.5 · 行业源失败只影响行业板块');
+  // 桩按真实语义拆分：industry=t01 行业行、concept=t02 概念行（互补集合）
+  sb2Run('window.QF = { fetchQQBoards: function (kind) {'
+    + '  if (kind === "industry") return Promise.reject(new Error("t01 down"));'
+    + '  return Promise.resolve(__qqRows.filter(function (r) { return r.secid !== "qq.pt01801993"; }));'
+    + '} };');
+
+  sourceEl.textContent = '';
+  await T.loadSectors(false);
+  ok('行业源挂掉时概念板块仍有行情', chipBy('qq.pt01801131')._val.textContent.indexOf('--') < 0,
+     chipBy('qq.pt01801131')._val.textContent);
+  ok('行业板块保留上一次的值（原地更新不清掉已有显示，优于闪成占位）',
+     /-1\.50%/.test(chipBy('qq.pt01801993')._val.textContent),
+     chipBy('qq.pt01801993')._val.textContent);
+  ok('徽标显示腾讯源与未匹配项', /腾讯源/.test(sourceEl.textContent)
+     && /旅游及景区/.test(sourceEl.textContent), sourceEl.textContent);
+
+  // 恢复正常源 → 下一次轮询应把行业板块救回来（无行情板块仍缺席 → 7/8）
+  sb2Run('window.QF = { fetchQQBoards: function (kind) {'
+    + '  return Promise.resolve(kind === "industry"'
+    + '    ? __qqRows.filter(function (r) { return r.secid === "qq.pt01801993"; })'
+    + '    : __qqRows.filter(function (r) { return r.secid !== "qq.pt01801993"; }));'
+    + '} };');
+  await T.loadSectors(false);
+  ok('源恢复后行业板块被救回', /-1\.50%/.test(chipBy('qq.pt01801993')._val.textContent),
+     chipBy('qq.pt01801993')._val.textContent);
+  ok('徽标显示 7/8（无行情板块如实未匹配）',
+     /7\/8 命中/.test(sourceEl.textContent) && /未匹配: 无行情板块/.test(sourceEl.textContent),
+     sourceEl.textContent);
+
   /* ---- 6. 源码特征 ---- */
   console.log('\n场景 · 源码关键特征');
   ok('doAdd 显式触发 refreshQuotes', html.indexOf('if (hook.refreshQuotes) { try { hook.refreshQuotes(); }') >= 0);
@@ -212,6 +248,9 @@ const chipBy = secid => strip._kids.find(c => c.dataset.secid === secid);
      html.indexOf("if (isFirst && !document.querySelector('#sector-strip .sector-chip'))") >= 0);
   ok('renderSectors 重建前清空 sectorCache',
      html.indexOf('Object.keys(sectorCache).forEach(k => { delete sectorCache[k]; });') >= 0);
+  ok('行业/概念分开请求（settle 包装）', html.indexOf("settle(window.QF.fetchQQBoards('industry'))") >= 0);
+  ok('徽标显示实时匹配状态', html.indexOf("命中'") >= 0 && html.indexOf('未匹配: ') >= 0);
+  ok('fetchQQBoards 有 8s 超时', html.indexOf('ctl.abort()') >= 0);
 
   console.log('\n' + '='.repeat(52));
   console.log('  通过 %d 项 / 失败 %d 项', PASS, FAIL);
