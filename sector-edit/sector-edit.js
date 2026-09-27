@@ -225,15 +225,27 @@
      腾讯板块（bd_code/bd_name，用 qq 前缀避免与东财码混淆）。 */
   function normRows(rows) {
     return (rows || []).map(function (r) {
+      /* 元素级守卫：上游数组可能混入 null / 非对象（东财或腾讯任一源异常时）。
+         此前只在数组层兜了 (rows || [])，一个 null 元素就会让整批转换抛错，
+         全量池直接归零（回到只有静态兜底那几条）。 */
+      if (!r || typeof r !== 'object') return null;
       var secid = '', name = '';
-      if (r.secid) {                       // 已是目标格式
-        secid = r.secid; name = r.name || '';
-      } else if (r.f12) {                  // 东财 clist 行
-        secid = '90.' + r.f12; name = r.f14 || '';
-      } else if (r.code) {                  // 主文件 secAllList（code 字段）
-        secid = '90.' + r.code; name = r.name || '';
-      } else if (r.bd_code) {               // 腾讯板块
+      if (r.secid) {                       // 已是目标格式（最可靠，直接采用）
+        secid = r.secid;
+        name = r.name || r.f14 || r.bd_name || '';
+      } else if (r.bd_code) {               // 腾讯原始行
         secid = 'qq.' + r.bd_code; name = r.bd_name || '';
+      } else if (r.f12) {
+        /* f12 有两个来源，必须按前缀分流：
+           - 东财 clist          → 'BK1136'    → '90.BK1136'
+           - quote-fallback 转换 → 'pt01801131' → 'qq.pt01801131'
+           曾经一律加 '90.'，导致腾讯行变成 '90.pt01801131' 通不过格式校验，
+           927 条板块被整批丢弃（面板只剩静态池那 5 个）。 */
+        name = r.f14 || '';
+        secid = (/^BK/i.test(r.f12) || /^\d+$/.test(r.f12)) ? '90.' + r.f12 : 'qq.' + r.f12;
+      } else if (r.code) {                  // 主文件 secAllList（code 字段）
+        name = r.name || '';
+        secid = (/^BK/i.test(r.code) || /^\d+$/.test(r.code)) ? '90.' + r.code : 'qq.' + r.code;
       } else if (r.name && r.qq) {          // sector-edit 内部格式
         secid = 'qq.' + r.qq; name = r.name;
       }
@@ -243,13 +255,51 @@
   }
 
   /* 东财全量拿不到时的兜底：腾讯板块（行业 124 + 概念 803） */
+  function fetchQQDirect(kind, pageSize, maxP) {
+    /* 自包含腾讯板块拉取（不依赖 quote-fallback 模块）。
+       直接产出 {secid:'qq.xxx', name} 的目标格式，绕开 f12 字段歧义。 */
+    var t = kind === 'industry' ? '01' : '02';
+    var l = pageSize || 500, maxP = maxP || 3;
+    var base = 'https://proxy.finance.qq.com/ifzqgtimg/appstock/app/mktHs/rank';
+    var out = [], page = 1;
+    function step() {
+      if (page > maxP) return Promise.resolve(out);
+      return fetch(base + '?l=' + l + '&p=' + page + '&t=' + t + '/averatio&ordertype=0',
+                   { referrerPolicy: 'no-referrer', cache: 'no-store' })
+        .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+        .then(function (j) {
+          var rows = (j && j.data) || [];
+          if (!rows.length) return out;
+          rows.forEach(function (x) {
+            if (x.bd_code && x.bd_name) out.push({ secid: 'qq.' + x.bd_code, name: x.bd_name });
+          });
+          if (rows.length < l) return out;
+          page++;
+          return step();
+        });
+    }
+    return step();
+  }
+
   function fetchQQAll() {
+    /* 东财全量拿不到（push2 被限流）时的兜底：腾讯板块 124 行业 + 803 概念。
+       优先复用 quote-fallback 的 QF.fetchQQBoards；若该模块不在（加载失败 /
+       注入顺序变动），就地自包含拉取——不让整个全量池因另一个模块缺席而失效。 */
     var Q = window.QF;
-    if (!Q || typeof Q.fetchQQBoards !== 'function') return Promise.reject(new Error('no QF'));
-    return Promise.all([Q.fetchQQBoards('industry'), Q.fetchQQBoards('concept')])
-      .then(function (rs) {
-        return normRows(rs[0].concat(rs[1]));
-      });
+    if (Q && typeof Q.fetchQQBoards === 'function') {
+      return Promise.all([Q.fetchQQBoards('industry'), Q.fetchQQBoards('concept')])
+        .then(function (rs) { return normRows(rs[0].concat(rs[1])); })
+        .then(function (rows) {
+          if (rows.length) return rows;
+          throw new Error('qf empty');       // 拿到行但全被丢弃 → 走自包含实现
+        })
+        .catch(function () {
+          return Promise.all([fetchQQDirect('industry'), fetchQQDirect('concept')])
+            .then(function (rs) { return rs[0].concat(rs[1]); });
+        });
+    }
+    return Promise.all([fetchQQDirect('industry'), fetchQQDirect('concept')])
+      .then(function (rs) { return rs[0].concat(rs[1]); });
   }
 
   /* 去重（按 secid，再按板块名去重——同名时保留东财码那条，它能拉成分股）+ 剔除已添加 */
@@ -257,6 +307,7 @@
     var added = addedMap();
     var seenSecid = {}, seenName = {}, out = [];
     rows.forEach(function (s) {
+      if (!s) return;
       if (seenSecid[s.secid] || added[s.secid] || added['n:' + s.name]) return;
       // 同名板块优先保留东财码（90.BK），腾讯码只在没有东财版本时保留
       var nameKey = s.name.toLowerCase();
@@ -307,7 +358,7 @@
       var url = 'https://push2.eastmoney.com/api/qt/clist/get?pn=' + page +
         '&pz=100&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:90+t:' + t +
         '+f:!50&fields=f12,f14';
-      return QH.fetchJson(url, 6000).then(function (res) {
+      return QH.fetchJson(url, 2500).then(function (res) {
         var diff = res && res.data && res.data.diff;
         if (!diff || !diff.length) return all;
         all = all.concat(diff);
@@ -322,26 +373,26 @@
   function refreshAll() {
     if (allCache && (Date.now() - allCache.t) < ALL_TTL && allCache.list.length >= 100) return;
 
+    var settled = false;
     function apply(list) {
+      if (settled) return false;
       var out = dedupe(list);
-      if (out.length < 30) return false;     // 太少视为无效（避免被 11 个静态池顶掉真实全量）
+      if (out.length < 30) return false;     // 太少视为无效（别让静态池顶掉真实全量）
+      settled = true;
       allCache = { t: Date.now(), list: out };
       if (panel) fillList(out);              // 原地刷新（保留搜索词）
       return true;
     }
 
-    // 1) 东财 clist 全量（有东财码，能拉成分股，最优）
+    /* 两个源并行竞速，谁先给出有效全量就用谁。
+       原先东财串行翻页在前、失败才走腾讯，一旦东财慢或半通，用户要干等；
+       并行后腾讯通常 0.5s 内返回，面板几乎是立刻从「加载中…」跳到全量。 */
+    fetchQQAll().then(apply).catch(function () {});
+
+    /* 东财带 BK 码、能拉成分股，更优；先探首页（短超时），失败立即放弃翻页 */
     Promise.all([fetchBoardType('2'), fetchBoardType('3')])
-      .then(function (rs) {
-        if (apply(normRows(rs[0].concat(rs[1])))) return;
-        throw new Error('east empty');       // 200 但空数据 → 也要走备用
-      })
-      .catch(function () {
-        // 2) 东财不可用（push2 被限流）→ 腾讯板块全量
-        fetchQQAll().then(function (rows) {
-          apply(rows);
-        }).catch(function () { /* 两个源都不通：面板保持当前数据 */ });
-      });
+      .then(function (rs) { apply(normRows(rs[0].concat(rs[1]))); })
+      .catch(function () {});
   }
 
   /* ---- 面板 ---- */
@@ -381,18 +432,24 @@
     }, 0);
 
     // 先用已有数据秒填，再后台拉全量（拉到后原地刷新，保留搜索词）
-    fillList(getCachedAll());
+    // 传 pending=true：不足 30 条时只显示「加载中…」，不谎报可选数
+    fillList(getCachedAll(), true);
     refreshAll();
     var inp = panel.querySelector('#seApSearch');
     if (inp) setTimeout(function () { inp.focus(); }, 60);
   }
 
-  function fillList(all) {
+  function fillList(all, pending) {
     if (!panel) return;
     var added = addedMap();
     panel.__all = (all || []).filter(function (s) { return !added[s.secid]; });
+    /* pending：全量尚未返回时，不要把那几条静态兜底当成真实可选数报出去
+       —— 用户看到「共 5 个可选」会直接以为功能坏了（这次的真实反馈）。 */
+    panel.__pending = !!pending && panel.__all.length < 30;
     var cnt = panel.querySelector('#seApCount');
-    if (cnt) cnt.textContent = panel.__all.length ? '共 ' + panel.__all.length + ' 个可选' : '加载中…';
+    if (cnt) cnt.textContent = panel.__pending
+      ? '加载中…'
+      : (panel.__all.length ? '共 ' + panel.__all.length + ' 个可选' : '暂无可添加');
     renderList(panel.__kw || '');
     positionPanel();   // 列表高度变化后重新定位
   }
@@ -416,7 +473,9 @@
         '</button>';
     }).join('');
     if (!html) {
-      html = '<div class="se-ap-empty">' + (kw ? '没有匹配「' + kw + '」的板块' : '暂无可选板块，稍候自动加载全量…') + '</div>';
+      html = '<div class="se-ap-empty">' + (kw
+        ? '没有匹配「' + kw + '」的板块'
+        : (panel.__pending ? '正在获取全部板块…' : '暂无可添加的板块')) + '</div>';
     } else if (total > RENDER_LIMIT) {
       html += '<div class="se-ap-more">共 ' + total + ' 个匹配，输入关键词缩小范围</div>';
     }
