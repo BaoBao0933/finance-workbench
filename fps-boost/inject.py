@@ -256,10 +256,11 @@ def main():
         pos = m.start()
     out = clean[:pos] + css_block + clean[pos:]
 
-    # --- 锚点 2：骨架屏 + JS 插在 </body> 前（同理保序在 AF:HTML 之前） ---
-    mAF = re.search(r'<!-- AF:HTML:BEGIN -->', out)
-    if mAF:
-        pos = mAF.start()
+    # --- 锚点 2：JS 插在 SE:BODY 之前（保序，见上） ---
+    # 规范链：FPS < SE < AF < QF < </body>。锚到"自己的后继"而不是 </body>。
+    mSE = re.search(r'<!-- SE:BODY:BEGIN -->', out)
+    if mSE:
+        pos = mSE.start()
     else:
         pos = out.rfind('</body>')
         if pos < 0:
