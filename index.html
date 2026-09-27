@@ -5740,6 +5740,8 @@ async function loadSectors(isFirst = false) {
         return d ? { secid: s.secid, name: s.name, pct: d.f3, price: d.f2 } : null;
       }).filter(Boolean);
       if (!list.length) continue;
+      const srcEl = $('sector-source');
+      if (srcEl) srcEl.textContent = '东财源 · ' + list.length + '/' + SECTORS.length + ' 命中';
       if (needRebuild()) renderSectors(list);
       else updateSectors(list);
       return;
@@ -5751,14 +5753,24 @@ async function loadSectors(isFirst = false) {
      的板块名与东财基本一致）。 */
   if (window.QF && typeof window.QF.fetchQQBoards === 'function') {
     try {
-      const [indB, cptB] = await Promise.all([
-        window.QF.fetchQQBoards('industry'),
-        window.QF.fetchQQBoards('concept')
+      /* 行业/概念分开请求：此前 Promise.all 一损俱损 —— 行业源（t=01）偶发
+         失败会让「旅游及景区」这类行业板块整类占位，而概念板块正常，
+         症状极其迷惑。现在一个失败只影响自己那一类。 */
+      const settle = p => p.then(v => ({ ok: 1, v })).catch(() => ({ ok: 0 }));
+      const [rInd, rCpt] = await Promise.all([
+        settle(window.QF.fetchQQBoards('industry')),
+        settle(window.QF.fetchQQBoards('concept')),
       ]);
+      const rows = (rInd.ok ? rInd.v : []).concat(rCpt.ok ? rCpt.v : []);
+      const srcEl = $('sector-source');
+      if (!rows.length) {
+        if (srcEl) srcEl.textContent = '行情源暂不可用，稍后自动重试';
+        throw new Error('qq both empty');
+      }
       const byCode = {};
       const byName = {};
       const nameKeys = [];
-      indB.concat(cptB).forEach(b => {
+      rows.forEach(b => {
         const code = b.bd_code || b.f12;
         const nm = b.bd_name || b.f14;
         if (code) byCode[code] = b;
@@ -5790,6 +5802,13 @@ async function loadSectors(isFirst = false) {
         return b ? { secid: s.secid, name: s.name, pct: b.f3, price: b.f2 } : null;
       }).filter(Boolean);
       if (list.length) {
+        /* 徽标显示实时匹配状态 —— 再出「某张卡一直 --%」时，
+           不用截图来回猜，一眼看出是哪个 secid 没对上。 */
+        if (srcEl) {
+          const miss = SECTORS.filter(s => !list.find(x => x.secid === s.secid));
+          srcEl.textContent = '腾讯源 · ' + list.length + '/' + SECTORS.length + ' 命中'
+            + (miss.length ? ' · 未匹配: ' + miss.map(m => m.name).join('、') : '');
+        }
         if (needRebuild()) renderSectors(list);
         else updateSectors(list);
         return;
@@ -11633,8 +11652,13 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     function step() {
       if (page > maxP) return Promise.resolve(all);
       var url = QQ_RANK + '?l=' + l + '&p=' + page + '&t=' + t + '/averatio&ordertype=0';
-      return fetch(url, { referrerPolicy: 'no-referrer', cache: 'no-store' })
-        .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+      /* 8s 超时：fetch 挂死时不能让上层永远等（否则轮询周期被无限拉长） */
+      var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var hasTimer = typeof setTimeout === 'function' && typeof clearTimeout === 'function';
+      var timer = (ctl && hasTimer) ? setTimeout(function () { ctl.abort(); }, 8000) : 0;
+      return fetch(url, { referrerPolicy: 'no-referrer', cache: 'no-store', signal: ctl && ctl.signal })
+        .then(function (r) { if (timer) clearTimeout(timer); if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+        .catch(function (e) { if (timer) clearTimeout(timer); throw e; })
         .then(function (j) {
           var rows = (j && j.data) || [];
           if (!rows.length) return all;
