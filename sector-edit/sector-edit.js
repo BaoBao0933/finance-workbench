@@ -373,26 +373,31 @@
   function refreshAll() {
     if (allCache && (Date.now() - allCache.t) < ALL_TTL && allCache.list.length >= 100) return;
 
-    var settled = false;
-    function apply(list) {
+    var settled = false, attempts = 0;
+    function apply(list, src) {
       if (settled) return false;
       var out = dedupe(list);
       if (out.length < 30) return false;     // 太少视为无效（别让静态池顶掉真实全量）
       settled = true;
-      allCache = { t: Date.now(), list: out };
-      if (panel) fillList(out);              // 原地刷新（保留搜索词）
+      allCache = { t: Date.now(), list: out, src: src || '' };
+      if (panel) fillList(out, false, src);  // 原地刷新（保留搜索词）
       return true;
+    }
+    /* 两路都不通时给出明确提示，而不是让面板停在「加载中…」让用户干等 */
+    function giveUp() {
+      attempts++;
+      if (attempts >= 2 && !settled && panel) fillList([], false, '接口暂不可用，可重开面板重试');
     }
 
     /* 两个源并行竞速，谁先给出有效全量就用谁。
        原先东财串行翻页在前、失败才走腾讯，一旦东财慢或半通，用户要干等；
        并行后腾讯通常 0.5s 内返回，面板几乎是立刻从「加载中…」跳到全量。 */
-    fetchQQAll().then(apply).catch(function () {});
+    fetchQQAll().then(function (rows) { apply(rows, '腾讯源'); }).catch(giveUp);
 
     /* 东财带 BK 码、能拉成分股，更优；先探首页（短超时），失败立即放弃翻页 */
     Promise.all([fetchBoardType('2'), fetchBoardType('3')])
-      .then(function (rs) { apply(normRows(rs[0].concat(rs[1]))); })
-      .catch(function () {});
+      .then(function (rs) { apply(normRows(rs[0].concat(rs[1])), '东财源'); })
+      .catch(giveUp);
   }
 
   /* ---- 面板 ---- */
@@ -439,17 +444,21 @@
     if (inp) setTimeout(function () { inp.focus(); }, 60);
   }
 
-  function fillList(all, pending) {
+  function fillList(all, pending, src) {
     if (!panel) return;
     var added = addedMap();
     panel.__all = (all || []).filter(function (s) { return !added[s.secid]; });
     /* pending：全量尚未返回时，不要把那几条静态兜底当成真实可选数报出去
        —— 用户看到「共 5 个可选」会直接以为功能坏了（这次的真实反馈）。 */
     panel.__pending = !!pending && panel.__all.length < 30;
+    if (src) panel.__src = src;
+    /* 带上数据来源，用户一眼能判断走通了哪条路（东财/腾讯/兜底） */
+    var tag = panel.__src ? ' · ' + panel.__src : '';
     var cnt = panel.querySelector('#seApCount');
     if (cnt) cnt.textContent = panel.__pending
       ? '加载中…'
-      : (panel.__all.length ? '共 ' + panel.__all.length + ' 个可选' : '暂无可添加');
+      : (panel.__all.length ? '共 ' + panel.__all.length + ' 个可选' + tag
+                           : (panel.__src || '暂无可添加'));
     renderList(panel.__kw || '');
     positionPanel();   // 列表高度变化后重新定位
   }
