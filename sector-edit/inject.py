@@ -167,10 +167,11 @@ window.__sectorsHook = {
 
     had_body = BODY_B in out
     if not had_body:
-        # 保序：SE:JS 锚到 QF:JS 之前（否则 rfind('</body>') 会把本块移到
-        # AF:JS 之后，重跑注入器会互换块顺序、破坏幂等）。规范顺序 SE<QF<FPS<AF。
-        mQF = re.search(r'<!-- QF:JS:BEGIN -->', out)
-        k = mQF.start() if mQF else out.rfind('</body>')
+        # 保序：锚到 AF:HTML 之前。规范链（文档位置）：
+        #   FPS < SE < AF < QF < </body>  —— 每个位置只有一个插入者，
+        # 因此任意顺序重跑任一注入器，各块位置都由其后继唯一确定，md5 收敛。
+        mAF = re.search(r'<!-- AF:HTML:BEGIN -->', out)
+        k = mAF.start() if mAF else out.rfind('</body>')
         if k < 0:
             err('找不到 </body> 锚点')
         out = out[:k] + body_block + out[k:]
