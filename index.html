@@ -5712,6 +5712,47 @@ function updateSectors(list) {
 }
 
 // 加载热门行业板块（东财概念板块批量行情）
+/* 腾讯 qt.gtimg.cn 板块行情直查（script 注入，与 fetchTencent 同机制）。
+   只认 pt 码（qq. 前缀去掉即得）；东财 BK 码不认 —— 用 localStorage 里的
+   「板块名 → pt 码」映射顶替（映射由腾讯列表层成功时写入，自愈）。 */
+function fetchTencentSecQuotes() {
+  const items = [];
+  let nameMap = {};
+  try { nameMap = JSON.parse(localStorage.getItem('finance-secname-map') || '{}'); } catch (e) {}
+  SECTORS.forEach(s => {
+    if (s.secid.indexOf('qq.') === 0) items.push({ secid: s.secid, tcode: s.secid.slice(3) });
+    else {
+      const tc = nameMap[s.name];
+      if (tc) items.push({ secid: s.secid, tcode: tc });
+    }
+  });
+  if (!items.length) return Promise.reject(new Error('no tcode'));
+  const codes = items.map(x => x.tcode).join(',');
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.charset = 'gbk';
+    script.referrerPolicy = 'no-referrer';
+    const timer = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, 8000);
+    function cleanup() { clearTimeout(timer); script.remove(); }
+    script.onload = () => {
+      cleanup();
+      const out = [];
+      items.forEach(it => {
+        const raw = window['v_' + it.tcode];
+        if (!raw) return;
+        const f = raw.split('~');
+        const price = parseFloat(f[3]), pct = parseFloat(f[32]);
+        if (!isFinite(price) || !isFinite(pct)) return;
+        out.push({ secid: it.secid, name: f[1] || '', pct: pct, price: price });
+      });
+      out.length ? resolve(out) : reject(new Error('empty'));
+    };
+    script.onerror = () => { cleanup(); reject(new Error('network')); };
+    script.src = 'https://qt.gtimg.cn/q=' + codes;
+    document.head.appendChild(script);
+  });
+}
+
 async function loadSectors(isFirst = false) {
   const secids = SECTORS.map(s => s.secid).join(',');
   const fields = 'f2,f3,f12,f14';
@@ -5728,6 +5769,22 @@ async function loadSectors(isFirst = false) {
   const needRebuild = () => isFirst
     || Object.keys(sectorCache).length === 0
     || Object.keys(sectorCache).length !== SECTORS.length;
+  /* —— 第 0 层：腾讯 qt 直查（script 注入，与首页指数同机制，最可靠）—— */
+  try {
+    const list = await fetchTencentSecQuotes();
+    if (list.length) {
+      const srcEl = $('sector-source');
+      if (srcEl) {
+        const miss = SECTORS.filter(s => !list.find(x => x.secid === s.secid));
+        srcEl.textContent = '腾讯直连 · ' + list.length + '/' + SECTORS.length + ' 命中'
+          + (miss.length ? ' · 未匹配: ' + miss.map(m => m.name).join('、') : '');
+      }
+      if (needRebuild()) renderSectors(list);
+      else updateSectors(list);
+      return;
+    }
+  } catch (e) { /* qt 层不通，走东财 */ }
+
   for (const host of hosts) {
     try {
       const res = await fetchJson(`https://${host}/api/qt/ulist.np/get?fltt=2&secids=${secids}&fields=${fields}`, 2500);
@@ -5776,6 +5833,18 @@ async function loadSectors(isFirst = false) {
         if (code) byCode[code] = b;
         if (nm && !byName[nm]) { byName[nm] = b; nameKeys.push(nm); }
       });
+      /* 名字 → pt 码 映射落 localStorage：让第 0 层（qt 直查）以后能覆盖
+         东财 BK 码的板块 —— 腾讯列表成功一次，自愈完成。 */
+      try {
+        const mp = JSON.parse(localStorage.getItem('finance-secname-map') || '{}');
+        let dirty = false;
+        rows.forEach(b => {
+          const code = b.bd_code || b.f12;
+          const nm = b.bd_name || b.f14;
+          if (nm && code && mp[nm] !== code) { mp[nm] = code; dirty = true; }
+        });
+        if (dirty) localStorage.setItem('finance-secname-map', JSON.stringify(mp));
+      } catch (e) {}
       /* 模糊名字匹配：东财与腾讯对同一板块的命名常不一致——
          「CPO」在东财就叫 CPO，腾讯叫「共封装光模块(CPO）」。精确匹配会漏，
          卡片就没行情。这里在包含关系里取「名字最短」的候选（最贴近原意，
@@ -10966,6 +11035,16 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   function chips() {
     return [].slice.call(strip.querySelectorAll('.sector-chip:not(.sc-add-chip)'));
   }
+
+  /* 行情轮询的 renderSectors 会重建整条 strip，把编辑模式的删除角标/添加卡清掉。
+     用 MutationObserver 监听重建，编辑态开着就立刻补回 —— 否则会出现
+     「编辑模式下等几秒角标全消失，没法删」。 */
+  var stripMo = new MutationObserver(function () {
+    if (!editMode) return;
+    decorate();
+    if (!strip.contains(addChip()) && getList().length < MAX) buildAddChip();
+  });
+  stripMo.observe(strip, { childList: true });
   function addChip() { return strip.querySelector('.sc-add-chip'); }
 
   /* 给每只板块卡装上删除角标（幂等） */
