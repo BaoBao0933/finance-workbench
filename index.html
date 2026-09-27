@@ -10513,6 +10513,231 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
 </script>
 <!-- PB:JS:END -->
+<!-- FPS:JS:BEGIN -->
+<script id="fps-js">
+/* ==========================================================================
+   fps-boost / fps.js —— 自适应帧率监控与降级
+
+   为什么需要「自适应」而不是「一律降级」
+   ------------------------------------
+   一律把毛玻璃调弱，等于让高配机器也跟着吃亏；而完全不降级，低配机器就
+   一直卡。所以这里实时测帧率，只在真的掉帧时才逐步降级，流畅后自动回升。
+
+   关键设计
+   --------
+   1. **不写死 60fps 阈值** —— 先测这台机器的基线（屏幕可能是 60/120/144Hz），
+      再按基线的百分比判断，换机器、换显示器都不用改代码。
+   2. **降级快、升档慢** —— 掉帧要立刻救，恢复要谨慎，避免在临界点反复横跳。
+   3. **档位记忆** —— 存 sessionStorage，刷新页面不用重新踩一遍坑。
+   4. 默认档什么都不做，视觉与优化前 100% 一致。
+
+   暴露：window.__fpsBoost = { state(), setQuality(), reset(), baseline }
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  var STORE_KEY = 'fps-boost-quality';
+
+  var HIGH = 'high', MEDIUM = 'medium', LOW = 'low';
+  var ORDER = [HIGH, MEDIUM, LOW];
+  function rank(q) { var i = ORDER.indexOf(q); return i < 0 ? 0 : i; }
+
+  /* ---------------- 状态 ---------------- */
+  var quality = HIGH;
+  var baseline = 0;          // 基线 fps（预热期测得，吸附到屏幕标准刷新率）
+  var warmupFrames = 3;      // 预热窗口数（每窗口 1 秒）
+  var jankStreak = 0;        // 连续掉帧窗口数
+  var goodStreak = 0;        // 连续流畅窗口数
+  var lastDropT = 0;         // 上次降档时刻（rAF 时间戳）
+  var lastRiseT = 0;         // 上次升档时刻（rAF 时间戳）
+  var nowT = 0;              // 最近的 rAF 时间戳（统一时间源）
+  var lowestEver = HIGH;     // 本次会话到过的最低档（仅作记录 / 排查用）
+  var riseFailures = 0;      // 升档后又掉帧的次数 → 用来加长下次升档的观察期
+  var frameCount = 0;
+  var windowStart = 0;
+  var rafId = 0;
+  var disabled = false;
+
+  /* 掉帧判定：低于基线 72% 视为掉帧；高于 88% 视为流畅 */
+  var JANK_RATIO = 0.72;
+  var GOOD_RATIO = 0.88;
+  var DROP_AFTER = 2;        // 连续 2 个窗口掉帧 → 降一档
+  var RISE_AFTER = 6;        // 连续 6 个窗口流畅 → 尝试升一档（失败一次就翻倍）
+  var RISE_COOLDOWN = 12000; // 距上次降档至少 12s 才允许升档
+  var RISE_FAIL_WINDOW = 20000; // 升档后 20s 内又掉帧 → 判定这次升档失败
+
+  /* 屏幕刷新率是离散值，实测会因为窗口边界多算一两帧。
+     吸附到标准值能让基线稳定，也避免「基线慢慢漂移」导致的误判。 */
+  var COMMON_HZ = [60, 75, 90, 100, 120, 144, 165, 180, 240, 360];
+  function snapHz(v) {
+    if (!v || v <= 0) return 60;
+    var best = COMMON_HZ[0], bestD = Infinity;
+    for (var i = 0; i < COMMON_HZ.length; i++) {
+      var d = Math.abs(COMMON_HZ[i] - v);
+      if (d < bestD) { bestD = d; best = COMMON_HZ[i]; }
+    }
+    // 离最近的常见值太远（>12%）说明不是标准屏，就用实测值
+    return (bestD / v) > 0.12 ? Math.round(v) : best;
+  }
+
+  /* ---------------- 档位读写 ---------------- */
+  function applyQuality(q, reason) {
+    if (rank(q) === rank(quality)) return;
+    var rising = rank(q) < rank(quality);
+    quality = q;
+    if (rank(q) > rank(lowestEver)) lowestEver = q;
+
+    var el = document.documentElement;
+    if (q === HIGH) el.removeAttribute('data-fps-q');   // 默认档不设属性 → 零视觉改动
+    else el.setAttribute('data-fps-q', q);
+
+    try { sessionStorage.setItem(STORE_KEY, q); } catch (e) {}
+
+    log('档位 ' + (rising ? '↑' : '↓') + ' ' + q + '（' + reason + '）'
+      + (baseline ? ' · 基线 ' + Math.round(baseline) + 'fps' : ''));
+  }
+
+  function log(m) {
+    try { console.log('[fps-boost] ' + m); } catch (e) {}
+  }
+
+  /* ---------------- 采样 ---------------- */
+  function onWindow(fps) {
+    // 预热期：确定这台机器的基线
+    if (warmupFrames > 0) {
+      warmupFrames--;
+      if (fps > baseline) baseline = fps;
+      if (warmupFrames === 0 && baseline > 0) {
+        baseline = snapHz(baseline);
+        log('基线测定 ' + baseline + 'fps');
+      }
+      return;
+    }
+    if (!baseline) { baseline = 60; return; }
+
+    var jank = fps < baseline * JANK_RATIO;
+    var good = fps > baseline * GOOD_RATIO;
+
+    if (jank) {
+      goodStreak = 0;
+      jankStreak++;
+      if (jankStreak >= DROP_AFTER && rank(quality) < ORDER.length - 1) {
+        jankStreak = 0;
+        // 刚升过档就又掉帧 → 这次升档判定为失败，下次观察期翻倍（指数退避）
+        if (lastRiseT && nowT - lastRiseT < RISE_FAIL_WINDOW) {
+          riseFailures = Math.min(riseFailures + 1, 4);
+          log('升档失败，观察期加长到 ' + (RISE_AFTER * (riseFailures + 1)) + 's');
+        }
+        lastDropT = nowT;
+        applyQuality(ORDER[rank(quality) + 1], '实测 ' + Math.round(fps) + 'fps');
+      }
+    } else if (good) {
+      jankStreak = 0;
+      goodStreak++;
+      var cooled = nowT - lastDropT > RISE_COOLDOWN;
+      // 连续掉过档的机器，升档要多观察几轮才放行
+      var need = RISE_AFTER * (riseFailures + 1);
+      if (goodStreak >= need && cooled && rank(quality) > 0) {
+        goodStreak = 0;
+        lastRiseT = nowT;
+        applyQuality(ORDER[rank(quality) - 1], '已恢复 ' + Math.round(fps) + 'fps');
+      }
+    } else {
+      // 灰色地带：两边计数都清零，不做动作（避免临界抖动）
+      jankStreak = 0;
+      goodStreak = 0;
+    }
+  }
+
+  function tick(t) {
+    rafId = requestAnimationFrame(tick);
+    if (disabled) return;
+
+    // 统一用 rAF 时间戳：单调、不受系统时钟调整影响，也便于自动化测试驱动
+    if (t > nowT) nowT = t;
+
+    // 页面隐藏时 rAF 本身会暂停，这里再显式挡一次
+    if (document.hidden) { windowStart = t; frameCount = 0; return; }
+
+    frameCount++;
+    if (!windowStart) { windowStart = t; return; }
+
+    var elapsed = t - windowStart;
+    if (elapsed >= 1000) {
+      onWindow(frameCount * 1000 / elapsed);
+      frameCount = 0;
+      windowStart = t;
+    }
+  }
+
+  /* ---------------- 初始化 ---------------- */
+  function init() {
+    // 恢复上次会话的档位（弱机不必重新踩坑）
+    var saved = null;
+    try { saved = sessionStorage.getItem(STORE_KEY); } catch (e) {}
+    if (saved && ORDER.indexOf(saved) >= 0 && saved !== HIGH) {
+      quality = saved;
+      lowestEver = saved;
+      document.documentElement.setAttribute('data-fps-q', saved);
+      log('沿用上次档位 ' + saved);
+    }
+
+    // 尊重系统「减少动效」：直接停在 low 档的模糊策略，但不动画
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        disabled = true;
+        log('系统偏好减少动效 → 不做自适应调整');
+      }
+    } catch (e) {}
+
+    if (!disabled) rafId = requestAnimationFrame(tick);
+  }
+
+  /* ---------------- 对外接口 ---------------- */
+  window.__fpsBoost = {
+    state: function () {
+      return {
+        quality: quality,
+        baseline: baseline,
+        lowestEver: lowestEver,
+        riseFailures: riseFailures,
+        warmupLeft: warmupFrames,
+        disabled: disabled,
+      };
+    },
+    setQuality: function (q) {
+      if (ORDER.indexOf(q) < 0) return false;
+      warmupFrames = 0;
+      if (!baseline) baseline = 60;
+      applyQuality(q, '手动');
+      return true;
+    },
+    reset: function () {
+      try { sessionStorage.removeItem(STORE_KEY); } catch (e) {}
+      quality = HIGH;
+      lowestEver = HIGH;
+      riseFailures = 0;
+      document.documentElement.removeAttribute('data-fps-q');
+      warmupFrames = 3;
+      baseline = 0;
+      jankStreak = 0;
+      goodStreak = 0;
+      lastDropT = 0;
+      lastRiseT = 0;
+      log('已重置');
+    },
+    stop: function () { disabled = true; if (rafId) cancelAnimationFrame(rafId); },
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
+</script>
+<!-- FPS:JS:END -->
 <!-- SE:BODY:BEGIN -->
 <script id="sector-edit-js">
 /* ==========================================================================
@@ -10742,15 +10967,27 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
      腾讯板块（bd_code/bd_name，用 qq 前缀避免与东财码混淆）。 */
   function normRows(rows) {
     return (rows || []).map(function (r) {
+      /* 元素级守卫：上游数组可能混入 null / 非对象（东财或腾讯任一源异常时）。
+         此前只在数组层兜了 (rows || [])，一个 null 元素就会让整批转换抛错，
+         全量池直接归零（回到只有静态兜底那几条）。 */
+      if (!r || typeof r !== 'object') return null;
       var secid = '', name = '';
-      if (r.secid) {                       // 已是目标格式
-        secid = r.secid; name = r.name || '';
-      } else if (r.f12) {                  // 东财 clist 行
-        secid = '90.' + r.f12; name = r.f14 || '';
-      } else if (r.code) {                  // 主文件 secAllList（code 字段）
-        secid = '90.' + r.code; name = r.name || '';
-      } else if (r.bd_code) {               // 腾讯板块
+      if (r.secid) {                       // 已是目标格式（最可靠，直接采用）
+        secid = r.secid;
+        name = r.name || r.f14 || r.bd_name || '';
+      } else if (r.bd_code) {               // 腾讯原始行
         secid = 'qq.' + r.bd_code; name = r.bd_name || '';
+      } else if (r.f12) {
+        /* f12 有两个来源，必须按前缀分流：
+           - 东财 clist          → 'BK1136'    → '90.BK1136'
+           - quote-fallback 转换 → 'pt01801131' → 'qq.pt01801131'
+           曾经一律加 '90.'，导致腾讯行变成 '90.pt01801131' 通不过格式校验，
+           927 条板块被整批丢弃（面板只剩静态池那 5 个）。 */
+        name = r.f14 || '';
+        secid = (/^BK/i.test(r.f12) || /^\d+$/.test(r.f12)) ? '90.' + r.f12 : 'qq.' + r.f12;
+      } else if (r.code) {                  // 主文件 secAllList（code 字段）
+        name = r.name || '';
+        secid = (/^BK/i.test(r.code) || /^\d+$/.test(r.code)) ? '90.' + r.code : 'qq.' + r.code;
       } else if (r.name && r.qq) {          // sector-edit 内部格式
         secid = 'qq.' + r.qq; name = r.name;
       }
@@ -10760,13 +10997,51 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   }
 
   /* 东财全量拿不到时的兜底：腾讯板块（行业 124 + 概念 803） */
+  function fetchQQDirect(kind, pageSize, maxP) {
+    /* 自包含腾讯板块拉取（不依赖 quote-fallback 模块）。
+       直接产出 {secid:'qq.xxx', name} 的目标格式，绕开 f12 字段歧义。 */
+    var t = kind === 'industry' ? '01' : '02';
+    var l = pageSize || 500, maxP = maxP || 3;
+    var base = 'https://proxy.finance.qq.com/ifzqgtimg/appstock/app/mktHs/rank';
+    var out = [], page = 1;
+    function step() {
+      if (page > maxP) return Promise.resolve(out);
+      return fetch(base + '?l=' + l + '&p=' + page + '&t=' + t + '/averatio&ordertype=0',
+                   { referrerPolicy: 'no-referrer', cache: 'no-store' })
+        .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+        .then(function (j) {
+          var rows = (j && j.data) || [];
+          if (!rows.length) return out;
+          rows.forEach(function (x) {
+            if (x.bd_code && x.bd_name) out.push({ secid: 'qq.' + x.bd_code, name: x.bd_name });
+          });
+          if (rows.length < l) return out;
+          page++;
+          return step();
+        });
+    }
+    return step();
+  }
+
   function fetchQQAll() {
+    /* 东财全量拿不到（push2 被限流）时的兜底：腾讯板块 124 行业 + 803 概念。
+       优先复用 quote-fallback 的 QF.fetchQQBoards；若该模块不在（加载失败 /
+       注入顺序变动），就地自包含拉取——不让整个全量池因另一个模块缺席而失效。 */
     var Q = window.QF;
-    if (!Q || typeof Q.fetchQQBoards !== 'function') return Promise.reject(new Error('no QF'));
-    return Promise.all([Q.fetchQQBoards('industry'), Q.fetchQQBoards('concept')])
-      .then(function (rs) {
-        return normRows(rs[0].concat(rs[1]));
-      });
+    if (Q && typeof Q.fetchQQBoards === 'function') {
+      return Promise.all([Q.fetchQQBoards('industry'), Q.fetchQQBoards('concept')])
+        .then(function (rs) { return normRows(rs[0].concat(rs[1])); })
+        .then(function (rows) {
+          if (rows.length) return rows;
+          throw new Error('qf empty');       // 拿到行但全被丢弃 → 走自包含实现
+        })
+        .catch(function () {
+          return Promise.all([fetchQQDirect('industry'), fetchQQDirect('concept')])
+            .then(function (rs) { return rs[0].concat(rs[1]); });
+        });
+    }
+    return Promise.all([fetchQQDirect('industry'), fetchQQDirect('concept')])
+      .then(function (rs) { return rs[0].concat(rs[1]); });
   }
 
   /* 去重（按 secid，再按板块名去重——同名时保留东财码那条，它能拉成分股）+ 剔除已添加 */
@@ -10774,6 +11049,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     var added = addedMap();
     var seenSecid = {}, seenName = {}, out = [];
     rows.forEach(function (s) {
+      if (!s) return;
       if (seenSecid[s.secid] || added[s.secid] || added['n:' + s.name]) return;
       // 同名板块优先保留东财码（90.BK），腾讯码只在没有东财版本时保留
       var nameKey = s.name.toLowerCase();
@@ -10824,7 +11100,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
       var url = 'https://push2.eastmoney.com/api/qt/clist/get?pn=' + page +
         '&pz=100&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:90+t:' + t +
         '+f:!50&fields=f12,f14';
-      return QH.fetchJson(url, 6000).then(function (res) {
+      return QH.fetchJson(url, 2500).then(function (res) {
         var diff = res && res.data && res.data.diff;
         if (!diff || !diff.length) return all;
         all = all.concat(diff);
@@ -10839,26 +11115,26 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   function refreshAll() {
     if (allCache && (Date.now() - allCache.t) < ALL_TTL && allCache.list.length >= 100) return;
 
+    var settled = false;
     function apply(list) {
+      if (settled) return false;
       var out = dedupe(list);
-      if (out.length < 30) return false;     // 太少视为无效（避免被 11 个静态池顶掉真实全量）
+      if (out.length < 30) return false;     // 太少视为无效（别让静态池顶掉真实全量）
+      settled = true;
       allCache = { t: Date.now(), list: out };
       if (panel) fillList(out);              // 原地刷新（保留搜索词）
       return true;
     }
 
-    // 1) 东财 clist 全量（有东财码，能拉成分股，最优）
+    /* 两个源并行竞速，谁先给出有效全量就用谁。
+       原先东财串行翻页在前、失败才走腾讯，一旦东财慢或半通，用户要干等；
+       并行后腾讯通常 0.5s 内返回，面板几乎是立刻从「加载中…」跳到全量。 */
+    fetchQQAll().then(apply).catch(function () {});
+
+    /* 东财带 BK 码、能拉成分股，更优；先探首页（短超时），失败立即放弃翻页 */
     Promise.all([fetchBoardType('2'), fetchBoardType('3')])
-      .then(function (rs) {
-        if (apply(normRows(rs[0].concat(rs[1])))) return;
-        throw new Error('east empty');       // 200 但空数据 → 也要走备用
-      })
-      .catch(function () {
-        // 2) 东财不可用（push2 被限流）→ 腾讯板块全量
-        fetchQQAll().then(function (rows) {
-          apply(rows);
-        }).catch(function () { /* 两个源都不通：面板保持当前数据 */ });
-      });
+      .then(function (rs) { apply(normRows(rs[0].concat(rs[1]))); })
+      .catch(function () {});
   }
 
   /* ---- 面板 ---- */
@@ -10898,18 +11174,24 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     }, 0);
 
     // 先用已有数据秒填，再后台拉全量（拉到后原地刷新，保留搜索词）
-    fillList(getCachedAll());
+    // 传 pending=true：不足 30 条时只显示「加载中…」，不谎报可选数
+    fillList(getCachedAll(), true);
     refreshAll();
     var inp = panel.querySelector('#seApSearch');
     if (inp) setTimeout(function () { inp.focus(); }, 60);
   }
 
-  function fillList(all) {
+  function fillList(all, pending) {
     if (!panel) return;
     var added = addedMap();
     panel.__all = (all || []).filter(function (s) { return !added[s.secid]; });
+    /* pending：全量尚未返回时，不要把那几条静态兜底当成真实可选数报出去
+       —— 用户看到「共 5 个可选」会直接以为功能坏了（这次的真实反馈）。 */
+    panel.__pending = !!pending && panel.__all.length < 30;
     var cnt = panel.querySelector('#seApCount');
-    if (cnt) cnt.textContent = panel.__all.length ? '共 ' + panel.__all.length + ' 个可选' : '加载中…';
+    if (cnt) cnt.textContent = panel.__pending
+      ? '加载中…'
+      : (panel.__all.length ? '共 ' + panel.__all.length + ' 个可选' : '暂无可添加');
     renderList(panel.__kw || '');
     positionPanel();   // 列表高度变化后重新定位
   }
@@ -10933,7 +11215,9 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
         '</button>';
     }).join('');
     if (!html) {
-      html = '<div class="se-ap-empty">' + (kw ? '没有匹配「' + kw + '」的板块' : '暂无可选板块，稍候自动加载全量…') + '</div>';
+      html = '<div class="se-ap-empty">' + (kw
+        ? '没有匹配「' + kw + '」的板块'
+        : (panel.__pending ? '正在获取全部板块…' : '暂无可添加的板块')) + '</div>';
     } else if (total > RENDER_LIMIT) {
       html += '<div class="se-ap-more">共 ' + total + ' 个匹配，输入关键词缩小范围</div>';
     }
@@ -11008,6 +11292,79 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
 </script>
 <!-- SE:BODY:END -->
+<!-- AF:HTML:BEGIN -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <filter id="apple-lg" x="-20%" y="-20%" width="140%" height="140%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.011" numOctaves="2" seed="7" result="n"/>
+    <feGaussianBlur in="n" stdDeviation="2.4" result="s"/>
+    <feDisplacementMap in="SourceGraphic" in2="s" scale="22" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+<!-- AF:HTML:END -->
+<!-- AF:JS:BEGIN -->
+<script id="apple-js">
+/* ==========================================================================
+   apple-fx / apple.js —— 指数卡小角度倾斜（事件委托，无 rAF 循环）
+
+   设计：
+   - 委托到 document 的 pointermove（passive），只在鼠标进入
+     #page-home .index-card 时写 CSS 变量；卡片是动态创建的，委托免去逐卡绑定。
+   - 平滑与回位交给 apple.css 里的 transition（跟手 .2s / 回位 .45s），
+     JS 只负责设目标值 —— 静止时零消耗。
+   - maxTilt 5°（用户要求：倾斜不要太多）。
+   - 只响应 mouse 指针；触摸不抢滚动。reduced-motion 整体禁用。
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var MAX_TILT = 5;
+  var pageHome = null;
+  var cur = null;
+
+  function off(card) {
+    card.style.setProperty('--af-rx', '0deg');
+    card.style.setProperty('--af-ry', '0deg');
+    card.style.removeProperty('--af-sc');
+  }
+
+  document.addEventListener('pointermove', function (e) {
+    if (reduce || e.pointerType !== 'mouse') return;
+
+    if (!pageHome) pageHome = document.getElementById('page-home');
+    if (!pageHome || pageHome.style.display === 'none') {
+      if (cur) { off(cur); cur = null; }
+      return;
+    }
+
+    var t = e.target;
+    var card = (t && t.closest) ? t.closest('#page-home .index-card') : null;
+    if (card !== cur) {
+      if (cur) off(cur);
+      cur = card;
+    }
+    if (!cur) return;
+
+    var r = cur.getBoundingClientRect();
+    var nx = (e.clientX - r.left) / r.width;
+    var ny = (e.clientY - r.top) / r.height;
+    if (nx < 0 || nx > 1 || ny < 0 || ny > 1) { off(cur); cur = null; return; }
+
+    cur.style.setProperty('--af-ry', ((nx - 0.5) * 2 * MAX_TILT).toFixed(2) + 'deg');
+    cur.style.setProperty('--af-rx', (-(ny - 0.5) * 2 * MAX_TILT).toFixed(2) + 'deg');
+    cur.style.setProperty('--af-sc', '1.015');
+  }, { passive: true });
+
+  // 切走页面时复位，避免回来时残留角度
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden && cur) { off(cur); cur = null; }
+  });
+
+  try { console.log('[apple-fx] 液态玻璃 + 小角度倾斜已装载（maxTilt ' + MAX_TILT + '°）'); } catch (e) {}
+})();
+
+</script>
+<!-- AF:JS:END -->
 <!-- QF:JS:BEGIN -->
 <script id="qf-fallback-js">
 /* ==== 1/2 备用数据源 ==== */
@@ -11221,6 +11578,13 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
             var pct = parseFloat(x.bd_zdf);
             if (!x.bd_name || !isFinite(pct)) return;
             all.push({
+              /* 明确的目标格式。消费方一律优先读 secid —— 曾经因为下游
+                 只看到 f12 就把腾讯码当成东财码加 '90.' 前缀，整批报错丢弃。 */
+              secid: 'qq.' + (x.bd_code || ''),
+              name: x.bd_name,
+              bd_code: x.bd_code || '',
+              bd_name: x.bd_name,
+              /* 东财同形字段：保留，供 quote-fallback 自己的 patch.js 复用 */
               f12: x.bd_code || '',        // 板块码
               f14: x.bd_name,              // 板块名
               f2: parseFloat(x.bd_zxj),    // 板块最新价（指数点位）
@@ -11249,7 +11613,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     fetchFuturesSina: fetchFuturesSina,
     fetchStocksSina: fetchStocksSina,
     fetchQQBoards: fetchQQBoards,
-    version: '1.1.0'
+    version: '1.2.0'
   };
 
   if (typeof window !== 'undefined') window.QF = API;
@@ -11639,303 +12003,5 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
 </script>
 <!-- QF:JS:END -->
-<!-- FPS:JS:BEGIN -->
-<script id="fps-js">
-/* ==========================================================================
-   fps-boost / fps.js —— 自适应帧率监控与降级
-
-   为什么需要「自适应」而不是「一律降级」
-   ------------------------------------
-   一律把毛玻璃调弱，等于让高配机器也跟着吃亏；而完全不降级，低配机器就
-   一直卡。所以这里实时测帧率，只在真的掉帧时才逐步降级，流畅后自动回升。
-
-   关键设计
-   --------
-   1. **不写死 60fps 阈值** —— 先测这台机器的基线（屏幕可能是 60/120/144Hz），
-      再按基线的百分比判断，换机器、换显示器都不用改代码。
-   2. **降级快、升档慢** —— 掉帧要立刻救，恢复要谨慎，避免在临界点反复横跳。
-   3. **档位记忆** —— 存 sessionStorage，刷新页面不用重新踩一遍坑。
-   4. 默认档什么都不做，视觉与优化前 100% 一致。
-
-   暴露：window.__fpsBoost = { state(), setQuality(), reset(), baseline }
-   ========================================================================== */
-(function () {
-  'use strict';
-
-  var STORE_KEY = 'fps-boost-quality';
-
-  var HIGH = 'high', MEDIUM = 'medium', LOW = 'low';
-  var ORDER = [HIGH, MEDIUM, LOW];
-  function rank(q) { var i = ORDER.indexOf(q); return i < 0 ? 0 : i; }
-
-  /* ---------------- 状态 ---------------- */
-  var quality = HIGH;
-  var baseline = 0;          // 基线 fps（预热期测得，吸附到屏幕标准刷新率）
-  var warmupFrames = 3;      // 预热窗口数（每窗口 1 秒）
-  var jankStreak = 0;        // 连续掉帧窗口数
-  var goodStreak = 0;        // 连续流畅窗口数
-  var lastDropT = 0;         // 上次降档时刻（rAF 时间戳）
-  var lastRiseT = 0;         // 上次升档时刻（rAF 时间戳）
-  var nowT = 0;              // 最近的 rAF 时间戳（统一时间源）
-  var lowestEver = HIGH;     // 本次会话到过的最低档（仅作记录 / 排查用）
-  var riseFailures = 0;      // 升档后又掉帧的次数 → 用来加长下次升档的观察期
-  var frameCount = 0;
-  var windowStart = 0;
-  var rafId = 0;
-  var disabled = false;
-
-  /* 掉帧判定：低于基线 72% 视为掉帧；高于 88% 视为流畅 */
-  var JANK_RATIO = 0.72;
-  var GOOD_RATIO = 0.88;
-  var DROP_AFTER = 2;        // 连续 2 个窗口掉帧 → 降一档
-  var RISE_AFTER = 6;        // 连续 6 个窗口流畅 → 尝试升一档（失败一次就翻倍）
-  var RISE_COOLDOWN = 12000; // 距上次降档至少 12s 才允许升档
-  var RISE_FAIL_WINDOW = 20000; // 升档后 20s 内又掉帧 → 判定这次升档失败
-
-  /* 屏幕刷新率是离散值，实测会因为窗口边界多算一两帧。
-     吸附到标准值能让基线稳定，也避免「基线慢慢漂移」导致的误判。 */
-  var COMMON_HZ = [60, 75, 90, 100, 120, 144, 165, 180, 240, 360];
-  function snapHz(v) {
-    if (!v || v <= 0) return 60;
-    var best = COMMON_HZ[0], bestD = Infinity;
-    for (var i = 0; i < COMMON_HZ.length; i++) {
-      var d = Math.abs(COMMON_HZ[i] - v);
-      if (d < bestD) { bestD = d; best = COMMON_HZ[i]; }
-    }
-    // 离最近的常见值太远（>12%）说明不是标准屏，就用实测值
-    return (bestD / v) > 0.12 ? Math.round(v) : best;
-  }
-
-  /* ---------------- 档位读写 ---------------- */
-  function applyQuality(q, reason) {
-    if (rank(q) === rank(quality)) return;
-    var rising = rank(q) < rank(quality);
-    quality = q;
-    if (rank(q) > rank(lowestEver)) lowestEver = q;
-
-    var el = document.documentElement;
-    if (q === HIGH) el.removeAttribute('data-fps-q');   // 默认档不设属性 → 零视觉改动
-    else el.setAttribute('data-fps-q', q);
-
-    try { sessionStorage.setItem(STORE_KEY, q); } catch (e) {}
-
-    log('档位 ' + (rising ? '↑' : '↓') + ' ' + q + '（' + reason + '）'
-      + (baseline ? ' · 基线 ' + Math.round(baseline) + 'fps' : ''));
-  }
-
-  function log(m) {
-    try { console.log('[fps-boost] ' + m); } catch (e) {}
-  }
-
-  /* ---------------- 采样 ---------------- */
-  function onWindow(fps) {
-    // 预热期：确定这台机器的基线
-    if (warmupFrames > 0) {
-      warmupFrames--;
-      if (fps > baseline) baseline = fps;
-      if (warmupFrames === 0 && baseline > 0) {
-        baseline = snapHz(baseline);
-        log('基线测定 ' + baseline + 'fps');
-      }
-      return;
-    }
-    if (!baseline) { baseline = 60; return; }
-
-    var jank = fps < baseline * JANK_RATIO;
-    var good = fps > baseline * GOOD_RATIO;
-
-    if (jank) {
-      goodStreak = 0;
-      jankStreak++;
-      if (jankStreak >= DROP_AFTER && rank(quality) < ORDER.length - 1) {
-        jankStreak = 0;
-        // 刚升过档就又掉帧 → 这次升档判定为失败，下次观察期翻倍（指数退避）
-        if (lastRiseT && nowT - lastRiseT < RISE_FAIL_WINDOW) {
-          riseFailures = Math.min(riseFailures + 1, 4);
-          log('升档失败，观察期加长到 ' + (RISE_AFTER * (riseFailures + 1)) + 's');
-        }
-        lastDropT = nowT;
-        applyQuality(ORDER[rank(quality) + 1], '实测 ' + Math.round(fps) + 'fps');
-      }
-    } else if (good) {
-      jankStreak = 0;
-      goodStreak++;
-      var cooled = nowT - lastDropT > RISE_COOLDOWN;
-      // 连续掉过档的机器，升档要多观察几轮才放行
-      var need = RISE_AFTER * (riseFailures + 1);
-      if (goodStreak >= need && cooled && rank(quality) > 0) {
-        goodStreak = 0;
-        lastRiseT = nowT;
-        applyQuality(ORDER[rank(quality) - 1], '已恢复 ' + Math.round(fps) + 'fps');
-      }
-    } else {
-      // 灰色地带：两边计数都清零，不做动作（避免临界抖动）
-      jankStreak = 0;
-      goodStreak = 0;
-    }
-  }
-
-  function tick(t) {
-    rafId = requestAnimationFrame(tick);
-    if (disabled) return;
-
-    // 统一用 rAF 时间戳：单调、不受系统时钟调整影响，也便于自动化测试驱动
-    if (t > nowT) nowT = t;
-
-    // 页面隐藏时 rAF 本身会暂停，这里再显式挡一次
-    if (document.hidden) { windowStart = t; frameCount = 0; return; }
-
-    frameCount++;
-    if (!windowStart) { windowStart = t; return; }
-
-    var elapsed = t - windowStart;
-    if (elapsed >= 1000) {
-      onWindow(frameCount * 1000 / elapsed);
-      frameCount = 0;
-      windowStart = t;
-    }
-  }
-
-  /* ---------------- 初始化 ---------------- */
-  function init() {
-    // 恢复上次会话的档位（弱机不必重新踩坑）
-    var saved = null;
-    try { saved = sessionStorage.getItem(STORE_KEY); } catch (e) {}
-    if (saved && ORDER.indexOf(saved) >= 0 && saved !== HIGH) {
-      quality = saved;
-      lowestEver = saved;
-      document.documentElement.setAttribute('data-fps-q', saved);
-      log('沿用上次档位 ' + saved);
-    }
-
-    // 尊重系统「减少动效」：直接停在 low 档的模糊策略，但不动画
-    try {
-      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        disabled = true;
-        log('系统偏好减少动效 → 不做自适应调整');
-      }
-    } catch (e) {}
-
-    if (!disabled) rafId = requestAnimationFrame(tick);
-  }
-
-  /* ---------------- 对外接口 ---------------- */
-  window.__fpsBoost = {
-    state: function () {
-      return {
-        quality: quality,
-        baseline: baseline,
-        lowestEver: lowestEver,
-        riseFailures: riseFailures,
-        warmupLeft: warmupFrames,
-        disabled: disabled,
-      };
-    },
-    setQuality: function (q) {
-      if (ORDER.indexOf(q) < 0) return false;
-      warmupFrames = 0;
-      if (!baseline) baseline = 60;
-      applyQuality(q, '手动');
-      return true;
-    },
-    reset: function () {
-      try { sessionStorage.removeItem(STORE_KEY); } catch (e) {}
-      quality = HIGH;
-      lowestEver = HIGH;
-      riseFailures = 0;
-      document.documentElement.removeAttribute('data-fps-q');
-      warmupFrames = 3;
-      baseline = 0;
-      jankStreak = 0;
-      goodStreak = 0;
-      lastDropT = 0;
-      lastRiseT = 0;
-      log('已重置');
-    },
-    stop: function () { disabled = true; if (rafId) cancelAnimationFrame(rafId); },
-  };
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-})();
-
-</script>
-<!-- FPS:JS:END -->
-<!-- AF:HTML:BEGIN -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
-  <filter id="apple-lg" x="-20%" y="-20%" width="140%" height="140%">
-    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.011" numOctaves="2" seed="7" result="n"/>
-    <feGaussianBlur in="n" stdDeviation="2.4" result="s"/>
-    <feDisplacementMap in="SourceGraphic" in2="s" scale="22" xChannelSelector="R" yChannelSelector="G"/>
-  </filter>
-</svg>
-<!-- AF:HTML:END -->
-<!-- AF:JS:BEGIN -->
-<script id="apple-js">
-/* ==========================================================================
-   apple-fx / apple.js —— 指数卡小角度倾斜（事件委托，无 rAF 循环）
-
-   设计：
-   - 委托到 document 的 pointermove（passive），只在鼠标进入
-     #page-home .index-card 时写 CSS 变量；卡片是动态创建的，委托免去逐卡绑定。
-   - 平滑与回位交给 apple.css 里的 transition（跟手 .2s / 回位 .45s），
-     JS 只负责设目标值 —— 静止时零消耗。
-   - maxTilt 5°（用户要求：倾斜不要太多）。
-   - 只响应 mouse 指针；触摸不抢滚动。reduced-motion 整体禁用。
-   ========================================================================== */
-(function () {
-  'use strict';
-
-  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var MAX_TILT = 5;
-  var pageHome = null;
-  var cur = null;
-
-  function off(card) {
-    card.style.setProperty('--af-rx', '0deg');
-    card.style.setProperty('--af-ry', '0deg');
-    card.style.removeProperty('--af-sc');
-  }
-
-  document.addEventListener('pointermove', function (e) {
-    if (reduce || e.pointerType !== 'mouse') return;
-
-    if (!pageHome) pageHome = document.getElementById('page-home');
-    if (!pageHome || pageHome.style.display === 'none') {
-      if (cur) { off(cur); cur = null; }
-      return;
-    }
-
-    var t = e.target;
-    var card = (t && t.closest) ? t.closest('#page-home .index-card') : null;
-    if (card !== cur) {
-      if (cur) off(cur);
-      cur = card;
-    }
-    if (!cur) return;
-
-    var r = cur.getBoundingClientRect();
-    var nx = (e.clientX - r.left) / r.width;
-    var ny = (e.clientY - r.top) / r.height;
-    if (nx < 0 || nx > 1 || ny < 0 || ny > 1) { off(cur); cur = null; return; }
-
-    cur.style.setProperty('--af-ry', ((nx - 0.5) * 2 * MAX_TILT).toFixed(2) + 'deg');
-    cur.style.setProperty('--af-rx', (-(ny - 0.5) * 2 * MAX_TILT).toFixed(2) + 'deg');
-    cur.style.setProperty('--af-sc', '1.015');
-  }, { passive: true });
-
-  // 切走页面时复位，避免回来时残留角度
-  document.addEventListener('visibilitychange', function () {
-    if (document.hidden && cur) { off(cur); cur = null; }
-  });
-
-  try { console.log('[apple-fx] 液态玻璃 + 小角度倾斜已装载（maxTilt ' + MAX_TILT + '°）'); } catch (e) {}
-})();
-
-</script>
-<!-- AF:JS:END -->
 </body>
 </html>
