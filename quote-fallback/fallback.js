@@ -199,8 +199,13 @@
     function step() {
       if (page > maxP) return Promise.resolve(all);
       var url = QQ_RANK + '?l=' + l + '&p=' + page + '&t=' + t + '/averatio&ordertype=0';
-      return fetch(url, { referrerPolicy: 'no-referrer', cache: 'no-store' })
-        .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+      /* 8s 超时：fetch 挂死时不能让上层永远等（否则轮询周期被无限拉长） */
+      var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var hasTimer = typeof setTimeout === 'function' && typeof clearTimeout === 'function';
+      var timer = (ctl && hasTimer) ? setTimeout(function () { ctl.abort(); }, 8000) : 0;
+      return fetch(url, { referrerPolicy: 'no-referrer', cache: 'no-store', signal: ctl && ctl.signal })
+        .then(function (r) { if (timer) clearTimeout(timer); if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+        .catch(function (e) { if (timer) clearTimeout(timer); throw e; })
         .then(function (j) {
           var rows = (j && j.data) || [];
           if (!rows.length) return all;
