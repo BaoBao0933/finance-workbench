@@ -36,6 +36,8 @@ function loadAPI() {
   const code = fs.readFileSync(path.join(HERE, 'fallback.js'), 'utf8');
   const sandbox = {
     module: { exports: {} },
+    setTimeout: global.setTimeout,
+    clearTimeout: global.clearTimeout,
     Promise, console, Date, isFinite, parseFloat,
     // fallback.js 内部直接引用 fetch（裸标识符）→ 必须在同一 realm 里提供
     fetch: (...a) => sandboxFetch(...a),
