@@ -7934,13 +7934,81 @@ $('sec-back').addEventListener('click', () => {
 });
 
 // 成分股（按涨跌幅排序：po=1 涨幅榜 / po=0 跌幅榜）
+/* 最长公共子串长度（用于「旅游及景区」↔「酒店旅游」这类命名差异的匹配） */
+function commonSubLen(a, b) {
+  let best = 0;
+  for (let i = 0; i < a.length; i++) {
+    for (let len = best + 1; i + len <= a.length; len++) {
+      const sub = a.slice(i, i + len);
+      if (b.indexOf(sub) >= 0) best = len;
+    }
+  }
+  return best;
+}
+
+/* 在新浪行业/概念列表里按板块名模糊匹配：
+   精确 > 包含 > 共同前缀≥3 > 最长公共子串≥2（取最长者，同长取列表靠前者） */
+function fuzzyMatchSina(rows, name) {
+  let best = null, bestScore = 0;
+  const score = (n) => {
+    if (n === name) return 100;
+    if (n.indexOf(name) >= 0 || name.indexOf(n) >= 0) return 80 - Math.abs(n.length - name.length);
+    let p = 0;
+    while (p < n.length && p < name.length && n[p] === name[p]) p++;
+    if (p >= 3) return 60;
+    const c = commonSubLen(n, name);
+    return c >= 2 ? c : 0;
+  };
+  rows.forEach(r => {
+    const sc = score(r.f14);
+    if (sc > bestScore) { bestScore = sc; best = r; }
+  });
+  return best;
+}
+
+/* 按板块名拉新浪成分股：概念(3)优先（腾讯板块多为概念），再行业(2)。
+   返回 { diff(东财同形), nodeName } 或 null。 */
+async function loadSinaNodeStocks(name) {
+  for (const type of [3, 2]) {
+    let lst = null;
+    try { lst = await sinaBoardList(type); } catch (e) { continue; }
+    const hit = fuzzyMatchSina(lst, name);
+    if (!hit) continue;
+    try {
+      const arr = await fetchJson('https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData?page=1&num=100&sort=amount&asc=0&node=' + encodeURIComponent(hit.f12), 9000);
+      if (Array.isArray(arr) && arr.length) {
+        return {
+          diff: arr.map(x => ({
+            f12: String(x.code), f14: x.name,
+            f2: parseFloat(x.trade), f3: parseFloat(x.changepercent),
+            f4: parseFloat(x.pricechange), f6: parseFloat(x.amount),
+          })),
+          nodeName: hit.f14,
+        };
+      }
+    } catch (e) { /* 该 node 拉取失败，试下一个类别 */ }
+  }
+  return null;
+}
+
 async function loadSectorStocks() {
   if (!curSector) return;
   /* 腾讯源板块（code 不以 BK 开头，如 pt02GN2190，由 quote-fallback 兜底路径添加）：
      东财成分股接口按 fs=b:BKxxxx 查询，腾讯板块码无法直接查；东财限流期间也无从兜底。
      明确告知用户，避免误以为是功能坏了。 */
   if (!/^BK\d+$/.test(curSector.code || '')) {
-    $('sec-stocks').innerHTML = '<div class="news-empty">该板块来自腾讯源（东财接口受限期间添加），成分股暂不可用</div>';
+    /* 腾讯源板块：按板块名在新浪行业/概念里模糊匹配出 node，用新浪成分股顶上。
+       例：腾讯「旅游及景区」→ 新浪行业「酒店旅游」（公共子串「旅游」）。
+       桌面版 CORS 已全局放行；手机端新浪无 ACAO 头会被拦，届时落到下方提示。 */
+    const sino = await loadSinaNodeStocks(curSector.name);
+    if (sino) {
+      renderSecStocks(sino.diff);
+      const pctTxt = (curSector.pct > 0 ? '+' : '') + fmtNum(curSector.pct, 2) + '%';
+      $('sec-d-pct').textContent = pctTxt + ` · ${sino.diff.length} 只成分股 · 新浪源（${sino.nodeName}）`;
+      $('sec-d-pct').className = 'sec-d-pct ' + clsOf(curSector.pct);
+      return;
+    }
+    $('sec-stocks').innerHTML = '<div class="news-empty">成分股暂不可用（东财接口受限，且未能匹配到新浪同类板块）</div>';
     $('sec-d-pct').textContent = (curSector.pct > 0 ? '+' : '') + fmtNum(curSector.pct, 2) + '% · 腾讯源';
     $('sec-d-pct').className = 'sec-d-pct ' + clsOf(curSector.pct);
     return;
@@ -7959,22 +8027,15 @@ async function loadSectorStocks() {
       return;
     } catch (e) { /* 换域名 */ }
   }
-  // —— 备用：新浪成分股（按板块 node 取；东财 clist 被限流时顶上） ——
-  try {
-    const arr = await fetchJson('https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData?page=1&num=100&sort=changepercent&asc=0&node=' + encodeURIComponent(curSector.code), 9000);
-    if (Array.isArray(arr) && arr.length) {
-      const diff = arr.map(x => ({
-        f12: String(x.code), f14: x.name,
-        f2: parseFloat(x.trade), f3: parseFloat(x.changepercent),
-        f4: parseFloat(x.pricechange), f6: parseFloat(x.amount),
-      }));
-      renderSecStocks(diff);
-      const pctTxt = (curSector.pct > 0 ? '+' : '') + fmtNum(curSector.pct, 2) + '%';
-      $('sec-d-pct').textContent = pctTxt + ` · ${diff.length} 只成分股 · 新浪源`;
-      $('sec-d-pct').className = 'sec-d-pct ' + clsOf(curSector.pct);
-      return;
-    }
-  } catch (e) { /* 备用源也不通 */ }
+  // —— 备用：新浪成分股（按板块名模糊匹配 node；东财 clist 被限流时顶上） ——
+  const sino = await loadSinaNodeStocks(curSector.name);
+  if (sino) {
+    renderSecStocks(sino.diff);
+    const pctTxt = (curSector.pct > 0 ? '+' : '') + fmtNum(curSector.pct, 2) + '%';
+    $('sec-d-pct').textContent = pctTxt + ` · ${sino.diff.length} 只成分股 · 新浪源（${sino.nodeName}）`;
+    $('sec-d-pct').className = 'sec-d-pct ' + clsOf(curSector.pct);
+    return;
+  }
   $('sec-stocks').innerHTML = '<div class="news-empty">成分股数据加载失败，稍后自动重试…</div>';
 }
 
