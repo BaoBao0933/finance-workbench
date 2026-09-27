@@ -136,7 +136,12 @@ def main():
         err('找不到 </head> 锚点')
     out = clean[:m.start()] + css_block + clean[m.start():]
 
-    k = out.rfind('</body>')
+    # 保序：锚到 QF:JS 之前，而不是 rfind('</body>')。
+    # apple-fx 与 quote-fallback 曾经都锚 </body> 前 —— 谁后注入谁更靠末尾，
+    # 重跑任一注入器两块就互换位置，md5 不稳定（幂等被破坏）。
+    # 规范链（文档位置）：FPS < SE < AF < QF < </body>，每个位置只有一个插入者。
+    mQF = re.search(r'<!-- QF:JS:BEGIN -->', out)
+    k = mQF.start() if mQF else out.rfind('</body>')
     if k < 0:
         err('找不到 </body> 锚点')
     out = out[:k] + html_block + js_block + out[k:]
