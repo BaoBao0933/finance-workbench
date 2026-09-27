@@ -5646,6 +5646,9 @@ window.__sectorsHook = {
     Object.keys(sectorCache).forEach(function (k) { delete sectorCache[k]; });
     loadSectors(true);
   },
+  /* 新增板块后立即拉一次行情（isFirst=false）：需要重建时会自动重建，
+     拉不到也不会清掉已有卡片。避免用户干等轮询（非交易时段间隔 120s）。 */
+  refreshQuotes: function () { loadSectors(false); },
   toast: showToast
 };
 
@@ -5653,15 +5656,26 @@ window.__sectorsHook = {
 function renderSectors(list) {
   const strip = $('sector-strip');
   if (!list || !list.length) return;
-  strip.innerHTML = list.map((s, i) => {
-    const up = s.pct >= 0;
-    const abs = Math.min(Math.abs(s.pct), 10) / 10 * 100;
+  /* 重建前清空缓存：否则上一批卡片的 DOM 引用会残留在 sectorCache 里
+     （内存泄漏，也让「缓存为空」这个判定失真）。 */
+  Object.keys(sectorCache).forEach(k => { delete sectorCache[k]; });
+  /* 渲染「全部已配置板块」而不是只渲染拿到行情的那些：
+     ① 缺数据的板块保留卡片并显示占位（--% / -- 点），不会莫名消失；
+     ② sectorCache 条数恒等于 SECTORS 数，让上面的 needRebuild 判定可靠。 */
+  const byId = {};
+  list.forEach(x => { byId[x.secid] = x; });
+  strip.innerHTML = SECTORS.map((cfg, i) => {
+    const s = byId[cfg.secid];
+    const has = !!(s && isFinite(s.pct));
+    const pct = has ? s.pct : 0;
+    const up = pct >= 0;
+    const abs = has ? Math.min(Math.abs(pct), 10) / 10 * 100 : 0;
     return `
-    <div class="sector-chip fade-in" tabindex="0" role="button" data-secid="${s.secid}" data-code="${s.secid.split('.').pop()}" data-name="${s.name}" data-pct="${s.pct}" title="${s.name} · 点击查看成分股">
-      <div class="sc-top"><span class="sc-name">${s.name}</span><span class="sc-rank">#${i + 1}</span></div>
-      <div class="sc-val ${up ? 'up' : 'down'}">${s.pct > 0 ? '+' : ''}${fmtNum(s.pct, 2)}%</div>
+    <div class="sector-chip fade-in" tabindex="0" role="button" data-secid="${cfg.secid}" data-code="${cfg.secid.split('.').pop()}" data-name="${cfg.name}" data-pct="${has ? pct : ''}" title="${cfg.name} · 点击查看成分股">
+      <div class="sc-top"><span class="sc-name">${cfg.name}</span><span class="sc-rank">#${i + 1}</span></div>
+      <div class="sc-val${has ? ' ' + (up ? 'up' : 'down') : ''}">${has ? ((pct > 0 ? '+' : '') + fmtNum(pct, 2) + '%') : '--%'}</div>
       <div class="sc-bar"><i class="${up ? 'up' : 'down'}" style="width:${abs}%"></i></div>
-      <div class="sc-price">${fmtNum(s.price)} 点</div>
+      <div class="sc-price">${has ? fmtNum(s.price) + ' 点' : '-- 点'}</div>
     </div>`;
   }).join('');
   strip.querySelectorAll('.sector-chip').forEach(chip => {
@@ -5702,6 +5716,18 @@ async function loadSectors(isFirst = false) {
   const secids = SECTORS.map(s => s.secid).join(',');
   const fields = 'f2,f3,f12,f14';
   const hosts = ['push2.eastmoney.com', 'push2delay.eastmoney.com'];
+  /* 需要重建整条 strip 而不是原地更新吗？
+     原判定只看 isFirst / sectorCache 是否为空 —— 于是「用户新添加一个板块」
+     这条路径会走 updateSectors，而新卡片（由 sector-edit 单独 append，
+     未注册进 sectorCache）它找不到 → 永远停在「--%」「-- 点」占位。
+     补一条：卡片数与 SECTORS 数不一致时也重建，任何路径都能补齐新卡片。 */
+  /* 判定用「缓存条数」而不是「DOM 卡片数」：sector-edit 新增板块时会自己
+     append 一张空卡片，此时 DOM 数已经等于 SECTORS 数，用 DOM 数判定会漏。
+     而 renderSectors 会注册全部已配置板块进 sectorCache，所以
+     「缓存条数 === SECTORS 数」才真正代表「DOM 与配置已同步」。 */
+  const needRebuild = () => isFirst
+    || Object.keys(sectorCache).length === 0
+    || Object.keys(sectorCache).length !== SECTORS.length;
   for (const host of hosts) {
     try {
       const res = await fetchJson(`https://${host}/api/qt/ulist.np/get?fltt=2&secids=${secids}&fields=${fields}`, 2500);
@@ -5714,7 +5740,7 @@ async function loadSectors(isFirst = false) {
         return d ? { secid: s.secid, name: s.name, pct: d.f3, price: d.f2 } : null;
       }).filter(Boolean);
       if (!list.length) continue;
-      if (isFirst || Object.keys(sectorCache).length === 0) renderSectors(list);
+      if (needRebuild()) renderSectors(list);
       else updateSectors(list);
       return;
     } catch (e) { /* 下一域名 */ }
@@ -5764,14 +5790,16 @@ async function loadSectors(isFirst = false) {
         return b ? { secid: s.secid, name: s.name, pct: b.f3, price: b.f2 } : null;
       }).filter(Boolean);
       if (list.length) {
-        if (isFirst || Object.keys(sectorCache).length === 0) renderSectors(list);
+        if (needRebuild()) renderSectors(list);
         else updateSectors(list);
         return;
       }
     } catch (e) { /* 备用源也不通 */ }
   }
 
-  if (isFirst) {
+  /* 只在 strip 还空着时显示提示 —— 已经渲染出卡片时不要清掉它们
+     （否则添加板块后若本轮拉取失败，整条 strip 会突然变成一行文字）。 */
+  if (isFirst && !document.querySelector('#sector-strip .sector-chip')) {
     $('sector-strip').innerHTML = '<span style="color:var(--text-sub);font-size:13px">板块数据加载中，稍后自动重试…</span>';
   }
 }
@@ -11282,6 +11310,10 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
       if (cnt) cnt.textContent = panel.__all.length ? '共 ' + panel.__all.length + ' 个可选' : '都加上了';
       renderList(panel.__kw || '');
     }
+    /* 立即拉一次行情。必须显式触发 —— 否则只能等主文件的轮询：
+       交易时段 5s、非交易时段 120s，且页面隐藏时完全不跑。
+       用户会觉得「添加了但一直没数据」。 */
+    if (hook.refreshQuotes) { try { hook.refreshQuotes(); } catch (e) {} }
     toast('已添加「' + name + '」，行情刷新中…');
   }
 
