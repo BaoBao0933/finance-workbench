@@ -150,7 +150,12 @@ const get = (t, p) => fetch(QQ + p + '&t=' + t + '/averatio&ordertype=0')
   console.log('\n场景 6 · 源码关键特征');
   ok('normRows 按 f12 前缀分流', html.indexOf('BK/i.test(r.f12)') >= 0);
   ok('normRows 有元素级 null 守卫', html.indexOf("typeof r !== 'object'") >= 0);
-  ok('refreshAll 双源并行竞速', html.indexOf('fetchQQAll().then(apply)') >= 0);
+  ok('refreshAll 双源并行竞速（腾讯 + 东财同时发起）',
+     html.indexOf("fetchQQAll().then(function (rows) { apply(rows, '腾讯源'); })") >= 0 &&
+     html.indexOf("apply(normRows(rs[0].concat(rs[1])), '东财源')") >= 0);
+  ok('面板显示数据来源', html.indexOf("' · ' + panel.__src") >= 0);
+  ok('两路都不通时给明确提示', html.indexOf('接口暂不可用，可重开面板重试') >= 0);
+  ok('loadSectors 腾讯兜底有模糊名字匹配', html.indexOf('const fuzzyName = (name) =>') >= 0);
   ok('东财页超时已收紧为 2500ms', html.indexOf('QH.fetchJson(url, 2500)') >= 0);
   ok('面板 pending 不谎报可选数', html.indexOf('正在获取全部板块') >= 0);
   ok('normRows 不再是「一律 90.」', html.indexOf("'90.' + r.f12; name = r.f14") < 0);
