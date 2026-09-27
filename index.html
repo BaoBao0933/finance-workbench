@@ -5813,8 +5813,36 @@ async function loadSectors(isFirst = false) {
         else updateSectors(list);
         return;
       }
-    } catch (e) { /* 备用源也不通 */ }
+    } catch (e) { /* 腾讯源也不通，落到新浪层 */ }
   }
+
+  /* —— 第三层：新浪板块列表（script 注入，无 CORS 限制，桌面/手机通用）——
+     腾讯源偶发失败时，行业板块（如「旅游及景区」）会整类落空；新浪的行业
+     （49 个）/概念（800+）列表自带涨跌幅，按名字模糊匹配后顶上。 */
+  try {
+    const [sHy, sGn] = await Promise.all([
+      sinaBoardList(2).catch(() => null),
+      sinaBoardList(3).catch(() => null),
+    ]);
+    const all = [].concat(sHy || [], sGn || []);
+    if (all.length) {
+      const list = SECTORS.map(s => {
+        const hit = fuzzyMatchSina(all, s.name);
+        return hit ? { secid: s.secid, name: s.name, pct: hit.f3, price: hit.f2 } : null;
+      }).filter(Boolean);
+      if (list.length) {
+        const srcEl = $('sector-source');
+        if (srcEl) {
+          const miss = SECTORS.filter(s => !list.find(x => x.secid === s.secid));
+          srcEl.textContent = '新浪源 · ' + list.length + '/' + SECTORS.length + ' 命中'
+            + (miss.length ? ' · 未匹配: ' + miss.map(m => m.name).join('、') : '');
+        }
+        if (needRebuild()) renderSectors(list);
+        else updateSectors(list);
+        return;
+      }
+    }
+  } catch (e) { /* 新浪源也不通 */ }
 
   /* 只在 strip 还空着时显示提示 —— 已经渲染出卡片时不要清掉它们
      （否则添加板块后若本轮拉取失败，整条 strip 会突然变成一行文字）。 */
