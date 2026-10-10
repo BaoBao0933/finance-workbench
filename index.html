@@ -4504,6 +4504,283 @@ html[data-fps-q="low"] .sector-chip:hover {
 }
 
 </style>
+<!-- TG:CSS:BEGIN -->
+<!-- 字体排印 + 毛玻璃质感层· type-glass · 幂等注入，请勿手改本块 -->
+<style id="type-glass-style">
+/* ==========================================================================
+   type-glass / type.css —— 字体排印 + 毛玻璃质感层（2026-10-11）
+
+   本层解决两件具体的事，不是"换个好看点的颜色"：
+
+   【1】字体排印
+     - 修掉 3 处悬空引用：'Space Grotesk' / 'Space Mono' 的字体文件在
+       2026-09-23 移除 Google Fonts 时已被删掉，CSS 却还在指向它们。
+       浏览器找不到就静默回落到 system-ui / monospace —— 页面看着"能用"，
+       但标题的字形、字重、数字的质感全丢了。这是"不高级"的头号成因。
+     - 本层不改 font-family 的引用（那是 18 处散点），而是用 @font-face
+       把这两个名字重新绑到本机真实存在的高品质字体上：
+         Space Grotesk（几何无衬线，标题用）→ Segoe UI Variable Display
+         Space Mono（等宽，数字/标签用）      → Cascadia Mono / Consolas
+       一处声明，18 处引用全部受益，且零网络请求（local() 不下载）。
+     - 建立 4 套语义字体栈：display / text / num / mono
+     - 给所有行情数字挂 tabular-nums（等宽数字）—— 刷新时列宽不跳动，
+       这是"数据面板专业感"最容易被忽略却最显眼的一条。
+
+   【2】毛玻璃质感
+     - 现状：88 处 backdrop-filter，12 种 blur 半径（30px×17、32px×8、
+       26px×10…），saturate 从 175% 到 210% 都有。规格不统一 = 材质
+       不统一，看起来就是"一堆半透明方块"，而不是一套玻璃。
+     - 本层把半径收敛为 4 档语义规格（xs/sm/md/lg），并统一 saturate。
+       同时补上高级玻璃的三件套：高光内阴影（inset top highlight）、
+       边缘暗角（inset rim）、双层投影。
+     - ⚠️ 用 `html:not([data-fps-q])` 守卫，只在"默认档"生效。
+       fps-boost 一旦降级到 medium/low 就让出控制权，它的 !important
+       降级规则依然有效（那是它的地盘，本层不抢）。
+
+   降级：medium → 饱和度减半；low → 额外关掉高光内阴影（box-shadow 层数
+   直接砍掉一半）。两者都只减不加，不改变布局。
+
+   依赖：只读 data-fps-q，不写它 —— 与 fps-boost 零耦合。
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   一、字体：把悬空的名字绑到本机真字体（零网络，local() 不下载任何东西）
+   -------------------------------------------------------------------------- */
+
+/* 标题族：几何无衬线。Segoe UI Variable Display 是 Win11 的可变字重
+   display 轴版本，比老 Segoe UI 精致一档（字面更大、间距更紧）。
+   variable 声明为 100 900，让 font-weight 真正生效而不是只有 400/700。 */
+@font-face {
+  font-family: 'Space Grotesk';
+  src: local('Segoe UI Variable Display'), local('Segoe UI Variable'), local('Segoe UI Semibold'), local('Segoe UI Bold'), local('Microsoft YaHei UI');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 数字/标签族：等宽。Cascadia Mono 是 Win11 自带（终端里就有），
+   比 Consolas 字形更新、带连字。都没有时回落到 Consolas。 */
+@font-face {
+  font-family: 'Space Mono';
+  src: local('Cascadia Mono'), local('Cascadia Code'), local('Consolas'), local('Microsoft YaHei UI');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* --------------------------------------------------------------------------
+   二、语义字体栈
+   注意顺序：中文必须排在西文后面，否则中文字形会吃掉前面的项。
+   -------------------------------------------------------------------------- */
+:root {
+  --tg-font-display: 'Space Grotesk', 'Segoe UI Variable Display', 'Segoe UI',
+                     -apple-system, 'PingFang SC', 'Microsoft YaHei UI', sans-serif;
+  --tg-font-text:    'Segoe UI Variable Text', 'Segoe UI', -apple-system, BlinkMacSystemFont,
+                     'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei UI', sans-serif;
+  --tg-font-num:     'Space Mono', 'Cascadia Mono', 'Segoe UI Variable Text', Consolas, monospace;
+
+  /* ---- 语义化毛玻璃规格（4 档，取代原先 12 种混杂半径）----
+     收敛原则：面积越大的容器半径越大（透视越远越糊），
+     小控件用小半径（保持边缘锐利、控件感）。
+     saturate 统一到 180%：玻璃要"透出底下的颜色"，
+     低于 160% 显灰，高于 220% 底下的渐变会糊成色块。 */
+  --tg-blur-xs:  8px;
+  --tg-blur-sm: 14px;
+  --tg-blur-md: 22px;
+  --tg-blur-lg: 30px;
+  --tg-sat:     180%;
+
+  /* 高光内阴影：玻璃顶面受光的那条亮线。这是"塑料 vs 玻璃"的分界线 */
+  --tg-spec: inset 0 1px 0 rgba(255, 255, 255, .78);
+  /* 边缘暗角：四周压一圈暗，让玻璃有厚度 */
+  --tg-rim:  inset 0 0 0 1px rgba(255, 255, 255, .06),
+            inset 0 -1px 0 rgba(120, 100, 80, .06);
+  /* 双层投影：近处一层贴地（给"贴着桌面"的接触感），远处一层给环境影 */
+  --tg-lift: 0 1px 2px rgba(90, 70, 45, .06),
+             0 10px 28px -8px rgba(90, 70, 45, .14);
+}
+
+/* body 接管基础字体。用变量而不是散落的 font-family 声明 ——
+   perf-boost 也定义了 --pb-font-sans，这里是同一条链上的最终覆盖。 */
+body {
+  font-family: var(--tg-font-text);
+  /* 标题/数字用 display 栈的替代：把无衬线交给 display 版本，
+     Segoe UI Variable Text 是为正文阅读优化的，界面里更紧凑好看 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'kern' 1, 'liga' 1;
+}
+
+/* ---- 数字排印：等宽数字 + 斜杠零 ----
+   tabular-nums 是本层性价比最高的一条。所有行情数字（价格、涨跌幅、
+   成交量、金额）都用它，刷新时数字宽度不变 → 表格列不左右抖动。
+   金融面板一眼专业与不专业，往往就差这条。 */
+.ic-price, .ic-change, .ov-value, .sr-price, .sr-pct, .sr-chg, .sr-amt,
+.pct, .val, .w-val, .sc-price, .sc-val, .mm-price, .mm-pct, .mm-zval,
+.v-open, .v-high, .v-low, .v-vol, .v-zpct, .f-open, .f-high, .f-low,
+.fund-amt, .fund-pct, .sec-d-pct, .hc-close, .zt-close, .lg-vol,
+.sr-name, .ic-name, .sc-name, .w-name, .sd-name {
+  font-family: var(--tg-font-num);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1, 'kern' 1;
+  letter-spacing: -.01em;  /* 等宽字体本身偏宽，数值场景收紧一点更耐看 */
+}
+
+/* 标题族接管：品牌大字、模块标题、卡片标题 */
+.m-title, .se-ap-title, .sec-detail-title, .focus-block-title,
+.fund-p-title, .fb-title, h1, h2, h3 {
+  font-family: var(--tg-font-display);
+  letter-spacing: -.015em;   /* 大字收紧字距 = 显得更贵。这是排版里最省力的高级感 */
+}
+
+/* 侧边栏品牌区 logo 文字（页面上是 .header 下的第一个文本节点容器） */
+.header, .title { font-family: var(--tg-font-display); }
+
+/* --------------------------------------------------------------------------
+   三、毛玻璃收敛
+   守卫 html:not([data-fps-q])：只在默认档接管。
+   fps-boost 降级时会写上 data-fps-q，本层整块失效，它的地盘完好。
+   -------------------------------------------------------------------------- */
+
+/* ---- 大容器：指数卡 / 实时条（对应原 blur(30px)）---- */
+html:not([data-fps-q]) .ov-card,
+html:not([data-fps-q]) .index-card,
+html:not([data-fps-q]) .live-bar {
+  -webkit-backdrop-filter: blur(var(--tg-blur-lg)) var(--tg-sat);
+  backdrop-filter: blur(var(--tg-blur-lg)) var(--tg-sat);
+  box-shadow: var(--tg-spec), var(--tg-rim), var(--tg-lift);
+}
+
+/* ---- 中容器：行/面板类（原 blur 20~26px 混杂）---- */
+html:not([data-fps-q]) .pos-row,
+html:not([data-fps-q]) .lhb-row,
+html:not([data-fps-q]) .fund-panel,
+html:not([data-fps-q]) .ladder-row,
+html:not([data-fps-q]) .sec-hot-card {
+  -webkit-backdrop-filter: blur(var(--tg-blur-md)) var(--tg-sat);
+  backdrop-filter: blur(var(--tg-blur-md)) var(--tg-sat);
+  box-shadow: var(--tg-spec), var(--tg-rim);
+}
+
+/* ---- 小控件：板块 chip / 按钮（小半径保持锐利，别糊成一片）---- */
+html:not([data-fps-q]) .sector-chip,
+html:not([data-fps-q]) .se-add-panel {
+  -webkit-backdrop-filter: blur(var(--tg-blur-sm)) var(--tg-sat);
+  backdrop-filter: blur(var(--tg-blur-sm)) var(--tg-sat);
+  box-shadow: var(--tg-spec);
+}
+
+/* 侧边栏选中态：原本 blur(16px) saturate(175%)，收到 sm 档并统一饱和度 */
+html:not([data-fps-q]) .nav-item.active {
+  -webkit-backdrop-filter: blur(var(--tg-blur-sm)) var(--tg-sat);
+  backdrop-filter: blur(var(--tg-blur-sm)) var(--tg-sat);
+}
+
+/* ---- hover 态必须显式重声明 ----
+   ⚠️ 血泪坑：上面的 `html:not([data-fps-q]) .sector-chip` 特异性是 (0,2,1)，
+   而原文件的 `.sector-chip:hover` 只有 (0,2,0) —— 守卫规则会把它压掉，
+   hover 时阴影/玻璃反馈直接消失（交互"哑掉"）。
+   同理 `.pos-row:hover` / `.lhb-row:hover` / `.sec-hot-card:hover` 全部会失效。
+   所以 hover 必须补齐，且特异性要追平守卫规则。
+
+   悬停态沿用原设计语言：玻璃变深一档（深色玻璃）+ 珊瑚/暖金描边。
+   只收敛半径与饱和度，不改配色方向。 */
+html:not([data-fps-q]) .ov-card:hover,
+html:not([data-fps-q]) .index-card:hover,
+html:not([data-fps-q]) .sector-chip:hover,
+html:not([data-fps-q]) .sec-hot-card:hover {
+  -webkit-backdrop-filter: blur(var(--tg-blur-lg)) var(--tg-sat);
+  backdrop-filter: blur(var(--tg-blur-lg)) var(--tg-sat);
+  box-shadow: var(--tg-spec), 0 0 0 1px rgba(255, 138, 107, .22),
+              0 14px 34px rgba(0, 0, 0, .30), 0 30px 64px rgba(104, 138, 220, .16);
+}
+
+/* 行类hover 原本只有一道投影，没有玻璃态变化 —— 保留"轻"的手感，
+   只把投影并入统一规格，别给列表行加厚阴影（会显得脏）。 */
+html:not([data-fps-q]) .pos-row:hover,
+html:not([data-fps-q]) .lhb-row:hover {
+  box-shadow: var(--tg-spec), 0 6px 18px rgba(150, 112, 62, .10);
+}
+
+/* ---- 占位/无边框特例 ----
+   文件里有内联 `style="box-shadow:none;border:none;background:none"` 的
+   行（自选/龙虎榜的空态说明行，index.html L4804/L4838）。
+   它们本来就"不是玻璃"，不该被本层强加高光与模糊。 */
+html:not([data-fps-q]) .pos-row[style*="box-shadow:none"],
+html:not([data-fps-q]) .lhb-row[style*="box-shadow:none"] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* 首页四张指数卡上的液态折射（url(#apple-lg)）是 apple-fx 的地盘，
+   这里只补玻璃厚度，不碰它的滤镜链 —— 加 blur 会让折射整个失真。 */
+#page-home .index-card {
+  box-shadow: var(--tg-spec), var(--tg-rim), var(--tg-lift);
+}
+
+/* --------------------------------------------------------------------------
+   四、降级（只做减法）
+   fps-boost 已经砍了半径，本层跟着砍饱和度和高光层数。
+   -------------------------------------------------------------------------- */
+html[data-fps-q="medium"] {
+  --tg-sat: 140%;   /* 140%→180% 的差价在饱和度通道，成本比 blur 小但仍可观 */
+}
+html[data-fps-q="medium"] .ov-card,
+html[data-fps-q="medium"] .index-card,
+html[data-fps-q="medium"] .live-bar,
+html[data-fps-q="medium"] .pos-row,
+html[data-fps-q="medium"] .lhb-row,
+html[data-fps-q="medium"] .fund-panel,
+html[data-fps-q="medium"] .ladder-row,
+html[data-fps-q="medium"] .sec-hot-card,
+html[data-fps-q="medium"] .sector-chip,
+/* hover 态同步（否则降级后 hover 会突然变回"未降级"的厚阴影） */
+html[data-fps-q="medium"] .ov-card:hover,
+html[data-fps-q="medium"] .index-card:hover,
+html[data-fps-q="medium"] .sector-chip:hover,
+html[data-fps-q="medium"] .sec-hot-card:hover,
+html[data-fps-q="medium"] .pos-row:hover,
+html[data-fps-q="medium"] .lhb-row:hover {
+  box-shadow: var(--tg-rim), var(--tg-lift);   /* 去掉顶部高光那条 */
+}
+
+/* low：box-shadow 是多层合成，逐层砍 */
+html[data-fps-q="low"] {
+  --tg-sat: 120%;
+}
+html[data-fps-q="low"] .ov-card,
+html[data-fps-q="low"] .index-card,
+html[data-fps-q="low"] .live-bar,
+html[data-fps-q="low"] .pos-row,
+html[data-fps-q="low"] .lhb-row,
+html[data-fps-q="low"] .fund-panel,
+html[data-fps-q="low"] .ladder-row,
+html[data-fps-q="low"] .sec-hot-card,
+html[data-fps-q="low"] .sector-chip,
+html[data-fps-q="low"] .ov-card:hover,
+html[data-fps-q="low"] .index-card:hover,
+html[data-fps-q="low"] .sector-chip:hover,
+html[data-fps-q="low"] .sec-hot-card:hover,
+html[data-fps-q="low"] .pos-row:hover,
+html[data-fps-q="low"] .lhb-row:hover {
+  box-shadow: none;
+}
+
+/* --------------------------------------------------------------------------
+   五、无障碍：降低动态偏好时不做任何入场位移
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-fps-q]) .ov-card,
+  html:not([data-fps-q]) .index-card,
+  html:not([data-fps-q]) .live-bar {
+    -webkit-backdrop-filter: blur(var(--tg-blur-md)) var(--tg-sat);
+    backdrop-filter: blur(var(--tg-blur-md)) var(--tg-sat);
+  }
+}
+</style>
+<!-- TG:CSS:END -->
 <!-- AF:CSS:END -->
 </head>
 <body>
