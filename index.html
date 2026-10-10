@@ -4264,6 +4264,203 @@ html[data-fps-q="low"] .sector-chip:hover {
 
 </style>
 <!-- FPS:CSS:END -->
+<!-- MX:VENDOR:BEGIN -->
+<!-- 动效库本地化：GSAP 3.15 + Flip。defer 保证按文档顺序执行，
+     排在下方 motion.js（MX:JS）之前，所以 motion.js 能读到 window.gsap。
+     不走 CDN：境外域名在国内会超时并阻塞首屏（2026-09-23 教训）。 -->
+<script defer src="vendor/gsap.min.js"></script>
+<script defer src="vendor/Flip.min.js"></script>
+<!-- MX:VENDOR:END -->
+<!-- MX:CSS:BEGIN -->
+<style id="motion-fx-style">
+/* ==========================================================================
+   motion-fx / motion.css —— GSAP 动效编排层的样式部分
+
+   定位
+   ----
+   只做「GSAP 需要但 CSS 表达不了」的三件事：
+     ① 侧边栏选中指示条（MFX rail）—— 一个独立 DOM 元素，由 GSAP 移动
+     ② FLIP 布局过渡所需的 will-change / 绝对定位逃逸
+     ③ 降级与无障碍开关（被 JS 打的 data-mx 属性驱动）
+
+   刻意不做的事
+   ------------
+   · 不写入场关键帧 —— 入场全部交给 GSAP timeline，避免 CSS/JS 两套动效打架
+   · 不用 `opacity: 0` 默认隐藏 —— 那是2026-09-29 的血泪教训（IO 不触发就永久消失）。
+     本层任何降级路径都保证「内容默认可见，没动画而已」
+   · 不碰 backdrop-filter 半径 —— 那是 fps-boost 的地盘
+
+   与 fps-boost 的关系：零耦合。本层只读 documentElement 的 data-fps-q 判断档位，
+   不写它、不改它。
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. 侧边栏选中指示条
+   一块独立的玻璃条，GSAP 用 x/y/height 把它「滑」到当前 nav-item 上。
+   比让每个 nav-item 各自带背景色 nicer —— 滑动是连续的，不是突变。
+   -------------------------------------------------------------------------- */
+.mfx-rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3px;
+  height: 0;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg,
+      rgba(255, 168, 130, .95) 0%,
+      rgba(232, 106, 96, .95) 50%,
+      rgba(255, 168, 130, .80) 100%);
+  box-shadow:
+    0 0 10px rgba(255, 138, 107, .55),
+    0 0 22px rgba(232, 106, 96, .28);
+  opacity: 0;
+  pointer-events: none;
+  /* 单独成层：滑动时不会触发侧边栏整块重绘 */
+  transform: translateZ(0);
+  will-change: transform, height;
+  z-index: 3;
+}
+
+/* 指示条跟随亮起时的呼吸微光（很轻，只改 opacity/filter） */
+.mfx-rail.lit {
+  animation: mfxRailGlow 2.8s ease-in-out infinite;
+}
+@keyframes mfxRailGlow {
+  0%, 100% { opacity: 1;   filter: brightness(1); }
+  50%      { opacity: .74; filter: brightness(1.18); }
+}
+
+/* 浅色主题：加深一点才有对比 */
+:root[data-theme="light"] .mfx-rail {
+  background: linear-gradient(180deg,
+      rgba(232, 93, 78, .95) 0%,
+      rgba(198, 62, 44, .95) 100%);
+  box-shadow: 0 0 8px rgba(232, 93, 78, .40);
+}
+
+/* 侧边栏收起时指示条淡出（收起态只剩图标，3px 条会挤） */
+.sidebar.collapsed .mfx-rail { opacity: 0 !important; }
+
+
+/* --------------------------------------------------------------------------
+   2. FLIP 布局过渡
+   GSAP Flip 在做布局动画期间会给目标加 position: absolute 来「脱离文档流」，
+   这样兄弟元素才能补位。这里只是给一个明确的提示层，JS 侧还会加will-change。
+
+   注意：这里**不设 opacity: 0**。Flip 的进出场由 GSAP 逐帧写，
+   CSS 若强行压 opacity 会与之冲突（铁律A：验证路径 = 运行路径）。
+   -------------------------------------------------------------------------- */
+.mfx-flip-active {
+  will-change: transform;
+}
+
+
+/* --------------------------------------------------------------------------
+   3. 数字滚动容器
+   GSAP 逐帧写 --mfx-n（0~1 进度），文字内容用 CSS counter 无法可靠处理，
+   所以这里只负责 tabular-nums 与最小宽度，防止刷新时列宽跳动。
+   -------------------------------------------------------------------------- */
+.mfx-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
+}
+
+
+/* --------------------------------------------------------------------------
+   4. 卡片悬浮的「边缘高光」
+   纯装饰、零布局影响：跟随鼠标的小高光带，替代原来整块 border 变色。
+   靠 CSS 变量由 JS 写坐标，不触发布局。
+   -------------------------------------------------------------------------- */
+.mfx-sheen {
+  position: relative;
+  overflow: hidden;
+}
+.mfx-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .32s ease;
+  background: radial-gradient(240px circle at var(--mfx-mx, 50%) var(--mfx-my, 50%),
+      rgba(255, 255, 255, .13), transparent 62%);
+}
+.mfx-sheen:hover::after { opacity: 1; }
+:root[data-theme="light"] .mfx-sheen::after {
+  background: radial-gradient(240px circle at var(--mfx-mx, 50%) var(--mfx-my, 50%),
+      rgba(232, 93, 78, .10), transparent 62%);
+}
+
+
+/* --------------------------------------------------------------------------
+   5. 加载态的「扫描线」
+   骨架屏已在 perf-boost 里，这里只加一条横向扫光，表示「正在取数」。
+   -------------------------------------------------------------------------- */
+.mfx-scan {
+  position: relative;
+  overflow: hidden;
+}
+.mfx-scan::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 42%;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 138, 107, .10) 50%,
+      transparent 100%);
+  animation: mfxScanSlide 1.5s cubic-bezier(.4, 0, .2, 1) infinite;
+}
+@keyframes mfxScanSlide {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+
+
+/* --------------------------------------------------------------------------
+   6. 降级开关（三档，与 fps-boost 的data-fps-q 对齐）
+   ★ 核心原则：默认档（不设属性）下，下面所有规则都不生效，
+     视觉与性能表现和没注入本层时完全一致。
+
+   medium —— 关闭错峰入场与悬浮高光，只保留页面切换的淡入
+   low    —— 额外停掉指示条呼吸与扫描线，纯静态
+   -------------------------------------------------------------------------- */
+:root[data-fps-q="medium"] .mfx-sheen::after,
+:root[data-fps-q="medium"] .mfx-scan::before { animation: none; }
+:root[data-fps-q="medium"] .mfx-sheen::after { opacity: 0 !important; }
+:root[data-fps-q="medium"] .mfx-rail.lit { animation: none; opacity: 1; }
+
+:root[data-fps-q="low"] .mfx-scan::before,
+:root[data-fps-q="low"] .mfx-rail.lit { animation: none; }
+:root[data-fps-q="low"] .mfx-sheen::after { display: none; }
+
+
+/* --------------------------------------------------------------------------
+   7. 无障碍 —— prefers-reduced-motion 下彻底关闭
+   注意这里用 animation-duration: 0.01ms 而不是 none：
+   animation:none 会让依赖 animationend 的 JS 逻辑永远不触发。
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .mfx-rail.lit,
+  .mfx-scan::before { animation: none !important; }
+  .mfx-sheen::after { display: none !important; }
+  .mfx-flip-active { will-change: auto; }
+}
+
+
+/* --------------------------------------------------------------------------
+   8. 触屏降级
+   hover 高光是纯装饰，没有 hover 的设备上直接不渲染。
+   -------------------------------------------------------------------------- */
+@media (hover: none) {
+  .mfx-sheen::after { display: none; }
+}
+</style>
+<!-- MX:CSS:END -->
 <!-- AF:CSS:BEGIN -->
 <style id="apple-style">
 /* ==========================================================================
@@ -11902,6 +12099,463 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
 </script>
 <!-- FM:JS:END -->
+<!-- MX:JS:BEGIN -->
+<script id="motion-fx-js">
+/* ==========================================================================
+   motion-fx / motion.js —— GSAP 动效编排层
+   ==========================================================================
+   依赖：vendor/gsap.min.js + vendor/Flip.min.js（本地化，不走 CDN）
+         两者都以 defer 加载；本块在 QF:JS 之前执行 → 顺序有保证。
+
+   暴露：window.__motionFx = {
+     state(),          查当前档位与可用性
+     railTo(sel),      手动把指示条移到某个 nav-item
+     revealPage(el),   手动触发某页的错峰入场
+     flip(els, vars),  手动触发一次 FLIP
+     reduceAll()       关掉全部动效（等价于 reduced-motion）
+   }
+
+   四条设计铁律（都是踩过坑换来的，改之前先读）
+   ------------------------------------------------------------------------
+   ① 守卫优先：GSAP 未就绪 / reduced-motion / 页面隐藏 / 降级档 → 一律 return。
+      绝不假设 window.gsap 存在 —— defer 失败、离线、CDN 挂了都可能。
+   ② 内容默认可见：本层**绝不**设 opacity:0 作为默认态。
+      所有「入场」都是先确保可见、再播一次 from→to。
+      （2026-09-29 教训：opacity:0 + IO 在部分手机浏览器上永不触发 → 内容消失）
+   ③ 不重播：实时面板每 5s/120s 轮询一次，如果每次都重播入场动画，
+      用户看到的就是「每隔几秒闪一下」，比不做更糟。
+      所以入场只在「页面首次进入」和「数据真的从空变有」时播。
+   ④ 降级只降不升：读到 data-fps-q 就只做减法，绝不因为「恢复了」而
+      强行补播动画（会和用户正在看的滚动打架）。
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  /* ---------------------------------------------------------------- 档位判定 */
+
+  // 预热计数：GSAP 是 defer 脚本，本块执行时它可能还没跑完。
+  // 这里不猜、不轮询 DOMReady，而是让 motion.js 自己在被调用时惰性检查。
+  function gsapOk() {
+    return typeof window.gsap !== 'undefined' && typeof window.Flip !== 'undefined';
+  }
+
+  var HIGH = 'high';
+
+  // 读当前档位。fps-boost 不设 data-fps-q = high（零视觉改动的默认档）。
+  function quality() {
+    var q = document.documentElement.getAttribute('data-fps-q');
+    return (q === 'medium' || q === 'low') ? q : HIGH;
+  }
+
+  function reduced() {
+    return !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  // 能不能动。返回false 时所有动效函数直接 return —— 页面保持完全可用。
+  function canAnimate(opts) {
+    opts = opts || {};
+    if (!window.__motionFxEnabled) return false;
+    if (!gsapOk()) return false;
+    if (reduced()) return false;
+    // 页面隐藏时不启动新动画（perf-boost 在隐藏时挂起轮询，动效同理）
+    if (document.hidden) return false;
+    // low 档：只允许「页面切换淡入」这一种最廉价的
+    if (quality() === 'low' && !opts.cheap) return false;
+    return true;
+  }
+
+
+  /* ------------------------------------------------------------ 侧边栏指示条 */
+
+  var rail = null;
+  var railOwner = null;   // 当前指示条属于哪个 nav-item
+  var railReady = false;
+
+  function ensureRail() {
+    if (rail || railReady) return rail;
+    railReady = true;
+    var side = document.querySelector('.sidebar');
+    if (!side) return null;
+    ensureSidebarPositioning(side);
+
+    rail = document.createElement('div');
+    rail.className = 'mfx-rail';
+    side.appendChild(rail);
+    return rail;
+  }
+
+  // 侧边栏必须是定位祖先，否则 absolute 的指示条会飞到更外层去。
+  // getComputedStyle 在极少数环境（测试桩 / 老 WebView）不存在，要守卫。
+  function ensureSidebarPositioning(side) {
+    try {
+      if (!window.getComputedStyle) return;
+      var pos = window.getComputedStyle(side).position;
+      if (pos === 'static') side.style.position = 'relative';
+    } catch (e) {
+      try { side.style.position = 'relative'; } catch (e2) {}
+    }
+  }
+
+  /** 把指示条滑到指定 nav-item。immediate=true 时瞬移（初始化用）。 */
+  function railTo(item, immediate) {
+    var el = ensureRail();
+    if (!el || !item) return;
+    if (railOwner === item && !immediate) return;
+
+    var r = item.getBoundingClientRect();
+    var side = item.parentElement.getBoundingClientRect();
+    var top = r.top - side.top;
+    var h = r.height;
+
+    railOwner = item;
+    var vars = {
+      height: Math.max(8, h - 12),
+      y: top + 6,
+      duration: immediate ? 0 : .42,
+      ease: immediate ? 'none' : 'power3.out',
+    };
+    // 首次：直接落位，不播动画
+    if (immediate) {
+      gsap.set(el, { height: Math.max(8, h - 12), y: top + 6, x: 0, opacity: 1 });
+      el.classList.add('lit');
+    } else {
+      if (!canAnimate({ cheap: true })) {
+        gsap.set(el, { height: Math.max(8, h - 12), y: top + 6, x: 0, opacity: 1 });
+        el.classList.add('lit');
+        return;
+      }
+      el.classList.add('lit');
+      gsap.to(el, vars);
+      // x 用弹性回弹，给一点「甩过去」的手感
+      gsap.fromTo(el, { x: 0 }, { x: 0, duration: .42, ease: 'elastic.out(1, 0.62)' });
+    }
+  }
+
+  function syncRail(immediate) {
+    var active = document.querySelector('.nav-item.active');
+    railTo(active, immediate);
+  }
+
+  // 侧边栏收起/展开会改变 nav-item 位置，需要重算
+  function watchSidebar() {
+    var side = document.querySelector('.sidebar');
+    if (!side || !window.MutationObserver) return;
+    new MutationObserver(function () {
+      if (rail) gsap.set(rail, { opacity: side.classList.contains('collapsed') ? 0 : 1 });
+      syncRail(true);
+    }).observe(side, { attributes: true, attributeFilter: ['class'] });
+  }
+
+
+  /* ------------------------------------------------------------ 页面切换编排 */
+
+  // 每页只播一次入场（铁律③）。page 字符串作key。
+  var revealed = {};
+
+  var EASE_OUT = 'power3.out';
+
+  /** 切页时调用：先落位指示条，再给新页做错峰入场。 */
+  function onSwitchPage(page, pageEl) {
+    syncRail(false);
+    if (!pageEl) return;
+    revealPage(pageEl, page);
+  }
+
+  /**
+   * 错峰入场。
+   * 只选「模块级」容器做动画 —— 逐行动画在长列表上既慢又晃眼。
+   * 默认可见（铁律②）：只有「上一轮确实没有内容」时才播入场。
+   */
+  function revealPage(pageEl, page) {
+    var firstTime = !revealed[page];
+    revealed[page] = true;
+    if (!firstTime) return;                 // 已进过这一页 → 不重播
+    if (!canAnimate()) return;
+
+    var blocks = pageEl.querySelectorAll(
+      '.module, .card, .index-card, .sector-strip, .mx-row');
+    if (!blocks.length) return;
+
+    // 起始态由 GSAP 设，不写进 CSS —— 保证没动画时内容就是最终态
+    gsap.set(blocks, { opacity: 0, y: 10 });
+    gsap.to(blocks, {
+      opacity: 1,
+      y: 0,
+      duration: .46,
+      ease: EASE_OUT,
+      stagger: { each: .045, from: 'start' },
+      overwrite: 'auto',
+      // 动画结束立刻释放 transform，否则会压制卡片原有的 hover 上浮
+      onComplete: function () {
+        gsap.set(blocks, { clearProps: 'transform' });
+      },
+    });
+  }
+
+  /** 页面标题的小幅跟进（比整页动更克制） */
+  function revealHeader(pageEl) {
+    if (!canAnimate()) return;
+    var hd = pageEl.querySelector('.header, .module-header');
+    if (!hd) return;
+    gsap.fromTo(hd,
+      { opacity: 0, y: -6 },
+      { opacity: 1, y: 0, duration: .34, ease: EASE_OUT, overwrite: 'auto',
+        onComplete: function () { gsap.set(hd, { clearProps: 'transform' }); } });
+  }
+
+
+  /* ------------------------------------------------------------ FLIP 布局动画 */
+
+  /**
+   * 对某个容器里的卡片做「增删平滑滑动」。
+   *
+   * 原理：GSAP Flip 记录变更前的位置 → DOM 变更 → 反算并补间回去。
+   * 所以必须包住「变更前」和「变更后」两步，不能事后单独调用。
+   *
+   * @param {Element} container 直接子元素就是可动项的容器
+   * @param {Function} mutate 真正改DOM 的函数（同步）
+   */
+  function flip(container, mutate) {
+    if (!container) { mutate && mutate(); return; }
+    var kids = container.children;
+    // 不能用 GSAP 时直接改，不阻断功能（动效永远是可选的）
+    if (!canAnimate() || !window.Flip.getState) { mutate && mutate(); return; }
+
+    var state = Flip.getState(kids);
+    mutate && mutate();
+
+    try {
+      Flip.from(state, {
+        duration: .46,
+        ease: 'power2.out',
+        stagger: .012,
+        absolute: true,
+        onEnter: function (els) {
+          gsap.fromTo(els,
+            { opacity: 0, scale: .92, y: 8 },
+            { opacity: 1, scale: 1, y: 0, duration: .38, ease: EASE_OUT, stagger: .03 });
+        },
+        onLeave: function (els) {
+          gsap.to(els, { opacity: 0, scale: .9, duration: .24, ease: 'power2.in' });
+        },
+      });
+    } catch (e) {
+      // Flip 抛错不能影响业务（记忆里被这种「动效炸了导致功能不可用」坑过）
+      if (window.console) console.warn('[motion-fx] FLIP 失败，已跳过动画', e);
+    }
+  }
+
+
+  /* ------------------------------------------------------------ 数字滚动 */
+
+  /**
+   * 让元素里的数字平滑滚到新值。
+   * @param {Element} el 含纯数字文本的元素
+   * @param {number} to   目标值
+   * @param {Function} fmt 格式化函数
+   * @param {string} dir  'up' 红色闪 / 'down' 绿色闪（涨红跌绿）
+   */
+  function rollNumber(el, to, fmt, dir) {
+    if (!el || !isFinite(to)) return;
+    var prev = parseFloat(el.dataset.mfxV != null ? el.dataset.mfxV
+      : (parseFloat((el.textContent || '').replace(/[^\d.-]/g, '')) || 0));
+    el.dataset.mfxV = String(to);
+
+    if (!canAnimate({ cheap: true }) || Math.abs(to - prev) < 1e-9) {
+      el.textContent = fmt(to);
+      return;
+    }
+    var o = { v: prev };
+    gsap.to(o, {
+      v: to,
+      duration: .5,
+      ease: 'power2.out',
+      onUpdate: function () { el.textContent = fmt(o.v); },
+      onComplete: function () { el.textContent = fmt(to); },  // 落在精确值
+    });
+
+    if (dir) {
+      var cls = dir === 'up' ? 'up' : 'down';
+      el.classList.remove('mfx-roll-up', 'mfx-roll-down');
+      void el.offsetWidth;                 // 强制回流，让动画能重播
+      el.classList.add('mfx-roll-' + cls);
+      gsap.fromTo(el,
+        { scale: 1 },
+        { scale: dir === 'up' ? 1.1 : .94, duration: .12, yoyo: true, repeat: 1,
+          ease: 'power2.out', clearProps: 'scale' });
+    }
+  }
+
+
+  /* ------------------------------------------------------------ 悬浮高光 */
+
+  // 事件委托：一次监听覆盖所有 .mfx-sheen，避免给上百个元素逐个绑
+  function initSheen() {
+    if (!window.matchMedia ||
+        !window.matchMedia('(hover: hover)').matches) return;
+    var pending = null;
+    document.addEventListener('pointermove', function (e) {
+      var t = e.target.closest && e.target.closest('.mfx-sheen');
+      if (!t) return;
+      if (pending === t) return;
+      pending = t;
+      var r = t.getBoundingClientRect();
+      t.style.setProperty('--mfx-mx', (e.clientX - r.left) + 'px');
+      t.style.setProperty('--mfx-my', (e.clientY - r.top) + 'px');
+    }, { passive: true });
+  }
+
+
+  /* ------------------------------------------------------------ 初始化 */
+
+  function boot() {
+    window.__motionFxEnabled = true;
+
+    // GSAP 注册 Flip
+    if (gsapOk()) {
+      try { window.gsap.registerPlugin(window.Flip); } catch (e) {}
+    }
+
+    // ---- 1. 指示条 ----
+    syncRail(true);
+    watchSidebar();
+
+    // ---- 2. 接管 switchPage ----
+    // 用包装而非改主文件：主文件的 switchPage 是普通 function 声明（挂 window），
+    // 包装 window.switchPage 后，裸调用 / 事件回调都会走包装版。
+    if (typeof window.switchPage === 'function' && !window.__motionFxPatched) {
+      var orig = window.switchPage;
+      window.switchPage = function (page) {
+        var r = orig.apply(this, arguments);
+        try {
+          var map = window.PAGE_IDS || {};
+          var el = map[page] ? document.getElementById(map[page]) : null;
+          onSwitchPage(page, el);
+          if (el) revealHeader(el);
+        } catch (e) {}
+        return r;
+      };
+      window.__motionFxPatched = true;
+    }
+
+    // ---- 3. 板块卡 FLIP ----
+    // renderSectors 会整条重建 #sector-strip 的 innerHTML（主文件既有行为）。
+    // 包一层：新旧卡片按 secid 配对，已存在的平滑滑动，新卡片缩放入场。
+    if (typeof window.renderSectors === 'function' && !window.__motionFxFlipPatched) {
+      var origRender = window.renderSectors;
+      window.renderSectors = function (list) {
+        var strip = document.getElementById('sector-strip');
+        var before = {};
+        if (strip) {
+          Array.prototype.forEach.call(strip.children, function (c) {
+            if (c.dataset && c.dataset.secid) before[c.dataset.secid] = c;
+          });
+        }
+        var r = origRender.apply(this, arguments);
+
+        // 重建后：只对「本来就有卡片」的那次做滑动，避免首次加载也全体乱动
+        if (strip && Object.keys(before).length && canAnimate()) {
+          try {
+            var state = Flip.getState(strip.children);
+            // DOM 已在 origRender 里换掉了，这里只补间回去
+            Flip.from(state, {
+              duration: .5, ease: 'power2.out', stagger: .02, absolute: true,
+              onEnter: function (els) {
+                gsap.fromTo(els, { opacity: 0, scale: .9, y: 12 },
+                  { opacity: 1, scale: 1, y: 0, duration: .42, ease: EASE_OUT,
+                    stagger: .04,
+                    onComplete: function () { gsap.set(els, { clearProps: 'transform' }); } });
+              },
+            });
+          } catch (e) {}
+        }
+        return r;
+      };
+      window.__motionFxFlipPatched = true;
+    }
+
+    // ---- 4. 悬浮高光 ----
+    initSheen();
+
+    // ---- 5. 主题切换后指示条要重算（nav-item 高度可能变） ----
+    window.addEventListener('storage', function (e) {
+      if (e.key && /theme/i.test(e.key)) setTimeout(function () { syncRail(true); }, 60);
+    });
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (t && t.closest && t.closest('#btn-theme')) {
+        setTimeout(function () { syncRail(true); }, 60);
+      }
+    }, true);
+
+    // ---- 6. pageshow：从 bfcache 回来时位置可能失效，重算 ----
+    window.addEventListener('pageshow', function () { syncRail(true); });
+    window.addEventListener('resize', function () { syncRail(true); });
+  }
+
+  // GSAP 是 defer：本块在它之前执行，所以 boot 挂到 DOMContentLoaded 之后，
+  // 但为了不拖慢首屏，用「尽早但不阻塞」的方式——先试一次，不行再等。
+  function start() {
+    if (gsapOk()) { boot(); return; }
+    // 最多等 3 秒；一直等会让降级路径失效
+    var n = 0;
+    var t = setInterval(function () {
+      n++;
+      if (gsapOk() || n > 30) {
+        clearInterval(t);
+        if (gsapOk()) boot();
+        else window.__motionFxEnabled = false;  // 彻底不可用 → 页面照常
+      }
+    }, 100);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+
+  /* ------------------------------------------------------------ 对外API */
+
+  window.__motionFx = {
+    state: function () {
+      return {
+        enabled: !!window.__motionFxEnabled,
+        gsap: gsapOk(),
+        quality: quality(),
+        reduced: reduced(),
+        patchedPage: !!window.__motionFxPatched,
+        patchedFlip: !!window.__motionFxFlipPatched,
+        railBound: !!rail,
+      };
+    },
+    railTo: function (sel) {
+      var el = typeof sel === 'string' ? document.querySelector(sel) : sel;
+      railTo(el, false);
+    },
+    // 手动触发某页入场。**不**自动清除「已进过」标记 ——
+    // 若每次调用都清，调用者（本层自己的 onSwitchPage）会绕过铁律③，
+    // 导致同一页反复进入时每次都重播（轮询下就是每隔几秒闪一下）。
+    // 要强制重播请显式调 resetRevealed()。
+    revealPage: function (page, force) {
+      var map = window.PAGE_IDS || {};
+      var el = map[page] ? document.getElementById(map[page]) : null;
+      if (!el) return false;
+      if (force) delete revealed[page];
+      revealPage(el, page);
+      return true;
+    },
+    flip: flip,
+    roll: rollNumber,
+    /** 手动清掉「已进过」记忆，下次切页重新播入场 */
+    resetRevealed: function () { revealed = {}; },
+    disable: function () { window.__motionFxEnabled = false; },
+    enable: function () { window.__motionFxEnabled = true; },
+  };
+})();
+</script>
+<!-- MX:JS:END -->
 <!-- QF:JS:BEGIN -->
 <script id="qf-fallback-js">
 /* ==== 1/2 备用数据源 ==== */
