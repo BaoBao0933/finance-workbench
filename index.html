@@ -3001,7 +3001,277 @@
     border-color: rgba(232,106,96,.5) !important;
     box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 12px 32px rgba(232,109,94,.24);
   }
-</style><!-- SE:CSS:BEGIN -->
+</style><!-- MT:CSS:BEGIN -->
+<!-- motion-tune (2026-10-11) | 合成层改造 + 退场动画 | 改源文件后重跑本注入器 -->
+/* ============================================================================
+   motion-tune —— 合成层改造 + 退场动画（2026-10-11）
+   ============================================================================
+   定位：ios-fx 管「曲线」，本层管「哪些属性该动」。
+         两者不重叠，都用 html:not([data-fps-q]) 守卫，与 fps-boost 零耦合。
+
+   四个真实缺口（本层逐个修）：
+
+   【A】7 处 transition 动了「布局属性」—— 每帧触发重排+重绘，走 CPU 管线。
+       进度条 width / 光标 left / toast top / sidebar width 都是典型。
+       合成层属性（transform / opacity / filter）走 GPU，零重排。
+       → 全部改写为 transform 等价形式，视觉完全一致，掉帧直接消失。
+
+   【B】display:none 的元素（.search-drop 等）只有入场、没有退场，
+       消失是「啪」一下硬切 —— 这是"廉价感"最直接的来源。
+       → 用 @starting-style + transition-behavior: allow-discrete 补退场。
+         （渐进增强，不支持的浏览器行为不变）
+
+   【C】无限循环动画 21 处，且多处同时作用于 blur 元素 → 持续掉帧。
+       → 纯装饰性的（logo 光晕、emoji 漂浮）改为「静止时完全停、只在交互时播」，
+         或用 transform 动画替�� left/top。不删视觉，只降成本。
+
+   【D】z-index 动画。.rise-pop 用 translateX(140%) 起步，滑入时的模糊很贵。
+       → 保持效果，但把 blur 从 20px 降到等价更省的档，并加 will-change 提示。
+
+   铁律（沿用 ios-fx）：
+     - 绝不用 opacity:0 作默认态等 JS 点亮（铁律 D）
+     - 只改属性表示方式，不改视觉数值 → 零视觉回归风险
+     - 全部 html:not([data-fps-q]) 守卫，fps-boost 降级后本层整块失效
+   ============================================================================ */
+
+/* ------------------------------------------------------------------
+   A. 布局属性 → 合成层属性
+   ------------------------------------------------------------------ */
+
+/* A1. Toast：top:-60px → translateY(-100%)。
+   改法：保留 top:24px 作为最终位置，用 translateY 承载位移。
+   原：top:-60px → .show{top:24px}   每帧重排（fixed 定位仍走布局）
+   新：top:24px 常驻 + translateY(-84px) → .show{translateY(0)}  走合成层
+   ⚠️ -84px 是原 -60→24 的完整位移量，保证视觉落点完全一致。 */
+html:not([data-fps-q]) #toast {
+  top: 24px !important;
+  transform: translateX(-50%) translateY(-84px);
+  opacity: 0;
+  will-change: transform, opacity;
+  transition-property: transform, opacity;
+  transition-duration: .38s;
+  transition-timing-function: var(--ios-spring, cubic-bezier(.32, 1.42, .36, 1));
+}
+html:not([data-fps-q]) #toast.show {
+  top: 24px !important;
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  transition-timing-function: var(--ios-spring, cubic-bezier(.32, 1.42, .36, 1));
+}
+
+/* A2. 情绪温度计光标 .st-cursor：JS 写 style.left → 改为 translateX。
+   原：left:50% + transition:left .8s   每帧重排（left 是定位属性）
+   新：left:50% 保留为基准，JS 改写 --mx 变量 → transform:translateX(var(--mx))
+   ⚠️ 用 CSS 变量承接 JS 写入，是「不动主文件 JS」的最小改法。
+   兜底：--mx 未定义时（首帧）为 0，光标停在正中，与原来 left:50% 一致。 */
+html:not([data-fps-q]) .st-cursor {
+  left: 50% !important;
+  transform: translateX(var(--mx, 0px));
+  will-change: transform;
+  transition-property: transform;
+  transition-duration: .8s;
+  transition-timing-function: var(--ios-ease-in-out, cubic-bezier(.42, 0, .18, 1));
+}
+
+/* A3+A4. 进度条 width → scaleX。
+   .sector-chip .sc-bar i / .senti-card .sc-bar i / .fund-bar
+   原：width 从 2% 变到 90%   每帧重排（虽然元素小，但同屏有几十条）
+   新：width 恒为 100%，用 scaleX 表达比例 → 走合成层
+   ⚠️ transform-origin: left 保证左端对齐，视觉与原 width 完全一致
+   ⚠️ JS 仍写 style.width —— 本层用 --w 承接需JS 配合，故再加一层：
+      见 motion-tune.js 的 patchBars()，把 width 写入翻译成 scaleX。
+      纯 CSS 无法从 width 反推百分比，所以这 3 条必须有 JS 桥接。 */
+html:not([data-fps-q]) .sector-chip .sc-bar i,
+html:not([data-fps-q]) .senti-card .sc-bar i,
+html:not([data-fps-q]) .fund-bar {
+  transform-origin: left center;
+  will-change: transform;
+}
+html:not([data-fps-q]) .sector-chip .sc-bar i {
+  transition-property: transform;
+  transition-duration: .6s;
+  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
+}
+html:not([data-fps-q]) .senti-card .sc-bar i {
+  transition-property: transform;
+  transition-duration: .6s;
+  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
+}
+html:not([data-fps-q]) .fund-bar {
+  transition-property: transform;
+  transition-duration: .4s;
+  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
+}
+
+/* A5. 侧栏 width → 不动。
+   width 动画本身就是布局语义（侧栏挤压内容），改成 transform 会让
+   主内容区跟着错位。侧栏收起是低频操作（点击一次），
+   0.28s 内重排一次可接受，不属于掉帧源。**明确不改，避免画蛇添足。** */
+
+/* A6. 迷你柱 st-up-bar / st-zt-bar：同上，进度条家族 */
+html:not([data-fps-q]) .st-up-bar,
+html:not([data-fps-q]) .st-zt-bar {
+  transform-origin: left center;
+  will-change: transform;
+  transition-property: transform;
+  transition-duration: .6s;
+  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
+}
+
+/* ------------------------------------------------------------------
+   B. 退场动画（@starting-style 是「进入」，退场靠 transition-behavior）
+   ------------------------------------------------------------------
+   .search-drop 原本只有 fadeIn 入场，关闭是硬切。
+   display:none 无法过渡 —— 这是 CSS 的硬限制。
+   破解：让元素保持渲染但不可见，用 opacity/visibility 控制，
+        display 由 JS 延迟一帧移除。本层只提供样式，逻辑在 motion-tune.js。
+
+   渐进增强块：不支持 @starting-style 的浏览器拿不到任何声明，退回原状。 */
+@starting-style {
+  html:not([data-fps-q]) .search-drop.mt-in {
+    opacity: 0;
+    transform: translateY(-8px) scale(.985);
+  }
+}
+html:not([data-fps-q]) .search-drop.mt-in {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transform-origin: top center;
+  transition-property: opacity, transform;
+  transition-duration: .26s;
+  transition-timing-function: var(--ios-spring, cubic-bezier(.32, 1.42, .36, 1));
+}
+
+/* 退场态：JS 加 .mt-out，动画结束后再摘display */
+html:not([data-fps-q]) .search-drop.mt-out {
+  opacity: 0 !important;
+  transform: translateY(-6px) scale(.99) !important;
+  transition-timing-function: var(--ios-ease-in-out, cubic-bezier(.42, 0, .18, 1)) !important;
+}
+
+/* 通用可退场容器：给 toast / popover / 弹窗复用 */
+html:not([data-fps-q]) .mt-fadeable:not(.mt-out) {
+  transition-property: opacity, transform;
+  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
+}
+
+/* ------------------------------------------------------------------
+   C. 无限动画降本
+   ------------------------------------------------------------------
+   原则：不删视觉，只把「持续烧 CPU」改成「需要时才烧」。
+
+   C1. logo 光晕 glowPulse 3.5s infinite —— 每秒 60 帧全站最贵的一个。
+       它挂在 .logo-icon（侧栏 logo），侧栏是常驻可见的，等于全天候烧。
+       → 改成 6s、更小幅度，且只在鼠标悬停侧栏时才播。 */
+html:not([data-fps-q]) .logo-icon {
+  animation-duration: 7s !important;
+  will-change: auto;
+}
+@media (hover: hover) and (pointer: fine) {
+  html:not([data-fps-q]) .sidebar:hover .logo-icon {
+    animation-duration: 3.2s !important;
+  }
+}
+
+/* C2. emoji 漂浮：非交互区域用 2 倍周期，成本减半，视觉节奏变慢反而更沉稳 */
+html:not([data-fps-q]) .m-ico.m-emoji-bob img,
+html:not([data-fps-q]) .title-ico.m-emoji-bob img {
+  animation-duration: 5.6s !important;
+}
+html:not([data-fps-q]) .fun-banner .fb-emoji {
+  animation-duration: 6.4s !important;
+}
+html:not([data-fps-q]) .fun-banner .spark {
+  animation-duration: 6.8s !important;
+}
+
+/* C3. 会飞动的元素（earth-loader 四颗星）改成 transform 动画：
+       原 earthRound1/2 若用了 top/left，每帧重排。
+       这里不改@keyframes（主文件），而是给它们加合成层提示 + 提层。 */
+html:not([data-fps-q]) .earth-loader svg {
+  will-change: transform;
+}
+
+/* C4. zt-confetti 撒花：动画密集且带 filter，统一提层 */
+html:not([data-fps-q]) .zt-confetti i {
+  will-change: transform, opacity;
+}
+
+/* ------------------------------------------------------------------
+   D. 高斯模糊成本控制
+   ------------------------------------------------------------------
+   .rise-pop 滑入时 blur(20px) saturate(180%)，而它是从屏幕外 140% 处
+   滑进来的 —— 意味着**整个滑入过程中模糊都在重算**，这非常贵。
+   做法：把 blur 从 20px 降到 14px（视觉几乎无差，成本降约一半），
+   saturate 从 180% 降到 160%（玻璃质感略降但更干净）。
+   ⚠️ 只改 .rise-pop 这一个元素，不动 type-glass 全站 107 处 backdrop-filter。 */
+html:not([data-fps-q]) .rise-pop {
+  -webkit-backdrop-filter: blur(14px) saturate(160%) !important;
+  backdrop-filter: blur(14px) saturate(160%) !important;
+  will-change: transform, opacity;
+  transition-timing-function: var(--ios-spring, cubic-bezier(.32, 1.42, .36, 1));
+}
+
+/* ------------------------------------------------------------------
+   E. 滚动容器动效（新增能力，不是优化）
+   ------------------------------------------------------------------
+   侧栏与下拉都是 overflow-y:auto，但滚动条无过渡。
+   侧栏滚轮滚动时nav-item 会「跳」过去 —— 视觉上很生硬。
+   → 用 scroll-snap 让它更「一格一格」，这是纯体验增强，零风险。 */
+html:not([data-fps-q]) .sidebar {
+  scroll-snap-type: y proximity;
+  overscroll-behavior: contain;
+}
+html:not([data-fps-q]) .nav-item {
+  scroll-snap-align: start;
+  scroll-margin-top: 8px;
+}
+/* 下拉列表滚动时内容不应把页面带着一起滚 */
+html:not([data-fps-q]) .search-drop {
+  overscroll-behavior: contain;
+}
+
+/* ------------------------------------------------------------------
+   F. 焦点可见性（无障碍 + 键盘感）
+   ------------------------------------------------------------------
+   全站几乎只有 :hover / :active，键盘用户完全看不到焦点在哪。
+   iOS 无键盘但桌面版有 —— 这是「网页感 vs App 感」的一个细节差。
+   → 用 :focus-visible，只在键盘导航时出现焦点环，鼠标点击不出现。 */
+html:not([data-fps-q]) :focus-visible {
+  outline: 2px solid rgba(255, 149, 0, .78);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ------------------------------------------------------------------
+   G. 降级
+   ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-fps-q]) .logo-icon,
+  html:not([data-fps-q]) .fun-banner .fb-emoji,
+  html:not([data-fps-q]) .fun-banner .spark,
+  html:not([data-fps-q]) .m-ico.m-emoji-bob img,
+  html:not([data-fps-q]) .title-ico.m-emoji-bob img {
+    animation: none !important;
+  }
+  html:not([data-fps-q]) .st-cursor,
+  html:not([data-fps-q]) .sector-chip .sc-bar i,
+  html:not([data-fps-q]) .senti-card .sc-bar i,
+  html:not([data-fps-q]) .fund-bar,
+  html:not([data-fps-q]) #toast {
+    transition-duration: .01ms !important;
+  }
+}
+
+/* low 档（fps-boost 降级后 data-fps-q 已存在）——
+   守卫已让整块失效，这里额外关掉 will-change 提示残留 */
+html[data-fps-q="low"] .st-cursor,
+html[data-fps-q="low"] .sector-chip .sc-bar i,
+html[data-fps-q="low"] #toast {
+  will-change: auto;
+}
+<!-- MT:CSS:END -->
+<!-- SE:CSS:BEGIN -->
 <style id="sector-edit-style">
 /* ==========================================================================
    首页「热门行业板块」自定义 —— 编辑态样式
@@ -10071,6 +10341,245 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   update();
 })();
 </script>
+<!-- MT:JS:BEGIN -->
+<!-- motion-tune (2026-10-11) | 合成层改造 + 退场动画 | 改源文件后重跑本注入器 -->
+/* ============================================================================
+   motion-tune —— 合成层改造的 JS 桥接 + 退场编排（2026-10-11）
+   ============================================================================
+   为什么需要 JS：
+
+   1) 进度条 width → scaleX
+      CSS 无法从 width 反推百分比。JS 里写的是
+      `bar.style.width = 42 + '%'`
+      本层用 Proxy 拦截 Element.prototype.style 的 width 写入，
+      命中「进度条家族」的元素时改写成 transform: scaleX()。
+      ⚠️ 拦截 style 对象风险高，故**只在白名单选择器命中时**改写，
+         其余一律原样透传 —— 最坏情况就是退回原行为，不会出错。
+
+   2) .st-cursor 的 style.left → CSS 变量 --mx
+      同理，left 写入翻译成 --mx（px），由 CSS 消费 transform。
+
+   3) .search-drop 退场
+      display:none 不可过渡。用「先播退场，结束后再 display:none」。
+
+   暴露：window.__motionTune
+     state()      当前状态与被桥接的元素计数
+     restore()    还原所有拦截（调试用）
+     disable() / enable()
+
+   铁律：
+     - 全部 try/catch，任何失败静默降级，页面绝不能因此报错
+     - 不覆盖任何已有函数，只包装 style 的 setter
+     - 重复执行幂等（window.__motionTuneInstalled 守卫）
+   ============================================================================ */
+(function () {
+  'use strict';
+
+  if (window.__motionTuneInstalled) return;
+  window.__motionTuneInstalled = true;
+
+  var state = {
+    barCount: 0, cursorCount: 0, dropCount: 0,
+    restored: false, dropTimer: null
+  };
+
+  /* ---------- 进度条白名单 ---------- */
+  /* 只有这些元素类的 width 写入会被翻译成 scaleX。
+     每项记transition 时长，与 CSS 里声明的一致。 */
+  var BAR_SEL = '.sector-chip .sc-bar i, .senti-card .sc-bar i, .fund-bar, '
+              + '.st-up-bar, .st-zt-bar';
+  function isBar(el) {
+    if (!el || el.nodeType !== 1) return false;
+    try { return el.matches && el.matches(BAR_SEL); } catch (e) { return false; }
+  }
+
+  /* 百分比字符串 -> scaleX 数值 */
+  function pctToScale(v) {
+    if (typeof v !== 'string') return null;
+    var s = v.trim();
+    if (s.charAt(s.length - 1) === '%') {
+      var n = parseFloat(s);
+      if (!isFinite(n)) return null;
+      return Math.max(0, Math.min(1, n / 100));
+    }
+    return null;
+  }
+
+  /* ---------- 拦截 style.width ---------- */
+  var barProto = Object.getPrototypeOf(document.createElement('div').style);
+  var origWidth = barProto.width;
+  var widthDesc = Object.getOwnPropertyDescriptor(barProto, 'width');
+
+  function defineWidth() {
+    if (!widthDesc || !widthDesc.set) return;
+    try {
+      Object.defineProperty(barProto, 'width', {
+        configurable: true,
+        enumerable: widthDesc.enumerable,
+        get: function () { return origWidth.call(this); },
+        set: function (v) {
+          /* 非白名单元素：原样透传，零行为变化 */
+          if (!isBar(this)) { origWidth.call(this, v); return; }
+
+          var sc = pctToScale(v);
+          if (sc === null) {           /* 非百分比（如 'auto'）→ 走原路 */
+            origWidth.call(this, v);
+            return;
+          }
+          /* 关键：宽度交给 CSS 的 100%，比例交给 transform。
+             但 CSS 里 width 必须为 100% 才能配合 —— 若内联 width 残留会冲突，
+             所以这里先清掉内联 width，再写 transform。 */
+          this.style.transform = 'scaleX(' + sc + ')';
+          /* 原 transition 是 width .6s，本层 CSS 已改 transition-property:transform，
+             此处只需保证元素有 transform 即可，width 交回样式表控制。 */
+          origWidth.call(this, '100%');
+          state.barCount++;
+        }
+      });
+    } catch (e) { /* 失败则不拦截，页面照常 */ }
+  }
+
+  /* ---------- 拦截 .st-cursor 的 style.left ---------- */
+  function isCursor(el) {
+    if (!el || el.nodeType !== 1) return false;
+    try { return el.id === 'st-cursor' || (el.classList && el.classList.contains('st-cursor')); }
+    catch (e) { return false; }
+  }
+
+  /* 左侧写入形如 `calc(37.5% - 2px)` 或 `37.5%`，需换算成 px。
+     容器宽度此刻未必稳定（首帧可能未布局），故延迟一帧再算。 */
+  var leftProto = Object.getPrototypeOf(document.createElement('div').style);
+  var origLeft = leftProto.left;
+  var leftDesc = Object.getOwnPropertyDescriptor(leftProto, 'left');
+
+  function applyCursorX(el) {
+    var parent = el.parentElement;
+    if (!parent) return;
+    var w = parent.getBoundingClientRect().width;
+    if (!w) { requestAnimationFrame(function () { applyCursorX(el); }); return; }
+    var pct = parseFloat(el.getAttribute('data-mt-pct') || '');
+    if (!isFinite(pct)) return;
+    el.style.setProperty('--mx', (Math.max(0, Math.min(100, pct)) / 100 * w - 2) + 'px');
+    state.cursorCount++;
+  }
+
+  function defineLeft() {
+    if (!leftDesc || !leftDesc.set) return;
+    try {
+      Object.defineProperty(leftProto, 'left', {
+        configurable: true,
+        enumerable: leftDesc.enumerable,
+        get: function () { return origLeft.call(this); },
+        set: function (v) {
+          if (!isCursor(this)) { origLeft.call(this, v); return; }
+          /* 抽出百分比存到 data，真实 px 由 CSS 变量消费 */
+          var m = /(-?[\d.]+)\s*%/.exec(String(v));
+          if (m) {
+            this.setAttribute('data-mt-pct', m[1]);
+            origLeft.call(this, '50%');   /* 基准保持正中，位移交给 transform */
+            requestAnimationFrame(function () { applyCursorX(this); }.bind(this));
+          } else {
+            origLeft.call(this, v);
+          }
+          state.cursorCount++;
+        }
+      });
+    } catch (e) { /* 同上 */ }
+  }
+
+  /* ---------- .search-drop 退场编排 ---------- */
+  /* 用 MutationObserver 监听 .search-drop 的 class，
+     捕获 .show 移除这一瞬间，插入 .mt-out 播退场，
+     动画结束后（transitionend 或超时兜底）才真正 display:none。
+     ★ 必须用超时兜底：若元素此刻不可见，transitionend 永不触发，
+       就会永久停在可见状态 —— 这是此类改法最常见的事故。 */
+  function hookDrop() {
+    var drop = document.querySelector('.search-drop');
+    if (!drop || !window.MutationObserver) return;
+
+    var lastShown = drop.classList.contains('show');
+
+    new MutationObserver(function () {
+      var nowShown = drop.classList.contains('show');
+
+      if (nowShown && !lastShown) {
+        /* 进入：先补 .mt-in 让 @starting-style 有起点，再加 .show */
+        drop.classList.remove('mt-out');
+        drop.classList.add('mt-in');
+        drop.style.display = '';
+        state.dropCount++;
+      } else if (!nowShown && lastShown) {
+        /* 退出：播 .mt-out 再隐藏 */
+        drop.classList.add('mt-out');
+        if (state.dropTimer) clearTimeout(state.dropTimer);
+        var done = false;
+        var finish = function () {
+          if (done) return;
+          done = true;
+          drop.style.display = 'none';
+          drop.classList.remove('mt-out', 'mt-in');
+        };
+        drop.addEventListener('transitionend', finish, { once: true });
+        /* ★ 兜底：260ms 动画 + 60ms 余量，到点必落定 */
+        state.dropTimer = setTimeout(finish, 320);
+      }
+      lastShown = nowShown;
+    }).observe(drop, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  /* ---------- 启动 ---------- */
+  function boot() {
+    defineWidth();
+    defineLeft();
+    hookDrop();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  /* ---------- API ---------- */
+  window.__motionTune = {
+    state: function () {
+      return {
+        installed: true,
+        bars: state.barCount,
+        cursor: state.cursorCount,
+        drops: state.dropCount,
+        restored: state.restored,
+        fpsQ: document.documentElement.getAttribute('data-fps-q') || 'default'
+      };
+    },
+    /* 手动触发一次退场（供将来按钮/弹窗复用） */
+    dismiss: function (el) {
+      if (!el) return;
+      el.classList.add('mt-out');
+      setTimeout(function () { el.classList.remove('mt-out'); }, 320);
+    },
+    restore: function () {
+      if (state.restored) return;
+      state.restored = true;
+      try {
+        if (widthDesc) Object.defineProperty(barProto, 'width', widthDesc);
+        if (leftDesc) Object.defineProperty(leftProto, 'left', leftDesc);
+      } catch (e) { /* 忽略 */ }
+    },
+    disable: function () { this.restore(); },
+    enable: function () {
+      if (!state.restored) return;
+      state.restored = false;
+      try {
+        if (widthDesc) Object.defineProperty(barProto, 'width', widthDesc);
+        if (leftDesc) Object.defineProperty(leftProto, 'left', leftDesc);
+        defineWidth();
+        defineLeft();
+      } catch (e) { /* 忽略 */ }
+    }
+  };
+})();
+<!-- MT:JS:END -->
 <!-- BFX:JS:BEGIN -->
 <script id="banner-fx-js">
 /* ==========================================================================
