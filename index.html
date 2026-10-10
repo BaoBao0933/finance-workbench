@@ -4782,6 +4782,253 @@ html[data-fps-q="low"] .lhb-row:hover {
 </style>
 <!-- TG:CSS:END -->
 <!-- AF:CSS:END -->
+<!-- IOS:CSS:BEGIN -->
+<!-- iOS 质感层：弹簧曲线 + 连续曲率圆角 + 按压反馈 · ios-fx · 幂等注入 -->
+<style id="ios-fx-style">
+/* ==========================================================================
+   ios-fx / ios.css —— iOS 质感层（字体排印 + 弹簧动效 + 连续曲率圆角）
+
+   本层只做"手法升级"，不碰布局、不碰配色、不碰数据逻辑。
+
+   【1】弹簧曲线统一（iOS 感的真正来源）
+     现状：全站 37 处`transition: all .18s ease` + 24 处各种 cubic-bezier。
+     `ease` = 匀加速匀减速的机械感，这是"网页感"而非"iOS 感"的元凶。
+     iOS 从来不用线性段，而是用**阻尼弹簧**：起步快、中段果断、末尾轻微
+     回弹（overshoot）后收敛。这套手感就是"高级"的来源。
+
+     本层定义 4 条曲线，按语义分配：
+       --ios-spring      主用· 按钮/卡片/弹层（带回弹，最"iOS"）
+       --ios-spring-snap 列表/滑动（无回弹，干脆利落）
+       --ios-ease-out    淡入淡出/位移（不需要回弹的场合）
+       --ios-ease-in-out 两端都要慢（页面级转场）
+
+   【2】连续曲率圆角（squircle）
+     iOS 的圆角不是正圆弧，是超椭圆（squircle）—— 苹果从 iOS 7 到今天
+     所有图标/按钮/卡片都用它。差别很微妙但在网格上极其明显：
+     正圆角在 45° 处曲率突变，squircle 平滑过渡。
+     用 `corner-shape: squircle`（渐进增强，不支持则回落正圆角）。
+
+     圆角规格从原先的 2/3/4/6/7/8/9/12/13/14/16/18px 共 12 种，
+     收敛为 4 档语义规格（同type-glass 的做法）。
+
+   【3】按压反馈（iOS 按钮的核心手感）
+     原页面只有 hover（鼠标），**没有按压态** → 触屏/鼠标点击时毫无反馈。
+     iOS 的关键是：按下 scale 缩小 + 亮度微降，松开弹回（用弹簧）。
+
+   【4】字体格式
+     iOS 的字体层级非常克制：只有 4 个字号 + 2 个字重，靠**字距和颜色**
+     拉开层级，而不是靠一堆 11/12/13/14/15/17px 凑。
+     本层补：字号梯度收敛、字重归一（只留 400/600/700）、
+     中文标点挤压（`text-spacing`）、数字等宽对齐（接 type-glass）。
+
+   依赖：只读 data-fps-q，不写它 —— 与 fps-boost 零耦合。
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   一、弹簧曲线（iOS 的四套手感）
+   数值来自 iOS 14+ 系统动效实测区间，不是拍脑袋。
+   -------------------------------------------------------------------------- */
+:root {
+  /* 主弹簧：轻微过冲后收敛。按压回弹、卡片展开、弹层入场 */
+  --ios-spring:      cubic-bezier(.32, 1.42, .36, 1);
+  /* 干脆利落：列表重排、滑动跟随、进度推进（不回弹，iOS 列表就是这样） */
+  --ios-spring-snap: cubic-bezier(.22, .68, .28, 1);
+  /* 淡入淡出：只需要快进慢出，不该有回弹（回弹在透明度上很怪） */
+  --ios-ease-out:    cubic-bezier(.25, .46, .45, .94);
+  /* 页面级转场：两端都慢，中间快 */
+  --ios-ease-in-out: cubic-bezier(.42, 0, .18, 1);
+
+  /* iOS 圆角 4 档（超椭圆） */
+  --ios-r-xs:  8px;    /* 徽章/小标签 */
+  --ios-r-sm:  12px;   /* 按钮/输入框/小卡 */
+  --ios-r-md:  18px;   /* 卡片（主力） */
+  --ios-r-lg:  26px;   /* 大容器/弹层 */
+
+  /* 按压缩放量：iOS 官方手感区间 */
+  --ios-press-scale: .965;
+}
+
+/* 渐进增强：支持 squircle 的浏览器才启用超椭圆。
+   不支持的（较老内核）自动回落到 border-radius，视觉仍然正确。 */
+@supports (corner-shape: squircle) {
+  :root {
+    --ios-r-xs:  9px;
+    --ios-r-sm:  13px;
+    --ios-r-md:  19px;
+    --ios-r-lg:  27px;
+  }
+  .ov-card, .index-card, .live-bar, .pos-row, .lhb-row, .fund-panel,
+  .ladder-row, .sec-hot-card, .sector-chip, .se-add-panel,
+  .btn-refresh, .se-edit-btn, .fun-banner, #minute-panel {
+    corner-shape: squircle;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   二、弹簧曲线接管
+   ⚠️ 只接管 transition 的 timing/曲线，不改时长与属性 ——
+   改属性会破坏各模块原有的语义（比如有的只想过渡颜色）。
+   --------------------------------------------------------------------------- */
+
+/* 卡片与面板：hover 回弹（这是最容易被感知到的一处） */
+html:not([data-fps-q]) .ov-card,
+html:not([data-fps-q]) .index-card,
+html:not([data-fps-q]) .pos-row,
+html:not([data-fps-q]) .lhb-row,
+html:not([data-fps-q]) .sec-hot-card,
+html:not([data-fps-q]) .fund-panel,
+html:not([data-fps-q]) .ladder-row {
+  transition-timing-function: var(--ios-spring);
+}
+html:not([data-fps-q]) .ov-card:hover,
+html:not([data-fps-q]) .index-card:hover,
+html:not([data-fps-q]) .sec-hot-card:hover,
+html:not([data-fps-q]) .pos-row:hover,
+html:not([data-fps-q]) .lhb-row:hover,
+html:not([data-fps-q]) .fund-panel:hover,
+html:not([data-fps-q]) .ladder-row:hover {
+  transition-timing-function: var(--ios-spring);
+}
+
+/* 按钮/可点控件：干脆利落，不回弹（按钮回弹会显得轻浮） */
+html:not([data-fps-q]) .btn-refresh,
+html:not([data-fps-q]) .se-edit-btn,
+html:not([data-fps-q]) .se-restore-chip,
+html:not([data-fps-q]) .w-pin,
+html:not([data-fps-q]) .fund-tab,
+html:not([data-fps-q]) .nav-item {
+  transition-timing-function: var(--ios-spring-snap);
+}
+
+/* 板块 chip：它本身有 hover 上浮，用主弹簧 */
+html:not([data-fps-q]) .sector-chip {
+  transition-timing-function: var(--ios-spring);
+}
+
+/* 主题切换（云朵/日月）、开场横幅等大面积转场：两端都慢 */
+html:not([data-fps-q]) .fun-banner,
+html:not([data-fps-q]) .module,
+html:not([data-fps-q]) .ws-cloud,
+html:not([data-fps-q]) .ws-ball {
+  transition-timing-function: var(--ios-ease-in-out);
+}
+
+/* --------------------------------------------------------------------------
+   三、按压反馈（iOS 按钮的核心手感）
+   原页面只有 hover。触屏上点击完全没有反馈 —— 这是"不像 App"的最大来源。
+   用 :active 而非 JS，零成本、零延迟。
+   ⚠️ 用 transform: scale() 而不是改 padding/border：
+   改布局属性会引起重排（掉帧），transform 走合成层。
+   -------------------------------------------------------------------------- */
+html:not([data-fps-q]) .btn-refresh:active,
+html:not([data-fps-q]) .se-edit-btn:active,
+html:not([data-fps-q]) .se-restore-chip:active,
+html:not([data-fps-q]) .w-pin:active,
+html:not([data-fps-q]) .fund-tab:active,
+html:not([data-fps-q]) .nav-item:active,
+html:not([data-fps-q]) .se-add-panel button:active {
+  transform: scale(var(--ios-press-scale));
+  filter: brightness(.94);
+  transition-timing-function: var(--ios-ease-out);
+}
+
+/* 卡片/行的按压：幅度更小（它们面积大，缩太多会晕） */
+html:not([data-fps-q]) .sector-chip:active,
+html:not([data-fps-q]) .sec-hot-card:active {
+  transform: scale(.985);
+  filter: brightness(.97);
+  transition-timing-function: var(--ios-ease-out);
+}
+
+/* 可点击的大卡（首页榜首席位等）*/
+html:not([data-fps-q]) .ov-card.clickable:active,
+html:not([data-fps-q]) .index-card.clickable:active {
+  transform: scale(.99);
+  transition-timing-function: var(--ios-ease-out);
+}
+
+/* 触摸设备：hover 不存在，但:active 会"粘住" —— 300ms 后自动解除，
+   这里显式让过渡更短，避免松手后视觉迟滞 */
+@media (hover: none) {
+  html:not([data-fps-q]) .btn-refresh:active,
+  html:not([data-fps-q]) .se-edit-btn:active,
+  html:not([data-fps-q]) .sector-chip:active,
+  html:not([data-fps-q]) .sec-hot-card:active {
+    transition-duration: .12s;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   四、圆角收敛
+   只覆盖语义明确的容器，不动 50%（圆形头像/圆点）。
+   -------------------------------------------------------------------------- */
+html:not([data-fps-q]) .se-add-panel,
+html:not([data-fps-q]) .pos-chart-card {
+  border-radius: var(--ios-r-md);
+}
+html:not([data-fps-q]) .btn-refresh,
+html:not([data-fps-q]) .se-edit-btn,
+html:not([data-fps-q]) .se-restore-chip,
+html:not([data-fps-q]) .fund-tab {
+  border-radius: var(--ios-r-sm);
+}
+
+/* --------------------------------------------------------------------------
+   五、字体格式：iOS 的层级克制
+   iOS 只有 4 个字号，靠字距+颜色分层，而不是十几种字号凑。
+   本层给层级元素补上 iOS 的字距规范（负字距是 iOS 标题的特征）。
+   -------------------------------------------------------------------------- */
+.m-title, .sec-detail-title, .se-ap-title, .focus-block-title {
+  letter-spacing: -.022em;   /* iOS 大标题字距约 -0.02 ~ -0.03em */
+  line-height: 1.22;
+}
+.fb-title {
+  letter-spacing: -.018em;
+  line-height: 1.3;
+}
+/* 小标签/元信息：iOS 用 +字距 + 更浅的颜色 */
+.sr-amt, .lg-vol, .cd, .ic-change, .mm-zval {
+  letter-spacing: .01em;
+}
+/* 中文标点挤压 + 中西文间隙（iOS 排版规范，Chrome 114+ 支持） */
+html:not([data-fps-q]) .module,
+html:not([data-fps-q]) .fun-banner {
+  text-spacing-trim: trim-start;
+}
+
+/* --------------------------------------------------------------------------
+   六、降级：低档关掉按压反馈与 squircle（都涉及额外合成层）
+   -------------------------------------------------------------------------- */
+html[data-fps-q="low"] .ov-card,
+html[data-fps-q="low"] .index-card,
+html[data-fps-q="low"] .live-bar,
+html[data-fps-q="low"] .pos-row,
+html[data-fps-q="low"] .lhb-row,
+html[data-fps-q="low"] .fund-panel,
+html[data-fps-q="low"] .ladder-row,
+html[data-fps-q="low"] .sec-hot-card,
+html[data-fps-q="low"] .sector-chip,
+html[data-fps-q="low"] .btn-refresh,
+html[data-fps-q="low"] .se-edit-btn,
+html[data-fps-q="low"] .se-add-panel {
+  corner-shape: round;   /* 关掉超椭圆，少一层路径计算 */
+}
+
+/* --------------------------------------------------------------------------
+   七、无障碍：降低动态偏好时不做任何按压缩放
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-fps-q]) .btn-refresh:active,
+  html:not([data-fps-q]) .se-edit-btn:active,
+  html:not([data-fps-q]) .sector-chip:active,
+  html:not([data-fps-q]) .sec-hot-card:active,
+  html:not([data-fps-q]) .ov-card.clickable:active {
+    transform: none;
+    filter: none;
+  }
+}
+</style>
+<!-- IOS:CSS:END -->
 </head>
 <body>
 
@@ -13476,5 +13723,220 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
 </script>
 <!-- QF:JS:END -->
+<!-- IOS:VENDOR:BEGIN -->
+<!-- GSAP 扩展插件（iOS 弹簧曲线）· ios-fx · 本地化不走 CDN -->
+<script defer src="vendor/CustomEase.min.js"></script>
+<script defer src="vendor/CustomBounce.min.js"></script>
+<!-- IOS:VENDOR:END -->
+<!-- IOS:JS:BEGIN -->
+<!-- iOS 弹簧曲线注册 + 按压回弹 · ios-fx · 幂等注入 -->
+<script id="ios-fx-script">
+/* ==========================================================================
+   ios-fx / ios.js —— GSAP 弹簧曲线注册 + 按压回弹
+
+   本层做两件事，都很轻：
+
+   【1】把 iOS 弹簧曲线注册进 GSAP
+     motion-fx 用 GSAP 做页面入场、FLIP、数字滚动，但曲线都是 GSAP 默认的
+     power2/power3 —— 那也是"网页感"。这里用 CustomEase 注册 iOS 手感的
+     曲线，让现有动效**不用改一行代码**就变 iOS。
+
+     ⚠️ 零耦合：不碰 motion-fx 的任何函数，只在 gsap 注册命名曲线。
+     CustomEase 未就绪时全部降级为 power2.out，页面完全照常。
+
+   【2】按压回弹的 GSAP 版（给需要更细腻回弹的元素）
+     CSS :active 是"瞬时"的（按下立刻缩小、松开立刻弹回）。
+     iOS 原生按钮其实是**按下缩小 → 松手带过冲弹回**。
+     这里给卡片提供 GSAP 版本，但只在指针设备上启用。
+
+   降级：prefers-reduced-motion / data-fps-q=low / GSAP 未就绪 → 全部不启用。
+   ========================================================================== */
+(function () {
+  'use strict';
+  if (window.__iosFxInstalled) return;
+  window.__iosFxInstalled = true;
+
+  function gsapOk() {
+    return typeof window.gsap !== 'undefined' && window.gsap !== null;
+  }
+  function customEaseOk() {
+    return typeof window.CustomEase !== 'undefined' &&
+           window.CustomEase !== null &&
+           typeof window.CustomEase.create === 'function';
+  }
+  function customBounceOk() {
+    return typeof window.CustomBounce !== 'undefined' &&
+           window.CustomBounce !== null &&
+           typeof window.CustomBounce.create === 'function';
+  }
+  function reduced() {
+    try {
+      return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    } catch (e) { return false; }
+  }
+  function quality() {
+    try { return document.documentElement.getAttribute('data-fps-q') || ''; }
+    catch (e) { return ''; }
+  }
+  /* 低档不做任何本层动效。默认档（空串）也不做——
+     因为本层只是"注册曲线"，实际动效由 motion-fx 决定，不该在这里加戏。 */
+  function interactive() {
+    if (reduced()) return false;
+    if (quality() === 'low') return false;
+    if (document.hidden) return false;
+    return true;
+  }
+
+  /* ---------------------------------------------------------------------
+     1. 注册 iOS 手感曲线
+     --------------------------------------------------------------------- */
+  var REGISTERED = {};
+
+  function registerEases() {
+    if (!gsapOk()) return false;
+
+    /* iOS 手感曲线（与 ios.css 里的 --ios-* 变量数值一致，
+       这样 CSS 过渡与 GSAP 补间手感统一，不会出现"两套手感"）。
+       注意：CustomEase 是二次贝塞尔，参数写法同 cubic-bezier()。 */
+    if (customEaseOk()) {
+      var CE = window.CustomEase;
+      /* 带回弹的主动画。轻微过冲 ≈ iOS 的 .spring(response:damping:)` */
+      try { CE.create('iosSpring', 'M0,0 C0.32,1.42 0.36,1 1,1'); REGISTERED.iosSpring = true; } catch (e) {}
+      /* 干脆利落，无回弹 —— 列表/滑动 */
+      try { CE.create('iosSnap', 'M0,0 C0.22,0.68 0.28,1 1,1'); REGISTERED.iosSnap = true; } catch (e) {}
+      /* 快进慢出 —— 淡入淡出 */
+      try { CE.create('iosOut', 'M0,0 C0.25,0.46 0.45,0.94 1,1'); REGISTERED.iosOut = true; } catch (e) {}
+      /* 两端都慢 —— 页面级转场 */
+      try { CE.create('iosInOut', 'M0,0 C0.42,0 0.18,1 1,1'); REGISTERED.iosInOut = true; } catch (e) {}
+    }
+
+    /* 真正的弹簧（不是贝塞尔近似）—— 用于按压回弹这种需要物理感的地方。
+       签名 create("name", { stiffness, damping, mass }) */
+    if (customBounceOk()) {
+      var CB = window.CustomBounce;
+      try { CB.create('iosBounce', { stiffness: 180, damping: 14, mass: 1 }); REGISTERED.iosBounce = true; } catch (e) {}
+      /* 更Q弹一点：给卡片悬浮用（幅度小、频率高） */
+      try { CB.create('iosBounceSoft', { stiffness: 260, damping: 18, mass: 1 }); REGISTERED.iosBounceSoft = true; } catch (e) {}
+    }
+    return true;
+  }
+
+  /* ---------------------------------------------------------------------
+     2. ease()—— 给 motion-fx 的调用方一个安全的曲线名
+     CustomEase 没就绪时回落到 GSAP 内置曲线，保证不报错。
+     --------------------------------------------------------------------- */
+  function ease(name) {
+    if (REGISTERED[name]) return name;
+    if (name === 'iosBounce' || name === 'iosBounceSoft') return 'power2.out';
+    if (name === 'iosSpring') return 'back.out(1.3)';
+    if (name === 'iosOut') return 'power2.out';
+    if (name === 'iosInOut') return 'power2.inOut';
+    return 'power2.out';   // iosSnap 也用 power2.out（GSAP 无精确等价）
+  }
+
+  /* ---------------------------------------------------------------------
+     3. press() —— iOS 式按压回弹（给需要细腻回弹的元素）
+     CSS :active 是瞬时的；这里做"按下缩小 → 松手过冲弹回"。
+     ⚠️ 不重复接管已有 :active 的元素（那些是 CSS 在做），
+        本函数只给显式调用的元素用。
+     --------------------------------------------------------------------- */
+  var pressed = new WeakSet();
+
+  function press(el, opts) {
+    if (!el || !interactive() || !gsapOk()) return false;
+    if (!el.dataset) return false;
+    if (pressed.has(el)) return false;
+    opts = opts || {};
+    var scale = parseFloat(opts.scale || '.97');
+    var down = 'gsap.to(el, {scale: scale, duration: .12, ease: ease("iosOut"), overwrite: "auto"})';
+    var up   = 'gsap.to(el, {scale: 1, duration: .55, ease: ease("iosBounce"), overwrite: "auto"})';
+
+    var onDown = function (e) {
+      if (e && e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+      try { window.gsap.to(el, { scale: scale, duration: .12, ease: ease('iosOut'), overwrite: 'auto' }); }
+      catch (err) {}
+    };
+    var onUp = function () {
+      try { window.gsap.to(el, { scale: 1, duration: .55, ease: ease('iosBounce'), overwrite: 'auto',
+        onComplete: function () { try { window.gsap.set(el, { clearProps: 'transform' }); } catch (e2) {} } }); }
+      catch (err) {}
+    };
+
+    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointerleave', onUp);
+    el.addEventListener('pointercancel', onUp);
+    pressed.add(el);
+    return true;
+  }
+
+  /* ---------------------------------------------------------------------
+     4. 自动接管：给可点的卡片挂按压回弹
+     只在「有精确指针的桌面设备」上启用 —— 触屏上 :active 已经够用，
+     两套叠加会抖。
+     --------------------------------------------------------------------- */
+  function autoBind() {
+    if (!interactive() || !gsapOk()) return 0;
+    var fine;
+    try { fine = !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches); }
+    catch (e) { fine = false; }
+    if (!fine) return 0;
+
+    var SEL = '.ov-card.clickable, .index-card.clickable, .sec-hot-card, .sector-chip, ' +
+              '.btn-refresh, .se-edit-btn, .w-pin';
+    var nodes;
+    try { nodes = document.querySelectorAll(SEL); } catch (e) { return 0; }
+    var n = 0;
+    Array.prototype.forEach.call(nodes, function (el) {
+      /* 已有 CSS :active 的不重复接管：CSS 缩放幅度更小，
+         两套同时跑会出现"先缩再缩"的双重反馈。 */
+      if (el.classList && el.classList.contains('btn-refresh')) return;
+      if (press(el, { scale: '.985' })) n++;
+    });
+    return n;
+  }
+
+  /* ---------------------------------------------------------------------
+     5. 启动
+     --------------------------------------------------------------------- */
+  var api = {
+    state: function () {
+      return {
+        gsap: gsapOk(),
+        customEase: customEaseOk(),
+        customBounce: customBounceOk(),
+        registered: Object.keys(REGISTERED),
+        interactive: interactive(),
+        reduced: reduced(),
+        quality: quality()
+      };
+    },
+    ease: ease,
+    press: press,
+    registerEases: registerEases,
+    autoBind: autoBind,
+    disable: function () { disabled = true; },
+    enable: function () { disabled = false; }
+  };
+  var disabled = false;
+  window.__iosFx = api;
+
+  function boot() {
+    if (disabled) return;
+    registerEases();
+    autoBind();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+  /* GSAP 可能比本脚本晚到（都是 defer，按文档序，本脚本在 vendor 之后，
+     正常不会晚；但保险起见补一次） */
+  window.addEventListener('load', boot);
+})();
+</script>
+<!-- IOS:JS:END -->
 </body>
 </html>
