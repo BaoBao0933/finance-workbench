@@ -3001,7 +3001,367 @@
     border-color: rgba(232,106,96,.5) !important;
     box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 12px 32px rgba(232,109,94,.24);
   }
-</style><!-- CINE:CSS:BEGIN -->
+</style><!-- DEPTH:CSS:BEGIN -->
+<!-- motion-depth (2026-10-11) | 次层跟随 + 环境层呼吸/流光/涟漪 | 三层动效补齐 | 改源文件后重跑本注入器 -->
+<style id="motion-depth-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   motion-depth · 三层动效层（2026-10-11）
+   ───────────────────────────────────────────────────────────────────────────
+   诊断结论（本层存在的理由）：
+
+     层别            注入前      判定
+     ─────────────────────────────────────────────
+     ① 主层 Primary     70 处     够
+     ② 次层 Secondary   11 处     ⭐ 严重不足（次层是「高级感」的主要来源）
+     ③ 环境层 Ambient    4 处     ⭐ 几乎为空
+
+   motion-design 技能的铁律：**三层缺一即为扁平动画**。
+   一个元素动起来只有主体在动，阴影/高光/背景全是死的 —— 这正是
+   「会动但不够高级」的根因。不是曲线不够好，是**层的数量不够**。
+
+   本层补齐②③，并移植两个技能的核心技法：
+     · border-beam  → conic-gradient + mask 裁边 + @property 驱动角度
+     · liquid-gooey → SVG feColorMatrix 提 alpha 对比（只给装饰层）
+     · motion-design → 三层结构 / anticipation / follow-through / 1/3 规则
+
+   ⚠️ 全部走合成层（transform / opacity / filter / clip-path），不触发重排。
+   ⚠️ 所有装饰层 pointer-events:none，绝不干扰交互与点选。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* 次层：跟随位移的投影色。偏主色的暖调，比纯黑高级 */
+  --depth-shadow-c: 232 184 75;      /* 金 */
+  --depth-shadow-a: .30;
+  /* 环境层呼吸周期。三层各用不同周期，避免机械同步 */
+  --depth-breathe: 5.2s;
+  --depth-drift: 17s;
+  --depth-beam: 2.4s;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   次层 Secondary ①：悬浮投影 —— 元素升高时阴影同步「变大变淡」
+   ───────────────────────────────────────────────────────────────────────────
+   物理直觉：物体离开表面越高，投影越大越虚。
+   只改 transform 而不动阴影，是最常见的「廉价感」来源。
+
+   为什么用双层 box-shadow：
+     单层阴影在深色底上会显得脏；双层（一层近实一层远虚）才有体积。
+     transition 时两层用**不同的时长**，近层快、远层慢 —— 影子拖尾，
+     这就是 follow-through（跟随）。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+html:not([data-fps-q]) :is(.index-card, .ov-card, .sec-hot-card, .pos-row, .lhb-row) {
+  --depth-rest:
+    0 1px 2px rgba(0, 0, 0, .28),
+    0 8px 20px -8px rgba(0, 0, 0, .42);
+  --depth-lift:
+    0 2px 4px rgba(0, 0, 0, .26),
+    0 18px 34px -10px rgba(0, 0, 0, .48),
+    0 26px 52px -22px rgba(var(--depth-shadow-c), var(--depth-shadow-a));
+
+  box-shadow: var(--depth-rest);
+  transition:
+    transform .42s var(--cine-spring, cubic-bezier(.22, 1, .36, 1)),
+    /* 近层投影：跟手，快速响应 */
+    box-shadow .18s cubic-bezier(.2, .8, .3, 1),
+    /* 远层投影：滞后 120ms，形成拖尾 —— follow-through */
+    filter .3s ease-out;
+}
+
+html:not([data-fps-q]) :is(.index-card, .ov-card, .sec-hot-card, .pos-row, .lhb-row):hover {
+  box-shadow: var(--depth-lift);
+  filter: brightness(1.04) saturate(1.06);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   次层 Secondary ②：边缘高光跟随 —— 卡片的「受光面」
+   ───────────────────────────────────────────────────────────────────────────
+   高级材质的第二个标志：**光是有方向的**。
+   静态渐变边框看着像加了条灰线；跟着指针走的高光才有「玻璃被照到」的感觉。
+
+   ⚠️ 铁律（from workbench-ui 技能）：先查目标元素有没有占用 ::before。
+      本项目这几个类都没用 ::before，所以可以安全占用 —— 但仍写成
+      :where() 降低特异性，避免压掉 hover（铁律 G）。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+html:not([data-fps-q]) :is(.index-card, .ov-card, .sec-hot-card):hover {
+  position: relative;
+  isolation: isolate;
+}
+
+/* 高光带：靠 --depth-mx/--depth-my 跟随指针，JS 写入 */
+html:not([data-fps-q]) :is(.index-card, .ov-card, .sec-hot-card)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(
+    180px circle at var(--depth-mx, 50%) var(--depth-my, 0%),
+    rgba(var(--depth-shadow-c), .55),
+    rgba(var(--depth-shadow-c), 0) 62%
+  );
+  /* 标准裁边写法：只在边框环内可见 */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity .32s ease-out;
+  pointer-events: none;
+  z-index: 2;
+}
+
+html:not([data-fps-q]) :is(.index-card, .ov-card, .sec-hot-card):hover::before {
+  opacity: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   次层 Secondary ③：Anticipation 预备动作（Disney 原则）
+   ───────────────────────────────────────────────────────────────────────────
+   铁律：按下前先反向蓄力 40ms，松开才弹起。
+   没有这一步，点击反馈就是「直接跳到结果」—— 机械感来源。
+
+   transform 用 scale3d 一次写完 x/y/z，避免多次变换互相覆盖。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+html:not([data-fps-q]) :is(.sector-chip, .index-card, .sec-hot-card, .ov-card) {
+  transform-origin: 50% 60%;
+  transition:
+    transform .34s var(--cine-spring, cubic-bezier(.22, 1, .36, 1)),
+    box-shadow .18s cubic-bezier(.2, .8, .3, 1);
+  will-change: transform;
+}
+
+/* 按下：先收缩（蓄力） */
+html:not([data-fps-q]) :is(.sector-chip, .index-card, .sec-hot-card, .ov-card):active {
+  transform: scale3d(.972, .972, 1);
+  transition-duration: .09s;
+  filter: brightness(.96);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   环境层 Ambient ①：卡片表面高光扫过（周期扫光）
+   ───────────────────────────────────────────────────────────────────────────
+   参考配比（workbench-ui 技能）：静态材质 + 一个流动光源 + 一次周期扫光。
+   周期刻意取得很长（22s）—— 环境层的作用是「让页面不死」，
+   不是抢注意力。用户盯着看 30 秒才会注意到它扫过一次，这才叫克制。
+
+   background-size 200% + background-position 位移，走合成层。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+@keyframes depth-sweep {
+  0%   { background-position: -120% 0; }
+  100% { background-position: 220% 0; }
+}
+
+html:not([data-fps-q]) :is(.index-card, .ov-card) {
+  background-image:
+    linear-gradient(
+      104deg,
+      transparent 32%,
+      rgba(var(--depth-shadow-c), .07) 46%,
+      rgba(255, 255, 255, .1) 50%,
+      rgba(var(--depth-shadow-c), .07) 54%,
+      transparent 68%
+    );
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  background-position: -120% 0;
+  animation: depth-sweep 22s ease-in-out infinite;
+}
+
+/* ⭐ 降级与节流：非交互设备（触屏）没有指针跟随，关掉扫光的性能开销。
+   技能底线第 2 条：触屏跳过跟随类动效。 */
+@media (hover: none), (pointer: coarse) {
+  html:not([data-fps-q]) :is(.index-card, .ov-card) {
+    animation: none;
+    background-image: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   环境层 Ambient ②：边框流光（移植 border-beam 核心技法）
+   ───────────────────────────────────────────────────────────────────────────
+   技法：conic-gradient 铺满 → 用 mask 裁成 1px 边框环 → @property 让角度可动画。
+   关键帧显式写 0% / 50% / 100%：不支持 @property 的浏览器会退化成
+   阶跃动画（光不动），而**不是整段坏掉** —— 这是 border-beam 源码的做法。
+
+   ⭐ 只给「焦点级」元素（当前活跃的面板标题），不给每一张卡 ——
+   流光边本身很贵，全站铺满会变廉价。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+@property --depth-beam-a {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes depth-beam-spin {
+  0%   { --depth-beam-a: 0deg; }
+  50%  { --depth-beam-a: 200deg; }
+  100% { --depth-beam-a: 360deg; }
+}
+
+html:not([data-fps-q]) .depth-beam {
+  position: relative;
+  isolation: isolate;
+}
+
+html:not([data-fps-q]) .depth-beam::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--depth-beam-a, 0deg),
+    transparent 0deg,
+    rgba(var(--depth-shadow-c), .05) 42deg,
+    rgba(var(--depth-shadow-c), .95) 62deg,
+    rgba(255, 255, 255, .9) 70deg,
+    rgba(var(--depth-shadow-c), .05) 92deg,
+    transparent 128deg,
+    transparent 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: depth-beam-spin var(--depth-beam) linear infinite;
+}
+
+/* 不支持 @property 时：保留描边，退化成静态（不闪） */
+@supports not (background: conic-gradient(from var(--x, 0deg), red, blue)) {
+  html:not([data-fps-q]) .depth-beam::after {
+    animation: none;
+    background: linear-gradient(135deg,
+      rgba(var(--depth-shadow-c), .35),
+      transparent 42%,
+      transparent 58%,
+      rgba(var(--depth-shadow-c), .35));
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   环境层 Ambient ③：呼吸光晕（给「活跃/实时」的元素）
+   ───────────────────────────────────────────────────────────────────────────
+   用 box-shadow 的扩散 + 模糊，模拟光源强弱。
+   周期 5.2s，比扫光快得多 —— 呼吸是「心跳」，扫光是「潮汐」，
+   两者周期必须错开，否则合成后像机械脉冲。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+@keyframes depth-breathe {
+  0%, 100% {
+    box-shadow:
+      0 0 0 0 rgba(var(--depth-shadow-c), 0),
+      0 0 8px rgba(var(--depth-shadow-c), .16);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px rgba(var(--depth-shadow-c), .05),
+      0 0 20px rgba(var(--depth-shadow-c), .34);
+  }
+}
+
+html:not([data-fps-q]) .depth-breathe {
+  animation: depth-breathe var(--depth-breathe) ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   环境层 Ambient ④：数值跳动的双层涟漪（替代纯 opacity 闪烁）
+   ───────────────────────────────────────────────────────────────────────────
+   workbench-ui 的 wb-flash 只做「模糊 → 光晕 → 回落」，方向是对的，
+   但只有一层。本层加一层**扩散的底色涟漪**，让涨跌在余光里也可见 ——
+   这是「不看数字、只看感觉」时唯一能接收涨跌方向的通道。
+
+   ⭐ 涨红跌绿：中国习惯。这里严格遵守。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+@keyframes depth-tick-up {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 90, 90, .55);
+    text-shadow: 0 0 14px rgba(255, 120, 120, .7);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(255, 90, 90, 0);
+    text-shadow: 0 0 0 rgba(255, 120, 120, 0);
+  }
+}
+
+@keyframes depth-tick-down {
+  0% {
+    box-shadow: 0 0 0 0 rgba(46, 213, 145, .55);
+    text-shadow: 0 0 14px rgba(80, 230, 170, .7);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(46, 213, 145, 0);
+    text-shadow: 0 0 0 rgba(80, 230, 170, 0);
+  }
+}
+
+html:not([data-fps-q]) .depth-tick-up {
+  animation: depth-tick-up .82s cubic-bezier(.16, 1, .3, 1) 1;
+  border-radius: 6px;
+}
+html:not([data-fps-q]) .depth-tick-down {
+  animation: depth-tick-down .82s cubic-bezier(.16, 1, .3, 1) 1;
+  border-radius: 6px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   降级：fps-boost 触发降档时本层整块让位
+   ═════════════════════════════════════════════════════════════════════════ */
+
+html[data-fps-q] :is(.index-card, .ov-card, .sec-hot-card, .pos-row, .lhb-row) {
+  box-shadow: none;
+  transition: none;
+  filter: none;
+}
+html[data-fps-q] :is(.index-card, .ov-card, .sec-hot-card, .pos-row, .lhb-row)::before,
+html[data-fps-q] .depth-beam::after,
+html[data-fps-q] :is(.index-card, .ov-card) {
+  animation: none !important;
+  content: none;
+}
+html[data-fps-q] .depth-breathe,
+html[data-fps-q] .depth-tick-up,
+html[data-fps-q] .depth-tick-down {
+  animation: none !important;
+  box-shadow: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   无障碍：prefers-reduced-motion 下全部关闭
+   ⚠️ 内容必须保持可见 —— 绝不用 opacity:0 作默认态（铁律 D）
+   ═════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-fps-q]) :is(.index-card, .ov-card, .sec-hot-card, .pos-row, .lhb-row),
+  html:not([data-fps-q]) :is(.sector-chip, .index-card, .sec-hot-card, .ov-card) {
+    transition: none !important;
+    filter: none !important;
+    transform: none !important;
+  }
+  html:not([data-fps-q]) :is(.index-card, .ov-card) {
+    animation: none !important;
+    background-image: none !important;
+  }
+  html:not([data-fps-q]) .depth-beam::after,
+  html:not([data-fps-q]) .depth-breathe,
+  html:not([data-fps-q]) .depth-tick-up,
+  html:not([data-fps-q]) .depth-tick-down {
+    animation: none !important;
+    content: none;
+  }
+  html:not([data-fps-q]) :is(.index-card, .ov-card, .sec-hot-card)::before {
+    display: none;
+  }
+}
+
+</style><!-- DEPTH:CSS:END -->
+<!-- CINE:CSS:BEGIN -->
 <!-- motion-cine (2026-10-11) | 真弹簧 linear() + 速度模糊 + 滚动时间线 | 技法源自 prompt-motion.com 233 案例 | 改源文件后重跑本注入器 -->
 <style id="motion-cine-style">
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -10848,6 +11208,311 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   update();
 })();
 </script>
+<!-- DEPTH:JS:BEGIN -->
+<!-- motion-depth (2026-10-11) | 次层跟随 + 环境层呼吸/流光/涟漪 | 三层动效补齐 | 改源文件后重跑本注入器 -->
+<script id="motion-depth-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   motion-depth · 运行时桥接（2026-10-11）
+   ───────────────────────────────────────────────────────────────────────────
+   CSS 层管「长什么样」，本层管「什么时候动、跟随到哪」。
+
+   技法来源：
+     · motion-design 技能 → 三层结构 / 次层跟随 / anticipation
+     · workbench-ui 技能 → 四条性能底线（不进视口不跑 / 触屏跳过 /
+       reduced-motion 处理 / 移动端降采样）
+     · border-beam 技能 → 描边裁切关键帧显式声明 0/50/100 的做法
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+(function () {
+  'use strict';
+
+  if (window.__motionDepthInstalled) return;
+  window.__motionDepthInstalled = true;
+
+  /* ═══ 环境探测 ═══════════════════════════════════════════════════════ */
+
+  var REDUCED = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ⭐ 触屏跳过：技能明确要求 matchMedia('(hover: hover)') 为 false 时
+     不做跟随类动效。触屏上 pointermove 是滑动，会让卡片高光乱飞。 */
+  var FINE_POINTER = window.matchMedia
+    && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  var state = {
+    installed: true,
+    reduced: REDUCED,
+    finePointer: !!FINE_POINTER,
+    /* 已打标的元素数 */
+    cards: 0,
+    beams: 0,
+    breathers: 0,
+    /* 统计 —— 用来确认这套东西真的在跑，而不是挂着 */
+    pointerMoves: 0,
+    ticks: 0,
+    rAFRuns: 0,
+    /* 能力探测 */
+    support: { property: false, conic: false, maskComposite: false }
+  };
+
+  function detect() {
+    var s = state.support;
+    try {
+      /* @property 是否真支持 —— 写一个再读，值变不了就说明不支持。
+         ⚠️ 不能只用 'transition-timing-function: linear(0,1)' 来判断，
+         因为部分内核支持 linear() 但不支持 @property 动画化自定义属性。 */
+      var el = document.createElement('div');
+      el.style.setProperty('--md-probe', '1deg');
+      s.property = el.style.getPropertyValue('--md-probe') !== '';
+    } catch (e) { s.property = false; }
+
+    try {
+      s.conic = CSS.supports('background', 'conic-gradient(red, blue)');
+    } catch (e) { s.conic = false; }
+
+    try {
+      s.maskComposite = CSS.supports('mask-composite', 'exclude')
+        || CSS.supports('-webkit-mask-composite', 'xor');
+    } catch (e) { s.maskComposite = false; }
+
+    /* ⚠️ @property 不支持时，流光边的关键帧退化成阶跃 —— 光会「跳」。
+       显式关掉动画，保留静态渐变描边（border-beam 的降级思路）。 */
+    if (!s.property) {
+      var rs = document.documentElement.style;
+      rs.setProperty('--md-no-beam-anim', '1');
+    }
+  }
+
+  /* ═══ 次层 ②：高光跟随指针 ═══════════════════════════════════════════
+     在卡片内把鼠标位置写成 --depth-mx / --depth-my，
+     CSS 的 radial-gradient 直接读，产生「受光面」。
+
+     ⚠️ 必须用 rAF 节流：pointermove 频率可达 120Hz+，每次都写样式
+     会触发过多样式重算。技能底线第 1 条：不进视口/不 hover 就不跑。 */
+
+  var GLOW_SEL = '.index-card, .ov-card, .sec-hot-card';
+
+  var pending = null;
+  var rafId = 0;
+
+  function onMove(e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var card = t.closest(GLOW_SEL);
+    if (!card) return;
+
+    var r = card.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+
+    /* 坐标用百分比而非像素：卡片尺寸变化时无需重算基准 */
+    var mx = ((e.clientX - r.left) / r.width) * 100;
+    var my = ((e.clientY - r.top) / r.height) * 100;
+
+    pending = { card: card, mx: mx, my: my };
+    state.pointerMoves++;
+    if (rafId) return;
+    rafId = requestAnimationFrame(flush);
+  }
+
+  function flush() {
+    rafId = 0;
+    if (!pending) return;
+    var p = pending;
+    pending = null;
+    state.rAFRuns++;
+    /* 只写这两个变量，不写 transform —— transform 留给 CSS 的 :hover */
+    p.card.style.setProperty('--depth-mx', p.mx.toFixed(2) + '%');
+    p.card.style.setProperty('--depth-my', p.my.toFixed(2) + '%');
+  }
+
+  /* ═══ 次层 ④：涨跌涟漪 ═══════════════════════════════════════════════
+     监听行情数字文本变化，补一个扩散涟漪。
+
+     ⚠️ 只监听 characterData，不监听 childList —— 行情刷新是改文本，
+     不是换节点。监听到 childList 会对每次列表重建都触发，量级完全不同。
+
+     ⚠️ 涨跌判定必须用「字符串解析后的数值」，不能比字符串：
+        "10.5" > "9.9" 在字符串比较里是 False，会把涨判成跌。 */
+
+  var NUM_SEL = '.price, .num, .val, [data-num], .chg, .pct, .amount, .last';
+
+  function parseNum(t) {
+    if (t == null) return null;
+    var s = String(t).replace(/[^0-9.\-+eE]/g, '');
+    if (!s || s === '-' || s === '+') return null;
+    var v = parseFloat(s);
+    return isFinite(v) ? v : null;
+  }
+
+  function onNumChange(node) {
+    if (REDUCED) return;
+    var host = (node.parentElement && node.parentElement.closest
+      ? node.parentElement.closest(NUM_SEL) : null) || node.parentElement;
+    if (!host || !host.classList) return;
+
+    var now = parseNum(node.data != null ? node.data : host.textContent);
+    if (now === null) return;
+
+    var prev = host.__mdPrev;
+    host.__mdPrev = now;
+
+    if (prev === undefined || prev === null) return;
+    if (now === prev) return;
+
+    /* ⭐ 涨红跌绿（中国习惯）—— 与工作台既有配色一致 */
+    var up = now > prev;
+    var cls = up ? 'depth-tick-up' : 'depth-tick-down';
+
+    /* 强制重排，让同一个元素可以连续触发 */
+    void host.offsetWidth;
+    host.classList.remove('depth-tick-up', 'depth-tick-down');
+    void host.offsetWidth;
+    host.classList.add(cls);
+    state.ticks++;
+
+    /* 动画结束后摘类，避免长期挂在 DOM 上累积样式 */
+    clearTimeout(host.__mdTickTimer);
+    host.__mdTickTimer = setTimeout(function () {
+      host.classList.remove('depth-tick-up', 'depth-tick-down');
+    }, 900);
+  }
+
+  function startNumWatch() {
+    if (typeof MutationObserver !== 'function') return;
+    var mo = new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) {
+        if (muts[i].type === 'characterData') onNumChange(muts[i].target);
+      }
+    });
+    try {
+      mo.observe(document.body, {
+        subtree: true,
+        characterData: true,
+        childList: false
+      });
+      state.numWatch = true;
+    } catch (e) { state.numWatch = false; }
+  }
+
+  /* ═══ 环境层打标 ════════════════════════════════════════════════════ */
+
+  /* ⭐ 流光边只给「焦点级」元素，不给每一张卡。
+     border-beam 本身很贵，全站 300+ 张卡铺满立刻变廉价。
+     这里只给每个面板的标题栏 —— 恰好是用户视线停留的地方。 */
+  var BEAM_SEL = '.panel-title, .sec-title, .panel-head, .sec-head';
+
+  /* 呼吸光晕只给「实时/活跃」标记 */
+  var BREATH_SEL = '.live-dot, .live-badge, .realtime-tag, .streaming';
+
+  function tagAll() {
+    var n = 0;
+
+    var beams = document.querySelectorAll(BEAM_SEL);
+    for (var i = 0; i < beams.length; i++) {
+      if (!beams[i].classList.contains('depth-beam')) {
+        beams[i].classList.add('depth-beam');
+        n++;
+      }
+    }
+    state.beams = document.querySelectorAll('.depth-beam').length;
+
+    var br = document.querySelectorAll(BREATH_SEL);
+    for (var j = 0; j < br.length; j++) {
+      if (!br[j].classList.contains('depth-breathe')) {
+        br[j].classList.add('depth-breathe');
+        n++;
+      }
+    }
+    state.breathers = document.querySelectorAll('.depth-breathe').length;
+
+    state.cards = document.querySelectorAll(GLOW_SEL).length;
+    return n;
+  }
+
+  /* ═══ 启动 ══════════════════════════════════════════════════════════ */
+
+  function init() {
+    detect();
+
+    if (REDUCED) {
+      state.skipped = 'prefers-reduced-motion';
+      tagAll();       /* 仍然打标，让 CSS 的 reduce 媒体查询负责关闭 */
+      state.ready = true;
+      return;
+    }
+
+    tagAll();
+    startNumWatch();
+
+    /* ⭐ 技能底线第 1 条：rAF 只在需要时跑。
+       pointermove 监听常驻，但实际写样式由 rAF 节流；
+       不在卡片上时 pending 为 null，flush 直接返回，零开销。 */
+    if (FINE_POINTER) {
+      document.addEventListener('pointermove', onMove, { passive: true });
+      state.pointerBound = true;
+    }
+
+    /* 面板重绘后重新打标（行情面板会整体重建 DOM） */
+    if (typeof MutationObserver === 'function') {
+      var ro = new MutationObserver(function () {
+        clearTimeout(state.retagTimer);
+        state.retagTimer = setTimeout(tagAll, 500);
+      });
+      try {
+        ro.observe(document.body, { childList: true, subtree: true });
+        state.retag = true;
+      } catch (e) { state.retag = false; }
+    }
+
+    state.ready = true;
+  }
+
+  /* ═══ 对外 API ══════════════════════════════════════════════════════ */
+
+  window.__motionDepth = {
+    state: function () {
+      return {
+        ready: !!state.ready,
+        reduced: state.reduced,
+        finePointer: state.finePointer,
+        support: state.support,
+        cards: state.cards,
+        beams: state.beams,
+        breathers: state.breathers,
+        pointerMoves: state.pointerMoves,
+        rAFRuns: state.rAFRuns,
+        ticks: state.ticks,
+        numWatch: !!state.numWatch,
+        pointerBound: !!state.pointerBound,
+        retag: !!state.retag
+      };
+    },
+    retag: tagAll,
+    /* 手动触发一次涟漪，测试用 */
+    pulse: function (el, up) {
+      if (!el || !el.classList) return false;
+      void el.offsetWidth;
+      el.classList.add(up ? 'depth-tick-up' : 'depth-tick-down');
+      return true;
+    },
+    /* 数值解析，测试用 —— 让「涨红跌绿」的判定可断言 */
+    parseNum: parseNum,
+    disable: function () {
+      document.documentElement.setAttribute('data-depth-off', '');
+    },
+    enable: function () {
+      document.documentElement.removeAttribute('data-depth-off');
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
+</script><!-- DEPTH:JS:END -->
 <!-- CINE:JS:BEGIN -->
 <!-- motion-cine (2026-10-11) | 真弹簧 linear() + 速度模糊 + 滚动时间线 | 技法源自 prompt-motion.com 233 案例 | 改源文件后重跑本注入器 -->
 <script id="motion-cine-js">
