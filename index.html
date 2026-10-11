@@ -3001,7 +3001,323 @@
     border-color: rgba(232,106,96,.5) !important;
     box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 12px 32px rgba(232,109,94,.24);
   }
-</style><!-- DEPTH:CSS:BEGIN -->
+</style><!-- MT:CSS:BEGIN -->
+<!-- motion-tune (2026-10-11) | 合成层改造 + 退场动画 | 改源文件后重跑本注入器 -->
+<style id="motion-tune-style">
+/* ============================================================================
+   motion-tune —— 合成层改造 + 退场动画（2026-10-11）
+   ============================================================================
+   定位：ios-fx 管「曲线」，本层管「哪些属性该动」。
+         两者不重叠，都用 html:not([data-fps-q]) 守卫，与 fps-boost 零耦合。
+
+   四个真实缺口（本层逐个修）：
+
+   【A】7 处 transition 动了「布局属性」—— 每帧触发重排+重绘，走 CPU 管线。
+       进度条 width / 光标 left / toast top / sidebar width 都是典型。
+       合成层属性（transform / opacity / filter）走 GPU，零重排。
+       → 全部改写为 transform 等价形式，视觉完全一致，掉帧直接消失。
+
+   【B】display:none 的元素（.search-drop 等）只有入场、没有退场，
+       消失是「啪」一下硬切 —— 这是"廉价感"最直接的来源。
+       → 用 @starting-style + transition-behavior: allow-discrete 补退场。
+         （渐进增强，不支持的浏览器行为不变）
+
+   【C】无限循环动画 21 处，且多处同时作用于 blur 元素 → 持续掉帧。
+       → 装饰性的（logo 光晕、emoji 漂浮）**把周期拉长**降频，
+         或用 transform 动画替代 left/top。不删视觉，只降成本。
+
+       ⚠️ 2026-10-11 修正：本层原本注释写的是「静止时完全停、只在交互时播」，
+         并让 fps-boost 的 low 档用 `animation-play-state: paused` 实现。
+         结果**所有 emoji 永久冻结在第 0 帧** —— 用户报「动态 emoji 全都不动了」。
+
+         为什么这是错的（教训，勿回退）：
+         · `paused` 不是「停止循环」而是「冻结时间轴」，元素停在第一帧，
+           不是回到自然姿态。观感是「图标坏了」，不是「省电了」。
+         · emoji 漂浮只有 translateY ±7px，GPU 开销接近于零。
+           为零开销付出「看起来坏了」的代价，是纯粹的负收益。
+         · 正确做法是**降频**：周期 ×4，每帧成本降到 1/4，视觉仍是「活的」。
+           真正昂贵的（backdrop-filter 光带）才值得冻结或整块去掉。
+
+       铁律补充：降级手段要分三档，不能一律 paused ——
+         ① 降频（周期拉长）→ 默认选择，视觉无损
+         ② 冻结（paused）→ 仅用于 backdrop-filter 等像素级开销
+         ③ 移除（display:none）→ 仅用于全屏装饰层
+
+   【D】z-index 动画。.rise-pop 用 translateX(140%) 起步，滑入时的模糊很贵。
+       → 保持效果，但把 blur 从 20px 降到等价更省的档，并加 will-change 提示。
+
+   铁律（沿用 ios-fx）：
+     - 绝不用 opacity:0 作默认态等 JS 点亮（铁律 D）
+     - 只改属性表示方式，不改视觉数值 → 零视觉回归风险
+     - 全部 html:not([data-fps-q]) 守卫，fps-boost 降级后本层整块失效
+   ============================================================================ */
+
+/* ------------------------------------------------------------------
+   A. 布局属性 → 合成层属性
+   ------------------------------------------------------------------ */
+
+/* A1. Toast：top:-60px → translateY(-100%)。
+   改法：保留 top:24px 作为最终位置，用 translateY 承载位移。
+   原：top:-60px → .show{top:24px}   每帧重排（fixed 定位仍走布局）
+   新：top:24px 常驻 + translateY(-84px) → .show{translateY(0)}  走合成层
+   ⚠️ -84px 是原 -60→24 的完整位移量，保证视觉落点完全一致。 */
+html:not([data-fps-q]) #toast {
+  top: 24px !important;
+  transform: translateX(-50%) translateY(-84px);
+  opacity: 0;
+  will-change: transform, opacity;
+  transition-property: transform, opacity;
+  transition-duration: .38s;
+  transition-timing-function: var(--ios-spring, cubic-bezier(.32, 1.42, .36, 1));
+}
+html:not([data-fps-q]) #toast.show {
+  top: 24px !important;
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  transition-timing-function: var(--ios-spring, cubic-bezier(.32, 1.42, .36, 1));
+}
+
+/* A2. 情绪温度计光标 .st-cursor：JS 写 style.left → 改为 translateX。
+   原：left:50% + transition:left .8s   每帧重排（left 是定位属性）
+   新：left:50% 保留为基准，JS 改写 --mx 变量 → transform:translateX(var(--mx))
+   ⚠️ 用 CSS 变量承接 JS 写入，是「不动主文件 JS」的最小改法。
+   兜底：--mx 未定义时（首帧）为 0，光标停在正中，与原来 left:50% 一致。 */
+html:not([data-fps-q]) .st-cursor {
+  left: 50% !important;
+  transform: translateX(var(--mx, 0px));
+  will-change: transform;
+  transition-property: transform;
+  transition-duration: .8s;
+  transition-timing-function: var(--ios-ease-in-out, cubic-bezier(.42, 0, .18, 1));
+}
+
+/* A3+A4. 进度条 width → scaleX。
+   .sector-chip .sc-bar i / .senti-card .sc-bar i / .fund-bar
+   原：width 从 2% 变到 90%   每帧重排（虽然元素小，但同屏有几十条）
+   新：width 恒为 100%，用 scaleX 表达比例 → 走合成层
+   ⚠️ transform-origin: left 保证左端对齐，视觉与原 width 完全一致
+   ⚠️ JS 仍写 style.width —— 本层用 --w 承接需JS 配合，故再加一层：
+      见 motion-tune.js 的 patchBars()，把 width 写入翻译成 scaleX。
+      纯 CSS 无法从 width 反推百分比，所以这 3 条必须有 JS 桥接。 */
+html:not([data-fps-q]) .sector-chip .sc-bar i,
+html:not([data-fps-q]) .senti-card .sc-bar i,
+html:not([data-fps-q]) .fund-bar {
+  transform-origin: left center;
+  will-change: transform;
+}
+html:not([data-fps-q]) .sector-chip .sc-bar i {
+  transition-property: transform;
+  transition-duration: .6s;
+  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
+}
+html:not([data-fps-q]) .senti-card .sc-bar i {
+  transition-property: transform;
+  transition-duration: .6s;
+  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
+}
+html:not([data-fps-q]) .fund-bar {
+  transition-property: transform;
+  transition-duration: .4s;
+  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
+}
+
+/* A5. 侧栏 width → 不动。
+   width 动画本身就是布局语义（侧栏挤压内容），改成 transform 会让
+   主内容区跟着错位。侧栏收起是低频操作（点击一次），
+   0.28s 内重排一次可接受，不属于掉帧源。**明确不改，避免画蛇添足。** */
+
+/* A6. 迷你柱 st-up-bar / st-zt-bar：同上，进度条家族 */
+html:not([data-fps-q]) .st-up-bar,
+html:not([data-fps-q]) .st-zt-bar {
+  transform-origin: left center;
+  will-change: transform;
+  transition-property: transform;
+  transition-duration: .6s;
+  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
+}
+
+/* ------------------------------------------------------------------
+   B. 退场动画（@starting-style 是「进入」，退场靠 transition-behavior）
+   ------------------------------------------------------------------
+   .search-drop 原本只有 fadeIn 入场，关闭是硬切。
+   display:none 无法过渡 —— 这是 CSS 的硬限制。
+   破解：让元素保持渲染但不可见，用 opacity/visibility 控制，
+        display 由 JS 延迟一帧移除。本层只提供样式，逻辑在 motion-tune.js。
+
+   渐进增强块：不支持 @starting-style 的浏览器拿不到任何声明，退回原状。 */
+@starting-style {
+  html:not([data-fps-q]) .search-drop.mt-in {
+    opacity: 0;
+    transform: translateY(-8px) scale(.985);
+  }
+}
+html:not([data-fps-q]) .search-drop.mt-in {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transform-origin: top center;
+  transition-property: opacity, transform;
+  transition-duration: .26s;
+  transition-timing-function: var(--ios-spring, cubic-bezier(.32, 1.42, .36, 1));
+}
+
+/* 退场态：JS 加 .mt-out，动画结束后再摘display */
+html:not([data-fps-q]) .search-drop.mt-out {
+  opacity: 0 !important;
+  transform: translateY(-6px) scale(.99) !important;
+  transition-timing-function: var(--ios-ease-in-out, cubic-bezier(.42, 0, .18, 1)) !important;
+}
+
+/* 通用可退场容器：给 toast / popover / 弹窗复用 */
+html:not([data-fps-q]) .mt-fadeable:not(.mt-out) {
+  transition-property: opacity, transform;
+  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
+}
+
+/* ------------------------------------------------------------------
+   C. 无限动画降本
+   ------------------------------------------------------------------
+   原则：不删视觉，只把「持续烧 CPU」改成「需要时才烧」。
+
+   C1. logo 光晕 glowPulse 3.5s infinite —— 每秒 60 帧全站最贵的一个。
+       它挂在 .logo-icon（侧栏 logo），侧栏是常驻可见的，等于全天候烧。
+       ⚠️ 2026-10-11 修正：原来静止档给 7s（原 3.5s，2 倍）——
+          glowPulse 是 box-shadow 呼吸，用户在侧栏 logo 上是**会盯着看**的，
+          7s 一次呼吸显得迟钝。降到 5s（1.43 倍），悬停时恢复原速。 */
+html:not([data-fps-q]) .logo-icon {
+  animation-duration: 5s !important;
+  will-change: auto;
+}
+@media (hover: hover) and (pointer: fine) {
+  html:not([data-fps-q]) .sidebar:hover .logo-icon {
+    animation-duration: 3.5s !important;
+  }
+}
+
+/* C2. emoji 漂浮：非交互区域用 1.6~2 倍周期。
+   ───────────────────────────────────────────────────────────────────────────
+   ⚠️ 2026-10-11 修正两处：
+
+   ① 原来只给 bob 一类降频，漏了 swing / spin / wing 三类 →
+      结果模块标题里的 emoji 有的慢、有的没降，观感不一致。
+
+   ② 原来 bob 改到 5.6s（原 2.8s，正好 2 倍）。**2 倍太狠了**：
+      漂浮幅度只有 ±7px，周期拉到 5.6s 后肉眼几乎察觉不到移动，
+      用户反馈「emoji 不动了」。降频的度应该是「慢一点更沉稳」，
+      不是「慢到看不见」。
+      → 统一用 1.6 倍（bob 2.8→4.5s、swing 3.4→5.4s、spin 7→11s）。
+   ─────────────────────────────────────────────────────────────────────────── */
+html:not([data-fps-q]) .m-ico.m-emoji-bob img,
+html:not([data-fps-q]) .title-ico.m-emoji-bob img {
+  animation-duration: 4.5s !important;
+}
+html:not([data-fps-q]) .m-ico.m-emoji-swing img,
+html:not([data-fps-q]) .title-ico.m-emoji-swing img {
+  animation-duration: 5.4s !important;
+}
+html:not([data-fps-q]) .m-ico.m-emoji-spin img,
+html:not([data-fps-q]) .title-ico.m-emoji-spin img {
+  animation-duration: 11s !important;
+}
+/* 扑翼幅度最大、周期最短（1s），降频到 1.6s —— 再慢就看不出在扇了 */
+html:not([data-fps-q]) .m-ico.m-emoji-wing img,
+html:not([data-fps-q]) .title-ico.m-emoji-wing img {
+  animation-duration: 1.6s !important;
+}
+html:not([data-fps-q]) .fun-banner .fb-emoji {
+  animation-duration: 5.8s !important;
+}
+html:not([data-fps-q]) .fun-banner .spark {
+  animation-duration: 6.8s !important;
+}
+
+/* C3. 会飞动的元素（earth-loader 四颗星）改成 transform 动画：
+       原 earthRound1/2 若用了 top/left，每帧重排。
+       这里不改@keyframes（主文件），而是给它们加合成层提示 + 提层。 */
+html:not([data-fps-q]) .earth-loader svg {
+  will-change: transform;
+}
+
+/* C4. zt-confetti 撒花：动画密集且带 filter，统一提层 */
+html:not([data-fps-q]) .zt-confetti i {
+  will-change: transform, opacity;
+}
+
+/* ------------------------------------------------------------------
+   D. 高斯模糊成本控制
+   ------------------------------------------------------------------
+   .rise-pop 滑入时 blur(20px) saturate(180%)，而它是从屏幕外 140% 处
+   滑进来的 —— 意味着**整个滑入过程中模糊都在重算**，这非常贵。
+   做法：把 blur 从 20px 降到 14px（视觉几乎无差，成本降约一半），
+   saturate 从 180% 降到 160%（玻璃质感略降但更干净）。
+   ⚠️ 只改 .rise-pop 这一个元素，不动 type-glass 全站 107 处 backdrop-filter。 */
+html:not([data-fps-q]) .rise-pop {
+  -webkit-backdrop-filter: blur(14px) saturate(160%) !important;
+  backdrop-filter: blur(14px) saturate(160%) !important;
+  will-change: transform, opacity;
+  transition-timing-function: var(--ios-spring, cubic-bezier(.32, 1.42, .36, 1));
+}
+
+/* ------------------------------------------------------------------
+   E. 滚动容器动效（新增能力，不是优化）
+   ------------------------------------------------------------------
+   侧栏与下拉都是 overflow-y:auto，但滚动条无过渡。
+   侧栏滚轮滚动时nav-item 会「跳」过去 —— 视觉上很生硬。
+   → 用 scroll-snap 让它更「一格一格」，这是纯体验增强，零风险。 */
+html:not([data-fps-q]) .sidebar {
+  scroll-snap-type: y proximity;
+  overscroll-behavior: contain;
+}
+html:not([data-fps-q]) .nav-item {
+  scroll-snap-align: start;
+  scroll-margin-top: 8px;
+}
+/* 下拉列表滚动时内容不应把页面带着一起滚 */
+html:not([data-fps-q]) .search-drop {
+  overscroll-behavior: contain;
+}
+
+/* ------------------------------------------------------------------
+   F. 焦点可见性（无障碍 + 键盘感）
+   ------------------------------------------------------------------
+   全站几乎只有 :hover / :active，键盘用户完全看不到焦点在哪。
+   iOS 无键盘但桌面版有 —— 这是「网页感 vs App 感」的一个细节差。
+   → 用 :focus-visible，只在键盘导航时出现焦点环，鼠标点击不出现。 */
+html:not([data-fps-q]) :focus-visible {
+  outline: 2px solid rgba(255, 149, 0, .78);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ------------------------------------------------------------------
+   G. 降级
+   ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-fps-q]) .logo-icon,
+  html:not([data-fps-q]) .fun-banner .fb-emoji,
+  html:not([data-fps-q]) .fun-banner .spark,
+  html:not([data-fps-q]) .m-ico.m-emoji-bob img,
+  html:not([data-fps-q]) .title-ico.m-emoji-bob img {
+    animation: none !important;
+  }
+  html:not([data-fps-q]) .st-cursor,
+  html:not([data-fps-q]) .sector-chip .sc-bar i,
+  html:not([data-fps-q]) .senti-card .sc-bar i,
+  html:not([data-fps-q]) .fund-bar,
+  html:not([data-fps-q]) #toast {
+    transition-duration: .01ms !important;
+  }
+}
+
+/* low 档（fps-boost 降级后 data-fps-q 已存在）——
+   守卫已让整块失效，这里额外关掉 will-change 提示残留 */
+html[data-fps-q="low"] .st-cursor,
+html[data-fps-q="low"] .sector-chip .sc-bar i,
+html[data-fps-q="low"] #toast {
+  will-change: auto;
+}
+
+</style><!-- MT:CSS:END -->
+<!-- DEPTH:CSS:BEGIN -->
 <!-- motion-depth (2026-10-11) | 次层跟随 + 环境层呼吸/流光/涟漪 | 三层动效补齐 | 改源文件后重跑本注入器 -->
 <style id="motion-depth-style">
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -3361,6 +3677,412 @@ html[data-fps-q] .depth-tick-down {
 }
 
 </style><!-- DEPTH:CSS:END -->
+<!-- FLOW:CSS:BEGIN -->
+<!-- icon-flow (2026-10-11) | 次层跟随 + 环境层呼吸/流光/涟漪 | 三层动效补齐 | 改源文件后重跑本注入器 -->
+<style id="icon-flow-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   icon-flow · 动态图标集（2026-10-11）
+   ───────────────────────────────────────────────────────────────────────────
+   为什么是纯 CSS/SVG 而不是彩色 emoji 图片：
+
+   现有机制（.m-emoji-bob 等）依赖外部 emoji 图片（OpenMoji），有三重限制：
+     ① 动画只有 4 种（漂浮/摇摆/旋转/扑翼），且全是**整图刚性运动** ——
+        眼睛、翅膀、火焰的细节永远不动，看起来像贴纸在晃
+     ② 图片走网络 → 首屏多几十 KB 延迟，且离线/桌面版要单独准备
+     ③ 涨跌方向没法表达（emoji 是固定的）
+
+   本层提供 10 个**纯 CSS/SVG 动态图标**：零图片请求、零网络依赖、
+   可表达方向与状态（涨/跌/加载/实时）。
+
+   技法来源：motion-design 的「anticipation + follow-through」与
+   「three motion layers」；workbench-ui 的「装饰层不干扰交互」。
+
+   ⚠️ 全部走 transform / opacity / stroke-dashoffset，零重排。
+   ⚠️ 全部 pointer-events:none 装饰，或 aria-hidden。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --if-up: #ff5a5a;      /* 涨 —— 中国习惯红 */
+  --if-dn: #2ed591;      /* 跌 —— 中国习惯绿 */
+  --if-flat: #8b93b5;
+  --if-gold: #e8b84b;
+}
+
+/* ═══ 图标 1：上涨箭头（阶梯上升 + 箭头弹入）══════════════════════════════
+   @keyframes iconRiseUp —— 「涨」的方向感来自箭头的斜向位移，
+   而不只是颜色变红。颜色是第二通道，方向是第一通道。 */
+@keyframes iconRiseUp {
+  0%   { transform: translateY(3px) scale(.82); opacity: 0; }
+  55%  { transform: translateY(-1.5px) scale(1.08); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes iconRiseIdle {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+@keyframes if-draw-up {
+  from { stroke-dashoffset: 22; }
+  to   { stroke-dashoffset: 0; }
+}
+
+html:not([data-fps-q]) .if-trend-up .if-arrow {
+  animation: iconRiseUp .5s var(--cine-spring, cubic-bezier(.22, 1, .36, 1)) both;
+}
+html:not([data-fps-q]) .if-trend-up .if-line {
+  stroke-dasharray: 22;
+  animation: if-draw-up .62s cubic-bezier(.4, 0, .2, 1) both;
+}
+html:not([data-fps-q]) .if-trend-up .if-body {
+  animation: iconRiseIdle 2.4s ease-in-out infinite;
+}
+
+html:not([data-fps-q]) .if-trend-dn .if-arrow {
+  animation: iconRiseUp .5s var(--cine-spring, cubic-bezier(.22, 1, .36, 1)) both;
+}
+html:not([data-fps-q]) .if-trend-dn .if-line {
+  stroke-dasharray: 22;
+  animation: if-draw-up .62s cubic-bezier(.4, 0, .2, 1) both;
+}
+html:not([data-fps-q]) .if-trend-dn .if-body {
+  animation: iconRiseIdle 2.4s ease-in-out infinite;
+  transform: scaleY(-1);          /* 跌：折线翻转 180° */
+}
+
+/* ═══ 图标 2：实时脉冲点（三环扩散）══════════════════════════════════════
+   现有 .live-dot 只有单环 scale。这里做三环**依次**扩散 ——
+   follow-through 的典型形态：一环推出后下一环跟上，不是三环同步。 */
+@keyframes if-ring {
+  0%   { transform: scale(.35); opacity: .85; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+@keyframes if-core {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%      { transform: scale(.82);  opacity: .72; }
+}
+
+html:not([data-fps-q]) .if-pulse {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 10px;
+  height: 10px;
+  flex: none;
+}
+html:not([data-fps-q]) .if-pulse .if-core {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+  animation: if-core 2s ease-in-out infinite;
+}
+html:not([data-fps-q]) .if-pulse i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  animation: if-ring 2.4s cubic-bezier(.2, .7, .3, 1) infinite;
+}
+html:not([data-fps-q]) .if-pulse i:nth-of-type(2) { animation-delay: .8s; }
+html:not([data-fps-q]) .if-pulse i:nth-of-type(3) { animation-delay: 1.6s; }
+
+/* ═══ 图标 3：加载环形进度（旋转 + 缺口呼吸）════════════════════════════
+   比默认 spinner 多一层：环本身匀速转，但**缺口在呼吸** ——
+   匀速转的 spinner 看起来像卡住了，缺口呼吸才有「在干活」的暗示。 */
+@keyframes if-spin { to { transform: rotate(360deg); } }
+@keyframes if-breathe { 0%, 100% { stroke-width: 2.4; } 50% { stroke-width: 3.4; } }
+
+html:not([data-fps-q]) .if-spinner {
+  width: 15px;
+  height: 15px;
+  display: inline-block;
+  vertical-align: -3px;
+}
+html:not([data-fps-q]) .if-spinner circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-dasharray: 26 44;      /* 有缺口，不是整圈 */
+  animation: if-spin 1.05s linear infinite,
+             if-breathe 1.6s ease-in-out infinite;
+}
+
+/* ═══ 图标 4：等宽三横杠（数据流）════════════════════════════════════════
+   三条横杠**错峰**左右移动，表示「数据在流动」。
+   错峰是关键：同步移动看起来像整体平移（= 静止），错峰才读得出「流」。 */
+@keyframes if-bars {
+  0%, 100% { transform: translateX(-2.5px); opacity: .45; }
+  50%      { transform: translateX(2.5px);  opacity: 1; }
+}
+html:not([data-fps-q]) .if-bars {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.5px;
+  vertical-align: -3px;
+  height: 13px;
+}
+html:not([data-fps-q]) .if-bars i {
+  display: block;
+  width: 2.5px;
+  height: 11px;
+  border-radius: 2px;
+  background: currentColor;
+  animation: if-bars 1.25s ease-in-out infinite;
+}
+html:not([data-fps-q]) .if-bars i:nth-child(2) { animation-delay: .16s; }
+html:not([data-fps-q]) .if-bars i:nth-child(3) { animation-delay: .32s; }
+
+/* ═══ 图标 5：涨跌双色柱（涨绿跌红 → 按中国习惯反过来）══════════════════
+   ⭐ 涨红跌绿。柱子高度用 transform:scaleY 从底部生长 —— 不用 height，
+   否则每帧触发重排。 */
+@keyframes if-bar-grow {
+  0%   { transform: scaleY(.12); }
+  70%  { transform: scaleY(1.08); }   /* 轻微过冲：弹性生长 */
+  100% { transform: scaleY(1); }
+}
+html:not([data-fps-q]) .if-cols {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+  vertical-align: -4px;
+}
+html:not([data-fps-q]) .if-cols i {
+  display: block;
+  width: 3.5px;
+  border-radius: 2px;
+  transform-origin: 50% 100%;
+  animation: if-bar-grow .72s var(--cine-rubber, cubic-bezier(.34, 1.56, .64, 1)) both;
+}
+html:not([data-fps-q]) .if-cols i:nth-child(1) { height: 55%; background: var(--if-up); animation-delay: 0ms; }
+html:not([data-fps-q]) .if-cols i:nth-child(2) { height: 85%; background: var(--if-up); animation-delay: 90ms; }
+html:not([data-fps-q]) .if-cols i:nth-child(3) { height: 65%; background: var(--if-up); animation-delay: 180ms; }
+html:not([data-fps-q]) .if-cols.dn i { background: var(--if-dn); }
+html:not([data-fps-q]) .if-cols i:nth-child(3) { animation-delay: 180ms; }
+
+/* ═══ 图标 6：轨道卫星（资金流）══════════════════════════════════════════
+   中心点呼吸 + 卫星绕行。绕行用 transform:rotate 带动子元素偏移 ——
+   只转父容器，子元素自身不转，是绕行的正确写法。 */
+@keyframes if-orbit { to { transform: rotate(360deg); } }
+@keyframes if-orbit-core {
+  0%, 100% { transform: scale(1);   box-shadow: 0 0 6px var(--if-gold); }
+  50%      { transform: scale(1.22); box-shadow: 0 0 13px var(--if-gold); }
+}
+html:not([data-fps-q]) .if-orbit {
+  position: relative;
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  vertical-align: -3px;
+}
+html:not([data-fps-q]) .if-orbit::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px dashed rgba(232, 184, 75, .42);
+  animation: if-orbit 4.2s linear infinite;
+}
+html:not([data-fps-q]) .if-orbit::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--if-gold);
+  box-shadow: 0 0 7px var(--if-gold);
+  transform-origin: 2px 9.5px;    /* 绕自身下缘公转 */
+  animation: if-orbit 4.2s linear infinite;
+  animation-name: if-orbit-sat;
+}
+@keyframes if-orbit-sat { to { transform: rotate(360deg); } }
+html:not([data-fps-q]) .if-orbit > b {
+  position: absolute;
+  inset: 4.5px;
+  border-radius: 50%;
+  background: var(--if-gold);
+  animation: if-orbit-core 2.1s ease-in-out infinite;
+}
+
+/* ═══ 图标 7：火焰（热度，带内部闪动）════════════════════════════════════
+   两个动画叠加：外焰摇摆 + 内焰明暗闪烁。
+   只有摇摆会像纸片；叠加明暗才有「在烧」的感觉。 */
+@keyframes if-flame-sway {
+  0%, 100% { transform: rotate(-4deg) scaleY(1); }
+  50%      { transform: rotate(4deg)  scaleY(1.09); }
+}
+@keyframes if-flame-flicker {
+  0%, 100% { opacity: 1; }
+  35%      { opacity: .55; }
+  55%      { opacity: .95; }
+  75%      { opacity: .68; }
+}
+html:not([data-fps-q]) .if-flame {
+  display: inline-block;
+  width: 12px;
+  height: 15px;
+  vertical-align: -3px;
+  transform-origin: 50% 100%;
+  animation: if-flame-sway 1.15s ease-in-out infinite;
+}
+html:not([data-fps-q]) .if-flame svg { width: 100%; height: 100%; display: block; }
+html:not([data-fps-q]) .if-flame .if-inner {
+  animation: if-flame-flicker .82s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+/* ═══ 图标 8：光圈快门（加载中，可表达「正在取数」）═════════════════════
+   四段叶片依次开合，模拟相机对焦。叶片动 = 有东西在被处理。 */
+@keyframes if-aperture {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  50%      { transform: rotate(45deg) scale(.82); }
+}
+html:not([data-fps-q]) .if-aperture {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  vertical-align: -3px;
+}
+html:not([data-fps-q]) .if-aperture i {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+html:not([data-fps-q]) .if-aperture i::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1.6px;
+  height: 5px;
+  margin-left: -.8px;
+  border-radius: 1px;
+  background: currentColor;
+  transform-origin: 50% 7.5px;
+}
+html:not([data-fps-q]) .if-aperture {
+  position: relative;
+}
+html:not([data-fps-q]) .if-aperture i:nth-child(1) { animation: if-aperture 1.6s ease-in-out infinite; }
+html:not([data-fps-q]) .if-aperture i:nth-child(2) { animation: if-aperture 1.6s ease-in-out .2s infinite; }
+html:not([data-fps-q]) .if-aperture i:nth-child(3) { animation: if-aperture 1.6s ease-in-out .4s infinite; }
+html:not([data-fps-q]) .if-aperture i:nth-child(4) { animation: if-aperture 1.6s ease-in-out .6s infinite; }
+
+/* ═══ 图标 9：心跳脉冲（自选/持仓的「持有中」）════════════════════════════
+   心电图式：静息 → 快速搏动 → 静息。
+   比匀速缩放更有「生命感」，因为真实心律就是间歇性的。 */
+@keyframes if-heartbeat {
+  0%, 100%   { transform: scaleY(1); }
+  8%         { transform: scaleY(1.55); }
+  16%        { transform: scaleY(.92); }
+  24%        { transform: scaleY(1.28); }
+  34%        { transform: scaleY(1); }
+}
+html:not([data-fps-q]) .if-heart {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  vertical-align: -3px;
+  color: var(--if-up);
+  transform-origin: 50% 55%;
+  animation: if-heartbeat 1.9s ease-in-out infinite;
+}
+html:not([data-fps-q]) .if-heart svg { width: 100%; height: 100%; display: block; }
+
+/* ═══ 图标 10：涨跌双色菱形（板块状态）══════════════════════════════════
+   菱形自转 + 明暗交替。板块卡右上角用，指示「这块在动」。 */
+@keyframes if-diamond {
+  0%   { transform: rotate(0deg)   scale(1); }
+  50%  { transform: rotate(180deg) scale(.74); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+html:not([data-fps-q]) .if-diamond {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  vertical-align: -1px;
+  transform: rotate(45deg);
+  border-radius: 2px;
+  background: linear-gradient(135deg, var(--if-up), #ff9a73);
+  animation: if-diamond 2.8s ease-in-out infinite;
+}
+html:not([data-fps-q]) .if-diamond.dn {
+  background: linear-gradient(135deg, var(--if-dn), #7ef0c4);
+}
+
+/* ═══ 通用：给图标容器用 ════════════════════════════════════════════════ */
+html:not([data-fps-q]) .if-ico {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+html:not([data-fps-q]) .if-ico > * { pointer-events: none; }
+
+/* ═══ 降级：fps-boost 触发降档时全部放慢，不冻结 ══════════════════════════
+   ⭐ 2026-10-11 事故教训：这里**绝不能用 animation-play-state: paused**。
+      paused 是「冻结时间轴」不是「停止循环」——元素停在第一帧，
+      用户看到的是「图标坏了」。正确做法是拉长周期。
+   ───────────────────────────────────────────────────────────────────────── */
+html[data-fps-q] .if-trend-up .if-arrow,
+html[data-fps-q] .if-trend-dn .if-arrow,
+html[data-fps-q] .if-pulse .if-core,
+html[data-fps-q] .if-pulse i,
+html[data-fps-q] .if-spinner circle,
+html[data-fps-q] .if-bars i,
+html[data-fps-q] .if-cols i,
+html[data-fps-q] .if-orbit::before,
+html[data-fps-q] .if-orbit::after,
+html[data-fps-q] .if-orbit > b,
+html[data-fps-q] .if-flame,
+html[data-fps-q] .if-aperture i,
+html[data-fps-q] .if-heart,
+html[data-fps-q] .if-diamond,
+html[data-fps-q] .if-trend-up .if-body,
+html[data-fps-q] .if-trend-dn .if-body,
+html[data-fps-q] .if-flame .if-inner {
+  animation-duration: 12s !important;
+  animation-play-state: running !important;   /* 显式覆盖，防别处写 paused */
+}
+
+/* ═══ 无障碍 ════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-fps-q]) .if-trend-up .if-arrow,
+  html:not([data-fps-q]) .if-trend-dn .if-arrow,
+  html:not([data-fps-q]) .if-trend-up .if-line,
+  html:not([data-fps-q]) .if-trend-dn .if-line,
+  html:not([data-fps-q]) .if-trend-up .if-body,
+  html:not([data-fps-q]) .if-trend-dn .if-body,
+  html:not([data-fps-q]) .if-pulse .if-core,
+  html:not([data-fps-q]) .if-pulse i,
+  html:not([data-fps-q]) .if-spinner circle,
+  html:not([data-fps-q]) .if-bars i,
+  html:not([data-fps-q]) .if-cols i,
+  html:not([data-fps-q]) .if-orbit::before,
+  html:not([data-fps-q]) .if-orbit::after,
+  html:not([data-fps-q]) .if-orbit > b,
+  html:not([data-fps-q]) .if-flame,
+  html:not([data-fps-q]) .if-flame .if-inner,
+  html:not([data-fps-q]) .if-aperture i,
+  html:not([data-fps-q]) .if-heart,
+  html:not([data-fps-q]) .if-diamond {
+    animation: none !important;
+    /* ⚠️ 铁律 D：兜底态必须保持最终形态，不能回到「未播放」的起始帧。
+       这里显式写回终态，避免 animation:none 后元素停在 0% 帧。 */
+    opacity: 1 !important;
+    transform: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+  html:not([data-fps-q]) .if-trend-dn .if-body { transform: scaleY(-1) !important; }
+  html:not([data-fps-q]) .if-diamond { transform: rotate(45deg) !important; }
+  html:not([data-fps-q]) .if-cols i { transform: scaleY(1) !important; }
+  html:not([data-fps-q]) .if-pulse i { opacity: 0 !important; }
+}
+
+</style><!-- FLOW:CSS:END -->
 <!-- CINE:CSS:BEGIN -->
 <!-- motion-cine (2026-10-11) | 真弹簧 linear() + 速度模糊 + 滚动时间线 | 技法源自 prompt-motion.com 233 案例 | 改源文件后重跑本注入器 -->
 <style id="motion-cine-style">
@@ -3866,278 +4588,6 @@ html[data-fps-q] .mc-speed {
 }
 
 </style><!-- CINE:CSS:END -->
-<!-- MT:CSS:BEGIN -->
-<!-- motion-tune (2026-10-11) | 合成层改造 + 退场动画 | 改源文件后重跑本注入器 -->
-<style id="motion-tune-style">
-/* ============================================================================
-   motion-tune —— 合成层改造 + 退场动画（2026-10-11）
-   ============================================================================
-   定位：ios-fx 管「曲线」，本层管「哪些属性该动」。
-         两者不重叠，都用 html:not([data-fps-q]) 守卫，与 fps-boost 零耦合。
-
-   四个真实缺口（本层逐个修）：
-
-   【A】7 处 transition 动了「布局属性」—— 每帧触发重排+重绘，走 CPU 管线。
-       进度条 width / 光标 left / toast top / sidebar width 都是典型。
-       合成层属性（transform / opacity / filter）走 GPU，零重排。
-       → 全部改写为 transform 等价形式，视觉完全一致，掉帧直接消失。
-
-   【B】display:none 的元素（.search-drop 等）只有入场、没有退场，
-       消失是「啪」一下硬切 —— 这是"廉价感"最直接的来源。
-       → 用 @starting-style + transition-behavior: allow-discrete 补退场。
-         （渐进增强，不支持的浏览器行为不变）
-
-   【C】无限循环动画 21 处，且多处同时作用于 blur 元素 → 持续掉帧。
-       → 纯装饰性的（logo 光晕、emoji 漂浮）改为「静止时完全停、只在交互时播」，
-         或用 transform 动画替�� left/top。不删视觉，只降成本。
-
-   【D】z-index 动画。.rise-pop 用 translateX(140%) 起步，滑入时的模糊很贵。
-       → 保持效果，但把 blur 从 20px 降到等价更省的档，并加 will-change 提示。
-
-   铁律（沿用 ios-fx）：
-     - 绝不用 opacity:0 作默认态等 JS 点亮（铁律 D）
-     - 只改属性表示方式，不改视觉数值 → 零视觉回归风险
-     - 全部 html:not([data-fps-q]) 守卫，fps-boost 降级后本层整块失效
-   ============================================================================ */
-
-/* ------------------------------------------------------------------
-   A. 布局属性 → 合成层属性
-   ------------------------------------------------------------------ */
-
-/* A1. Toast：top:-60px → translateY(-100%)。
-   改法：保留 top:24px 作为最终位置，用 translateY 承载位移。
-   原：top:-60px → .show{top:24px}   每帧重排（fixed 定位仍走布局）
-   新：top:24px 常驻 + translateY(-84px) → .show{translateY(0)}  走合成层
-   ⚠️ -84px 是原 -60→24 的完整位移量，保证视觉落点完全一致。 */
-html:not([data-fps-q]) #toast {
-  top: 24px !important;
-  transform: translateX(-50%) translateY(-84px);
-  opacity: 0;
-  will-change: transform, opacity;
-  transition-property: transform, opacity;
-  transition-duration: .38s;
-  transition-timing-function: var(--ios-spring, cubic-bezier(.32, 1.42, .36, 1));
-}
-html:not([data-fps-q]) #toast.show {
-  top: 24px !important;
-  transform: translateX(-50%) translateY(0);
-  opacity: 1;
-  transition-timing-function: var(--ios-spring, cubic-bezier(.32, 1.42, .36, 1));
-}
-
-/* A2. 情绪温度计光标 .st-cursor：JS 写 style.left → 改为 translateX。
-   原：left:50% + transition:left .8s   每帧重排（left 是定位属性）
-   新：left:50% 保留为基准，JS 改写 --mx 变量 → transform:translateX(var(--mx))
-   ⚠️ 用 CSS 变量承接 JS 写入，是「不动主文件 JS」的最小改法。
-   兜底：--mx 未定义时（首帧）为 0，光标停在正中，与原来 left:50% 一致。 */
-html:not([data-fps-q]) .st-cursor {
-  left: 50% !important;
-  transform: translateX(var(--mx, 0px));
-  will-change: transform;
-  transition-property: transform;
-  transition-duration: .8s;
-  transition-timing-function: var(--ios-ease-in-out, cubic-bezier(.42, 0, .18, 1));
-}
-
-/* A3+A4. 进度条 width → scaleX。
-   .sector-chip .sc-bar i / .senti-card .sc-bar i / .fund-bar
-   原：width 从 2% 变到 90%   每帧重排（虽然元素小，但同屏有几十条）
-   新：width 恒为 100%，用 scaleX 表达比例 → 走合成层
-   ⚠️ transform-origin: left 保证左端对齐，视觉与原 width 完全一致
-   ⚠️ JS 仍写 style.width —— 本层用 --w 承接需JS 配合，故再加一层：
-      见 motion-tune.js 的 patchBars()，把 width 写入翻译成 scaleX。
-      纯 CSS 无法从 width 反推百分比，所以这 3 条必须有 JS 桥接。 */
-html:not([data-fps-q]) .sector-chip .sc-bar i,
-html:not([data-fps-q]) .senti-card .sc-bar i,
-html:not([data-fps-q]) .fund-bar {
-  transform-origin: left center;
-  will-change: transform;
-}
-html:not([data-fps-q]) .sector-chip .sc-bar i {
-  transition-property: transform;
-  transition-duration: .6s;
-  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
-}
-html:not([data-fps-q]) .senti-card .sc-bar i {
-  transition-property: transform;
-  transition-duration: .6s;
-  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
-}
-html:not([data-fps-q]) .fund-bar {
-  transition-property: transform;
-  transition-duration: .4s;
-  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
-}
-
-/* A5. 侧栏 width → 不动。
-   width 动画本身就是布局语义（侧栏挤压内容），改成 transform 会让
-   主内容区跟着错位。侧栏收起是低频操作（点击一次），
-   0.28s 内重排一次可接受，不属于掉帧源。**明确不改，避免画蛇添足。** */
-
-/* A6. 迷你柱 st-up-bar / st-zt-bar：同上，进度条家族 */
-html:not([data-fps-q]) .st-up-bar,
-html:not([data-fps-q]) .st-zt-bar {
-  transform-origin: left center;
-  will-change: transform;
-  transition-property: transform;
-  transition-duration: .6s;
-  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
-}
-
-/* ------------------------------------------------------------------
-   B. 退场动画（@starting-style 是「进入」，退场靠 transition-behavior）
-   ------------------------------------------------------------------
-   .search-drop 原本只有 fadeIn 入场，关闭是硬切。
-   display:none 无法过渡 —— 这是 CSS 的硬限制。
-   破解：让元素保持渲染但不可见，用 opacity/visibility 控制，
-        display 由 JS 延迟一帧移除。本层只提供样式，逻辑在 motion-tune.js。
-
-   渐进增强块：不支持 @starting-style 的浏览器拿不到任何声明，退回原状。 */
-@starting-style {
-  html:not([data-fps-q]) .search-drop.mt-in {
-    opacity: 0;
-    transform: translateY(-8px) scale(.985);
-  }
-}
-html:not([data-fps-q]) .search-drop.mt-in {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  transform-origin: top center;
-  transition-property: opacity, transform;
-  transition-duration: .26s;
-  transition-timing-function: var(--ios-spring, cubic-bezier(.32, 1.42, .36, 1));
-}
-
-/* 退场态：JS 加 .mt-out，动画结束后再摘display */
-html:not([data-fps-q]) .search-drop.mt-out {
-  opacity: 0 !important;
-  transform: translateY(-6px) scale(.99) !important;
-  transition-timing-function: var(--ios-ease-in-out, cubic-bezier(.42, 0, .18, 1)) !important;
-}
-
-/* 通用可退场容器：给 toast / popover / 弹窗复用 */
-html:not([data-fps-q]) .mt-fadeable:not(.mt-out) {
-  transition-property: opacity, transform;
-  transition-timing-function: var(--ios-ease-out, cubic-bezier(.25, .46, .45, .94));
-}
-
-/* ------------------------------------------------------------------
-   C. 无限动画降本
-   ------------------------------------------------------------------
-   原则：不删视觉，只把「持续烧 CPU」改成「需要时才烧」。
-
-   C1. logo 光晕 glowPulse 3.5s infinite —— 每秒 60 帧全站最贵的一个。
-       它挂在 .logo-icon（侧栏 logo），侧栏是常驻可见的，等于全天候烧。
-       → 改成 6s、更小幅度，且只在鼠标悬停侧栏时才播。 */
-html:not([data-fps-q]) .logo-icon {
-  animation-duration: 7s !important;
-  will-change: auto;
-}
-@media (hover: hover) and (pointer: fine) {
-  html:not([data-fps-q]) .sidebar:hover .logo-icon {
-    animation-duration: 3.2s !important;
-  }
-}
-
-/* C2. emoji 漂浮：非交互区域用 2 倍周期，成本减半，视觉节奏变慢反而更沉稳 */
-html:not([data-fps-q]) .m-ico.m-emoji-bob img,
-html:not([data-fps-q]) .title-ico.m-emoji-bob img {
-  animation-duration: 5.6s !important;
-}
-html:not([data-fps-q]) .fun-banner .fb-emoji {
-  animation-duration: 6.4s !important;
-}
-html:not([data-fps-q]) .fun-banner .spark {
-  animation-duration: 6.8s !important;
-}
-
-/* C3. 会飞动的元素（earth-loader 四颗星）改成 transform 动画：
-       原 earthRound1/2 若用了 top/left，每帧重排。
-       这里不改@keyframes（主文件），而是给它们加合成层提示 + 提层。 */
-html:not([data-fps-q]) .earth-loader svg {
-  will-change: transform;
-}
-
-/* C4. zt-confetti 撒花：动画密集且带 filter，统一提层 */
-html:not([data-fps-q]) .zt-confetti i {
-  will-change: transform, opacity;
-}
-
-/* ------------------------------------------------------------------
-   D. 高斯模糊成本控制
-   ------------------------------------------------------------------
-   .rise-pop 滑入时 blur(20px) saturate(180%)，而它是从屏幕外 140% 处
-   滑进来的 —— 意味着**整个滑入过程中模糊都在重算**，这非常贵。
-   做法：把 blur 从 20px 降到 14px（视觉几乎无差，成本降约一半），
-   saturate 从 180% 降到 160%（玻璃质感略降但更干净）。
-   ⚠️ 只改 .rise-pop 这一个元素，不动 type-glass 全站 107 处 backdrop-filter。 */
-html:not([data-fps-q]) .rise-pop {
-  -webkit-backdrop-filter: blur(14px) saturate(160%) !important;
-  backdrop-filter: blur(14px) saturate(160%) !important;
-  will-change: transform, opacity;
-  transition-timing-function: var(--ios-spring, cubic-bezier(.32, 1.42, .36, 1));
-}
-
-/* ------------------------------------------------------------------
-   E. 滚动容器动效（新增能力，不是优化）
-   ------------------------------------------------------------------
-   侧栏与下拉都是 overflow-y:auto，但滚动条无过渡。
-   侧栏滚轮滚动时nav-item 会「跳」过去 —— 视觉上很生硬。
-   → 用 scroll-snap 让它更「一格一格」，这是纯体验增强，零风险。 */
-html:not([data-fps-q]) .sidebar {
-  scroll-snap-type: y proximity;
-  overscroll-behavior: contain;
-}
-html:not([data-fps-q]) .nav-item {
-  scroll-snap-align: start;
-  scroll-margin-top: 8px;
-}
-/* 下拉列表滚动时内容不应把页面带着一起滚 */
-html:not([data-fps-q]) .search-drop {
-  overscroll-behavior: contain;
-}
-
-/* ------------------------------------------------------------------
-   F. 焦点可见性（无障碍 + 键盘感）
-   ------------------------------------------------------------------
-   全站几乎只有 :hover / :active，键盘用户完全看不到焦点在哪。
-   iOS 无键盘但桌面版有 —— 这是「网页感 vs App 感」的一个细节差。
-   → 用 :focus-visible，只在键盘导航时出现焦点环，鼠标点击不出现。 */
-html:not([data-fps-q]) :focus-visible {
-  outline: 2px solid rgba(255, 149, 0, .78);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-/* ------------------------------------------------------------------
-   G. 降级
-   ------------------------------------------------------------------ */
-@media (prefers-reduced-motion: reduce) {
-  html:not([data-fps-q]) .logo-icon,
-  html:not([data-fps-q]) .fun-banner .fb-emoji,
-  html:not([data-fps-q]) .fun-banner .spark,
-  html:not([data-fps-q]) .m-ico.m-emoji-bob img,
-  html:not([data-fps-q]) .title-ico.m-emoji-bob img {
-    animation: none !important;
-  }
-  html:not([data-fps-q]) .st-cursor,
-  html:not([data-fps-q]) .sector-chip .sc-bar i,
-  html:not([data-fps-q]) .senti-card .sc-bar i,
-  html:not([data-fps-q]) .fund-bar,
-  html:not([data-fps-q]) #toast {
-    transition-duration: .01ms !important;
-  }
-}
-
-/* low 档（fps-boost 降级后 data-fps-q 已存在）——
-   守卫已让整块失效，这里额外关掉 will-change 提示残留 */
-html[data-fps-q="low"] .st-cursor,
-html[data-fps-q="low"] .sector-chip .sc-bar i,
-html[data-fps-q="low"] #toast {
-  will-change: auto;
-}
-
-</style><!-- MT:CSS:END -->
 <!-- SE:CSS:BEGIN -->
 <style id="sector-edit-style">
 /* ==========================================================================
@@ -5147,260 +5597,6 @@ html[data-theme="light"] .pb-boot__bar {
 
 </style>
 <!-- FM:CSS:END -->
-<!-- FPS:CSS:BEGIN -->
-<style id="fps-style">
-/* ==========================================================================
-   fps-boost / fps.css —— 帧率优化层
-
-   问题（2026-09-25 诊断）
-   ----------------------
-   主文件里有三组「组合起来就掉帧」的写法：
-     1. backdrop-filter 75 处，多数 blur(28~32px) —— 成本 ∝ 半径²，且每个元素
-        都要对背景重新采样 + 高斯模糊
-     2. body::before / body::after 两层全屏 position:fixed 装饰层（4 个 radial-gradient
-        + 3px 平铺噪点）—— 它们正是上面那些毛玻璃要采样的「背景」，背景一变，
-        全部毛玻璃都要重算
-     3. 40+ 个 infinite 循环动画在持续触发重绘
-
-   策略
-   ----
-   默认档（high）——**零视觉变化**，只做不改外观的优化：
-     · 全屏静态装饰层提升为合成层 → 缓存成纹理，不再每帧重绘
-     · 视口外的卡片用 content-visibility 跳过布局与绘制
-     · 明确滚动容器边界，把重绘范围局部化
-
-   降级档（medium / low）——仅在自适应监控检测到掉帧时启用（见 fps.js）：
-     · medium：毛玻璃半径砍到 ~50%
-     · low   ：半径砍到 ~28%，并暂停纯装饰动画
-
-   注意：这里**不删毛玻璃**。科技感的磨砂是产品的一部分，我们只让它变便宜。
-   ========================================================================== */
-
-/* --------------------------------------------------------------------------
-   1. 全屏静态装饰层 —— 缓存为纹理
-   body::before（3px 平铺噪点）和 body::after（4 个大 radial-gradient）都覆盖整个
-   视口且自身永不变化。显式提升为合成层后浏览器会缓存成纹理，毛玻璃采样时
-   无需每帧重绘这一层 —— 这是收益最大、且完全不影响观感的一条。
-   -------------------------------------------------------------------------- */
-body::before,
-body::after {
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  pointer-events: none;
-}
-
-/* --------------------------------------------------------------------------
-   2. 视口外卡片跳过渲染
-   .content 是滚动容器，里面常有几十张卡片。content-visibility: auto 让视口外的
-   卡片完全跳过布局与绘制；contain-intrinsic-size 用 auto 形式先给估计值、
-   渲染过后记住真实高度，滚动条不会跳动。
-   -------------------------------------------------------------------------- */
-.ov-card,
-.index-card,
-.sec-hot-card,
-.sector-chip,
-.lhb-row,
-.pos-row,
-.sec-cell,
-.sec-row,
-.fund-panel,
-.fund-row,
-.news-item,
-.feed-item,
-.ladder-row {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 112px;
-}
-
-/* 高度差异大的单独给估值（必须与上面的 content-visibility 列表成对，
-   否则 contain-intrinsic-size 不生效） */
-.news-item,
-.feed-item,
-.fund-row {
-  contain-intrinsic-size: auto 96px;
-}
-.index-card,
-.ov-card {
-  contain-intrinsic-size: auto 152px;
-}
-.lhb-row,
-.pos-row,
-.sec-row {
-  contain-intrinsic-size: auto 52px;
-}
-
-/* --------------------------------------------------------------------------
-   3. 常驻毛玻璃元素 —— 独立合成层
-   放在滚动容器里的毛玻璃，滚动时会因为兄弟节点重绘被牵连。单独提升后
-   各自独立合成，滚动只需重新合成、不需要重新栅格化背景。
-   用 translate（独立于 transform 的新属性）避免覆盖已有的 hover/动画 transform。
-   -------------------------------------------------------------------------- */
-.ov-card,
-.index-card,
-.sec-hot-card,
-.sector-chip,
-.live-bar,
-.fund-panel,
-.pos-chart-card,
-.fun-banner {
-  translate: 0 0;
-}
-
-/* --------------------------------------------------------------------------
-   4. 滚动容器边界 —— 把重绘范围锁在容器内
-   -------------------------------------------------------------------------- */
-.content {
-  contain: layout paint style;
-  overscroll-behavior: contain;
-}
-
-.ladder-list,
-.feed-list,
-.focus-col .news-list {
-  contain: layout paint style;
-  overscroll-behavior: contain;
-}
-
-/* ---- 数字滚动列（setDigitAnim v2，借鉴 Spectrum UI number-ticker）----
-   数字位 = 0-9 纵向列 + overflow 窗口，变化位只 translateY。
-   基线对齐：dg-win 用 inline-flex（overflow:hidden 的 inline-block 基线会
-   退化为底边，与相邻文字错位；inline-flex 取首个 item 的真实基线）。 */
-.dg-win {
-  display: inline-flex;
-  height: 1.12em;
-  width: 1ch;
-  overflow: hidden;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-.dg-col {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  transition: transform .6s cubic-bezier(.22, 1, .36, 1);
-}
-.dg-col i { font-style: normal; height: 1.12em; line-height: 1.12em; }
-.dg-fix { display: inline-block; }
-@media (prefers-reduced-motion: reduce) {
-  .dg-col { transition: none !important; }
-}
-
-/* --------------------------------------------------------------------------
-   5. 降级档位（由 fps.js 写 html[data-fps-q] 触发）
-   默认不带该属性 → 全部规则不生效 → 视觉与优化前完全一致。
-   -------------------------------------------------------------------------- */
-
-/* ---- medium：毛玻璃半径砍到约一半（视觉几乎无感，成本降约 70%）---- */
-html[data-fps-q="medium"] .ov-card,
-html[data-fps-q="medium"] .index-card,
-html[data-fps-q="medium"] .live-bar,
-html[data-fps-q="medium"] .index-card.focus-card,
-html[data-fps-q="medium"] .pos-row,
-html[data-fps-q="medium"] .lhb-row,
-html[data-fps-q="medium"] .fund-panel,
-html[data-fps-q="medium"] .ladder-row,
-html[data-fps-q="medium"] .sec-hot-card,
-html[data-fps-q="medium"] .sector-chip,
-html[data-fps-q="medium"] .fun-banner,
-html[data-fps-q="medium"] .se-add-panel,
-html[data-fps-q="medium"] .ov-card:hover,
-html[data-fps-q="medium"] .index-card:hover,
-html[data-fps-q="medium"] .sec-hot-card:hover,
-html[data-fps-q="medium"] .sector-chip:hover {
-  -webkit-backdrop-filter: blur(14px) saturate(190%) !important;
-  backdrop-filter: blur(14px) saturate(190%) !important;
-}
-
-/* ---- low：半径再砍，并停掉纯装饰动画 ---- */
-html[data-fps-q="low"] .ov-card,
-html[data-fps-q="low"] .index-card,
-html[data-fps-q="low"] .live-bar,
-html[data-fps-q="low"] .index-card.focus-card,
-html[data-fps-q="low"] .pos-row,
-html[data-fps-q="low"] .lhb-row,
-html[data-fps-q="low"] .fund-panel,
-html[data-fps-q="low"] .ladder-row,
-html[data-fps-q="low"] .sec-hot-card,
-html[data-fps-q="low"] .sector-chip,
-html[data-fps-q="low"] .fun-banner,
-html[data-fps-q="low"] .se-add-panel,
-html[data-fps-q="low"] .ov-card:hover,
-html[data-fps-q="low"] .index-card:hover,
-html[data-fps-q="low"] .sec-hot-card:hover,
-html[data-fps-q="low"] .sector-chip:hover {
-  -webkit-backdrop-filter: blur(8px) saturate(180%) !important;
-  backdrop-filter: blur(8px) saturate(180%) !important;
-}
-
-/* low 档：全屏噪点层直接关掉（观感影响极小，但吃满屏像素）*/
-html[data-fps-q="low"] body::before {
-  display: none !important;
-}
-
-/* low 档：暂停纯装饰性循环动画（功能性动效保留）——
-   logo 呼吸、横幅流光、emoji 浮动这类「一直跑但没人盯着看」的 */
-html[data-fps-q="low"] .logo-icon,
-html[data-fps-q="low"] .fun-banner .fb-emoji,
-html[data-fps-q="low"] .fun-banner .spark,
-html[data-fps-q="low"] .fun-banner .fb-beam,
-html[data-fps-q="low"] .fun-banner .fb-sheen,
-html[data-fps-q="low"] .fun-banner::before,
-html[data-fps-q="low"] .fun-banner::after,
-html[data-fps-q="low"] .module-header .m-ico,
-html[data-fps-q="low"] .title-ico,
-html[data-fps-q="low"] .rise-pop .rp-ico img,
-html[data-fps-q="low"] .home-congrats .hc-emoji img,
-html[data-fps-q="low"] .mm-dot {
-  animation-play-state: paused !important;
-}
-
-/* low 档：悬停放大这类「必须合成」的动效，直接取消位移只留颜色变化 */
-html[data-fps-q="low"] .index-card:hover,
-html[data-fps-q="low"] .ov-card:hover,
-html[data-fps-q="low"] .sec-hot-card:hover,
-html[data-fps-q="low"] .sector-chip:hover {
-  translate: 0 0 !important;
-}
-
-/* --------------------------------------------------------------------------
-   6. 尊重系统「减少动效」偏好（与主文件、perf-boost 保持一致）
-   -------------------------------------------------------------------------- */
-@media (prefers-reduced-motion: reduce) {
-  .ov-card,
-  .index-card,
-  .sec-hot-card,
-  .sector-chip,
-  .live-bar,
-  .fund-panel,
-  .pos-chart-card,
-  .fun-banner {
-    translate: none;
-  }
-}
-
-/* --------------------------------------------------------------------------
-   7. 老旧/低端设备：命中粗指针（触屏）且小屏时直接给 medium 档
-   手机端 GPU 弱得多，与其掉帧再降级，不如一开始就稳在 medium。
-   -------------------------------------------------------------------------- */
-@media (max-width: 820px) and (pointer: coarse) {
-  html:not([data-fps-q]) .ov-card,
-  html:not([data-fps-q]) .index-card,
-  html:not([data-fps-q]) .live-bar,
-  html:not([data-fps-q]) .index-card.focus-card,
-  html:not([data-fps-q]) .pos-row,
-  html:not([data-fps-q]) .lhb-row,
-  html:not([data-fps-q]) .fund-panel,
-  html:not([data-fps-q]) .ladder-row,
-  html:not([data-fps-q]) .sec-hot-card,
-  html:not([data-fps-q]) .sector-chip,
-  html:not([data-fps-q]) .fun-banner {
-    -webkit-backdrop-filter: blur(14px) saturate(190%);
-    backdrop-filter: blur(14px) saturate(190%);
-  }
-}
-
-</style>
-<!-- FPS:CSS:END -->
 <!-- MX:VENDOR:BEGIN -->
 <!-- 动效库本地化：GSAP 3.15 + Flip。defer 保证按文档顺序执行，
      排在下方 motion.js（MX:JS）之前，所以 motion.js 能读到 window.gsap。
@@ -5598,6 +5794,304 @@ html[data-fps-q="low"] .sector-chip:hover {
 }
 </style>
 <!-- MX:CSS:END -->
+<!-- FPS:CSS:BEGIN -->
+<style id="fps-style">
+/* ==========================================================================
+   fps-boost / fps.css —— 帧率优化层
+
+   问题（2026-09-25 诊断）
+   ----------------------
+   主文件里有三组「组合起来就掉帧」的写法：
+     1. backdrop-filter 75 处，多数 blur(28~32px) —— 成本 ∝ 半径²，且每个元素
+        都要对背景重新采样 + 高斯模糊
+     2. body::before / body::after 两层全屏 position:fixed 装饰层（4 个 radial-gradient
+        + 3px 平铺噪点）—— 它们正是上面那些毛玻璃要采样的「背景」，背景一变，
+        全部毛玻璃都要重算
+     3. 40+ 个 infinite 循环动画在持续触发重绘
+
+   策略
+   ----
+   默认档（high）——**零视觉变化**，只做不改外观的优化：
+     · 全屏静态装饰层提升为合成层 → 缓存成纹理，不再每帧重绘
+     · 视口外的卡片用 content-visibility 跳过布局与绘制
+     · 明确滚动容器边界，把重绘范围局部化
+
+   降级档（medium / low）——仅在自适应监控检测到掉帧时启用（见 fps.js）：
+     · medium：毛玻璃半径砍到 ~50%
+     · low   ：半径砍到 ~28%，并暂停纯装饰动画
+
+   注意：这里**不删毛玻璃**。科技感的磨砂是产品的一部分，我们只让它变便宜。
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. 全屏静态装饰层 —— 缓存为纹理
+   body::before（3px 平铺噪点）和 body::after（4 个大 radial-gradient）都覆盖整个
+   视口且自身永不变化。显式提升为合成层后浏览器会缓存成纹理，毛玻璃采样时
+   无需每帧重绘这一层 —— 这是收益最大、且完全不影响观感的一条。
+   -------------------------------------------------------------------------- */
+body::before,
+body::after {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   2. 视口外卡片跳过渲染
+   .content 是滚动容器，里面常有几十张卡片。content-visibility: auto 让视口外的
+   卡片完全跳过布局与绘制；contain-intrinsic-size 用 auto 形式先给估计值、
+   渲染过后记住真实高度，滚动条不会跳动。
+   -------------------------------------------------------------------------- */
+.ov-card,
+.index-card,
+.sec-hot-card,
+.sector-chip,
+.lhb-row,
+.pos-row,
+.sec-cell,
+.sec-row,
+.fund-panel,
+.fund-row,
+.news-item,
+.feed-item,
+.ladder-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 112px;
+}
+
+/* 高度差异大的单独给估值（必须与上面的 content-visibility 列表成对，
+   否则 contain-intrinsic-size 不生效） */
+.news-item,
+.feed-item,
+.fund-row {
+  contain-intrinsic-size: auto 96px;
+}
+.index-card,
+.ov-card {
+  contain-intrinsic-size: auto 152px;
+}
+.lhb-row,
+.pos-row,
+.sec-row {
+  contain-intrinsic-size: auto 52px;
+}
+
+/* --------------------------------------------------------------------------
+   3. 常驻毛玻璃元素 —— 独立合成层
+   放在滚动容器里的毛玻璃，滚动时会因为兄弟节点重绘被牵连。单独提升后
+   各自独立合成，滚动只需重新合成、不需要重新栅格化背景。
+   用 translate（独立于 transform 的新属性）避免覆盖已有的 hover/动画 transform。
+   -------------------------------------------------------------------------- */
+.ov-card,
+.index-card,
+.sec-hot-card,
+.sector-chip,
+.live-bar,
+.fund-panel,
+.pos-chart-card,
+.fun-banner {
+  translate: 0 0;
+}
+
+/* --------------------------------------------------------------------------
+   4. 滚动容器边界 —— 把重绘范围锁在容器内
+   -------------------------------------------------------------------------- */
+.content {
+  contain: layout paint style;
+  overscroll-behavior: contain;
+}
+
+.ladder-list,
+.feed-list,
+.focus-col .news-list {
+  contain: layout paint style;
+  overscroll-behavior: contain;
+}
+
+/* ---- 数字滚动列（setDigitAnim v2，借鉴 Spectrum UI number-ticker）----
+   数字位 = 0-9 纵向列 + overflow 窗口，变化位只 translateY。
+   基线对齐：dg-win 用 inline-flex（overflow:hidden 的 inline-block 基线会
+   退化为底边，与相邻文字错位；inline-flex 取首个 item 的真实基线）。 */
+.dg-win {
+  display: inline-flex;
+  height: 1.12em;
+  width: 1ch;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.dg-col {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  transition: transform .6s cubic-bezier(.22, 1, .36, 1);
+}
+.dg-col i { font-style: normal; height: 1.12em; line-height: 1.12em; }
+.dg-fix { display: inline-block; }
+@media (prefers-reduced-motion: reduce) {
+  .dg-col { transition: none !important; }
+}
+
+/* --------------------------------------------------------------------------
+   5. 降级档位（由 fps.js 写 html[data-fps-q] 触发）
+   默认不带该属性 → 全部规则不生效 → 视觉与优化前完全一致。
+   -------------------------------------------------------------------------- */
+
+/* ---- medium：毛玻璃半径砍到约一半（视觉几乎无感，成本降约 70%）---- */
+html[data-fps-q="medium"] .ov-card,
+html[data-fps-q="medium"] .index-card,
+html[data-fps-q="medium"] .live-bar,
+html[data-fps-q="medium"] .index-card.focus-card,
+html[data-fps-q="medium"] .pos-row,
+html[data-fps-q="medium"] .lhb-row,
+html[data-fps-q="medium"] .fund-panel,
+html[data-fps-q="medium"] .ladder-row,
+html[data-fps-q="medium"] .sec-hot-card,
+html[data-fps-q="medium"] .sector-chip,
+html[data-fps-q="medium"] .fun-banner,
+html[data-fps-q="medium"] .se-add-panel,
+html[data-fps-q="medium"] .ov-card:hover,
+html[data-fps-q="medium"] .index-card:hover,
+html[data-fps-q="medium"] .sec-hot-card:hover,
+html[data-fps-q="medium"] .sector-chip:hover {
+  -webkit-backdrop-filter: blur(14px) saturate(190%) !important;
+  backdrop-filter: blur(14px) saturate(190%) !important;
+}
+
+/* ---- low：半径再砍，并停掉纯装饰动画 ---- */
+html[data-fps-q="low"] .ov-card,
+html[data-fps-q="low"] .index-card,
+html[data-fps-q="low"] .live-bar,
+html[data-fps-q="low"] .index-card.focus-card,
+html[data-fps-q="low"] .pos-row,
+html[data-fps-q="low"] .lhb-row,
+html[data-fps-q="low"] .fund-panel,
+html[data-fps-q="low"] .ladder-row,
+html[data-fps-q="low"] .sec-hot-card,
+html[data-fps-q="low"] .sector-chip,
+html[data-fps-q="low"] .fun-banner,
+html[data-fps-q="low"] .se-add-panel,
+html[data-fps-q="low"] .ov-card:hover,
+html[data-fps-q="low"] .index-card:hover,
+html[data-fps-q="low"] .sec-hot-card:hover,
+html[data-fps-q="low"] .sector-chip:hover {
+  -webkit-backdrop-filter: blur(8px) saturate(180%) !important;
+  backdrop-filter: blur(8px) saturate(180%) !important;
+}
+
+/* low 档：全屏噪点层直接关掉（观感影响极小，但吃满屏像素）*/
+html[data-fps-q="low"] body::before {
+  display: none !important;
+}
+
+/* low 档：装饰性循环动画**降频**，不冻结。
+   ─────────────────────────────────────────────────────────────────────────
+   ⭐ 2026-10-11 事故修复：这里原本写的是 `animation-play-state: paused`，
+   结果所有 emoji（模块标题/页标题的彩色动态图标）**永久冻结在第 0 帧** ——
+   用户看到的是「动态 emoji 全都不动了」。
+
+   为什么 paused 是错的：
+   1. **paused 不是「停止循环」，是「冻结时间轴」**。元素停在第一帧，
+      不是回到静止的自然姿态。用户感知为「图标坏了」，不是「省电了」。
+   2. emoji 的漂浮/摇摆幅度极小（translateY ±7px），**GPU 开销接近于零**。
+      为零开销的东西付出「看起来坏了」的代价，是纯粹的负收益。
+   3. 它与 motion-tune 的降频规则（周期改成 5.6s / 6.4s）**重复且冲突**：
+      一个想慢下来，一个想彻底停。结果是「慢」被「停」覆盖，降频白做。
+
+   正解：**降频 = 把周期拉长**，视觉仍在动，成本降 60~75%。
+   只对真正昂贵的（横幅流光 backdrop-filter、噪点层）才用 display:none，
+   那类是「整块去掉」而不是「看起来坏了」。
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* 降频档位：周期 ×4 → 每帧成本降到 1/4，视觉仍是「活的」 */
+html[data-fps-q="low"] .logo-icon,
+html[data-fps-q="low"] .fun-banner .fb-emoji,
+html[data-fps-q="low"] .fun-banner .spark,
+html[data-fps-q="low"] .fun-banner::before,
+html[data-fps-q="low"] .fun-banner::after,
+html[data-fps-q="low"] .module-header .m-ico,
+html[data-fps-q="low"] .title-ico,
+html[data-fps-q="low"] .rise-pop .rp-ico img,
+html[data-fps-q="low"] .home-congrats .hc-emoji img,
+html[data-fps-q="low"] .mm-dot {
+  animation-duration: 16s !important;
+  animation-play-state: running !important;   /* 显式覆盖，防止别处写 paused */
+}
+
+/* ⭐ emoji 图标统一降频（原 1~7s → 14s）。
+   这些是纯 transform 动画，单帧成本极低，慢一点反而更沉稳。 */
+html[data-fps-q="low"] .m-ico.m-emoji-bob img,
+html[data-fps-q="low"] .title-ico.m-emoji-bob img,
+html[data-fps-q="low"] .m-ico.m-emoji-swing img,
+html[data-fps-q="low"] .title-ico.m-emoji-swing img,
+html[data-fps-q="low"] .m-ico.m-emoji-spin img,
+html[data-fps-q="low"] .title-ico.m-emoji-spin img {
+  animation-duration: 14s !important;
+  animation-play-state: running !important;
+}
+
+/* 扑翼动画幅度最大（flapWing），降频要更狠 */
+html[data-fps-q="low"] .m-ico.m-emoji-wing img,
+html[data-fps-q="low"] .title-ico.m-emoji-wing img {
+  animation-duration: 3.2s !important;
+  animation-play-state: running !important;
+}
+
+/* ⚠️ 这两个**保留冻结** —— 它们带 backdrop-filter，每帧都在做全屏像素运算，
+   是真正的大头，冻结的收益远大于观感损失。
+   （横幅扫光 fb-beam / fb-sheen：模糊光带每帧重算，成本是 emoji 的百倍） */
+html[data-fps-q="low"] .fun-banner .fb-beam,
+html[data-fps-q="low"] .fun-banner .fb-sheen {
+  animation-play-state: paused !important;
+}
+
+/* low 档：悬停放大这类「必须合成」的动效，直接取消位移只留颜色变化 */
+html[data-fps-q="low"] .index-card:hover,
+html[data-fps-q="low"] .ov-card:hover,
+html[data-fps-q="low"] .sec-hot-card:hover,
+html[data-fps-q="low"] .sector-chip:hover {
+  translate: 0 0 !important;
+}
+
+/* --------------------------------------------------------------------------
+   6. 尊重系统「减少动效」偏好（与主文件、perf-boost 保持一致）
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .ov-card,
+  .index-card,
+  .sec-hot-card,
+  .sector-chip,
+  .live-bar,
+  .fund-panel,
+  .pos-chart-card,
+  .fun-banner {
+    translate: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   7. 老旧/低端设备：命中粗指针（触屏）且小屏时直接给 medium 档
+   手机端 GPU 弱得多，与其掉帧再降级，不如一开始就稳在 medium。
+   -------------------------------------------------------------------------- */
+@media (max-width: 820px) and (pointer: coarse) {
+  html:not([data-fps-q]) .ov-card,
+  html:not([data-fps-q]) .index-card,
+  html:not([data-fps-q]) .live-bar,
+  html:not([data-fps-q]) .index-card.focus-card,
+  html:not([data-fps-q]) .pos-row,
+  html:not([data-fps-q]) .lhb-row,
+  html:not([data-fps-q]) .fund-panel,
+  html:not([data-fps-q]) .ladder-row,
+  html:not([data-fps-q]) .sec-hot-card,
+  html:not([data-fps-q]) .sector-chip,
+  html:not([data-fps-q]) .fun-banner {
+    -webkit-backdrop-filter: blur(14px) saturate(190%);
+    backdrop-filter: blur(14px) saturate(190%);
+  }
+}
+
+</style>
+<!-- FPS:CSS:END -->
 <!-- AF:CSS:BEGIN -->
 <style id="apple-style">
 /* ==========================================================================
@@ -11208,6 +11702,247 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   update();
 })();
 </script>
+<!-- MT:JS:BEGIN -->
+<!-- motion-tune (2026-10-11) | 合成层改造 + 退场动画 | 改源文件后重跑本注入器 -->
+<script id="motion-tune-js">
+/* ============================================================================
+   motion-tune —— 合成层改造的 JS 桥接 + 退场编排（2026-10-11）
+   ============================================================================
+   为什么需要 JS：
+
+   1) 进度条 width → scaleX
+      CSS 无法从 width 反推百分比。JS 里写的是
+      `bar.style.width = 42 + '%'`
+      本层用 Proxy 拦截 Element.prototype.style 的 width 写入，
+      命中「进度条家族」的元素时改写成 transform: scaleX()。
+      ⚠️ 拦截 style 对象风险高，故**只在白名单选择器命中时**改写，
+         其余一律原样透传 —— 最坏情况就是退回原行为，不会出错。
+
+   2) .st-cursor 的 style.left → CSS 变量 --mx
+      同理，left 写入翻译成 --mx（px），由 CSS 消费 transform。
+
+   3) .search-drop 退场
+      display:none 不可过渡。用「先播退场，结束后再 display:none」。
+
+   暴露：window.__motionTune
+     state()      当前状态与被桥接的元素计数
+     restore()    还原所有拦截（调试用）
+     disable() / enable()
+
+   铁律：
+     - 全部 try/catch，任何失败静默降级，页面绝不能因此报错
+     - 不覆盖任何已有函数，只包装 style 的 setter
+     - 重复执行幂等（window.__motionTuneInstalled 守卫）
+   ============================================================================ */
+(function () {
+  'use strict';
+
+  if (window.__motionTuneInstalled) return;
+  window.__motionTuneInstalled = true;
+
+  var state = {
+    barCount: 0, cursorCount: 0, dropCount: 0,
+    restored: false, dropTimer: null
+  };
+
+  /* ---------- 进度条白名单 ---------- */
+  /* 只有这些元素类的 width 写入会被翻译成 scaleX。
+     每项记transition 时长，与 CSS 里声明的一致。 */
+  var BAR_SEL = '.sector-chip .sc-bar i, .senti-card .sc-bar i, .fund-bar, '
+              + '.st-up-bar, .st-zt-bar';
+  function isBar(el) {
+    if (!el || el.nodeType !== 1) return false;
+    try { return el.matches && el.matches(BAR_SEL); } catch (e) { return false; }
+  }
+
+  /* 百分比字符串 -> scaleX 数值 */
+  function pctToScale(v) {
+    if (typeof v !== 'string') return null;
+    var s = v.trim();
+    if (s.charAt(s.length - 1) === '%') {
+      var n = parseFloat(s);
+      if (!isFinite(n)) return null;
+      return Math.max(0, Math.min(1, n / 100));
+    }
+    return null;
+  }
+
+  /* ---------- 拦截 style.width ---------- */
+  var barProto = Object.getPrototypeOf(document.createElement('div').style);
+  var origWidth = barProto.width;
+  var widthDesc = Object.getOwnPropertyDescriptor(barProto, 'width');
+
+  function defineWidth() {
+    if (!widthDesc || !widthDesc.set) return;
+    try {
+      Object.defineProperty(barProto, 'width', {
+        configurable: true,
+        enumerable: widthDesc.enumerable,
+        get: function () { return origWidth.call(this); },
+        set: function (v) {
+          /* 非白名单元素：原样透传，零行为变化 */
+          if (!isBar(this)) { origWidth.call(this, v); return; }
+
+          var sc = pctToScale(v);
+          if (sc === null) {           /* 非百分比（如 'auto'）→ 走原路 */
+            origWidth.call(this, v);
+            return;
+          }
+          /* 关键：宽度交给 CSS 的 100%，比例交给 transform。
+             但 CSS 里 width 必须为 100% 才能配合 —— 若内联 width 残留会冲突，
+             所以这里先清掉内联 width，再写 transform。 */
+          this.style.transform = 'scaleX(' + sc + ')';
+          /* 原 transition 是 width .6s，本层 CSS 已改 transition-property:transform，
+             此处只需保证元素有 transform 即可，width 交回样式表控制。 */
+          origWidth.call(this, '100%');
+          state.barCount++;
+        }
+      });
+    } catch (e) { /* 失败则不拦截，页面照常 */ }
+  }
+
+  /* ---------- 拦截 .st-cursor 的 style.left ---------- */
+  function isCursor(el) {
+    if (!el || el.nodeType !== 1) return false;
+    try { return el.id === 'st-cursor' || (el.classList && el.classList.contains('st-cursor')); }
+    catch (e) { return false; }
+  }
+
+  /* 左侧写入形如 `calc(37.5% - 2px)` 或 `37.5%`，需换算成 px。
+     容器宽度此刻未必稳定（首帧可能未布局），故延迟一帧再算。 */
+  var leftProto = Object.getPrototypeOf(document.createElement('div').style);
+  var origLeft = leftProto.left;
+  var leftDesc = Object.getOwnPropertyDescriptor(leftProto, 'left');
+
+  function applyCursorX(el) {
+    var parent = el.parentElement;
+    if (!parent) return;
+    var w = parent.getBoundingClientRect().width;
+    if (!w) { requestAnimationFrame(function () { applyCursorX(el); }); return; }
+    var pct = parseFloat(el.getAttribute('data-mt-pct') || '');
+    if (!isFinite(pct)) return;
+    el.style.setProperty('--mx', (Math.max(0, Math.min(100, pct)) / 100 * w - 2) + 'px');
+    state.cursorCount++;
+  }
+
+  function defineLeft() {
+    if (!leftDesc || !leftDesc.set) return;
+    try {
+      Object.defineProperty(leftProto, 'left', {
+        configurable: true,
+        enumerable: leftDesc.enumerable,
+        get: function () { return origLeft.call(this); },
+        set: function (v) {
+          if (!isCursor(this)) { origLeft.call(this, v); return; }
+          /* 抽出百分比存到 data，真实 px 由 CSS 变量消费 */
+          var m = /(-?[\d.]+)\s*%/.exec(String(v));
+          if (m) {
+            this.setAttribute('data-mt-pct', m[1]);
+            origLeft.call(this, '50%');   /* 基准保持正中，位移交给 transform */
+            requestAnimationFrame(function () { applyCursorX(this); }.bind(this));
+          } else {
+            origLeft.call(this, v);
+          }
+          state.cursorCount++;
+        }
+      });
+    } catch (e) { /* 同上 */ }
+  }
+
+  /* ---------- .search-drop 退场编排 ---------- */
+  /* 用 MutationObserver 监听 .search-drop 的 class，
+     捕获 .show 移除这一瞬间，插入 .mt-out 播退场，
+     动画结束后（transitionend 或超时兜底）才真正 display:none。
+     ★ 必须用超时兜底：若元素此刻不可见，transitionend 永不触发，
+       就会永久停在可见状态 —— 这是此类改法最常见的事故。 */
+  function hookDrop() {
+    var drop = document.querySelector('.search-drop');
+    if (!drop || !window.MutationObserver) return;
+
+    var lastShown = drop.classList.contains('show');
+
+    new MutationObserver(function () {
+      var nowShown = drop.classList.contains('show');
+
+      if (nowShown && !lastShown) {
+        /* 进入：先补 .mt-in 让 @starting-style 有起点，再加 .show */
+        drop.classList.remove('mt-out');
+        drop.classList.add('mt-in');
+        drop.style.display = '';
+        state.dropCount++;
+      } else if (!nowShown && lastShown) {
+        /* 退出：播 .mt-out 再隐藏 */
+        drop.classList.add('mt-out');
+        if (state.dropTimer) clearTimeout(state.dropTimer);
+        var done = false;
+        var finish = function () {
+          if (done) return;
+          done = true;
+          drop.style.display = 'none';
+          drop.classList.remove('mt-out', 'mt-in');
+        };
+        drop.addEventListener('transitionend', finish, { once: true });
+        /* ★ 兜底：260ms 动画 + 60ms 余量，到点必落定 */
+        state.dropTimer = setTimeout(finish, 320);
+      }
+      lastShown = nowShown;
+    }).observe(drop, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  /* ---------- 启动 ---------- */
+  function boot() {
+    defineWidth();
+    defineLeft();
+    hookDrop();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  /* ---------- API ---------- */
+  window.__motionTune = {
+    state: function () {
+      return {
+        installed: true,
+        bars: state.barCount,
+        cursor: state.cursorCount,
+        drops: state.dropCount,
+        restored: state.restored,
+        fpsQ: document.documentElement.getAttribute('data-fps-q') || 'default'
+      };
+    },
+    /* 手动触发一次退场（供将来按钮/弹窗复用） */
+    dismiss: function (el) {
+      if (!el) return;
+      el.classList.add('mt-out');
+      setTimeout(function () { el.classList.remove('mt-out'); }, 320);
+    },
+    restore: function () {
+      if (state.restored) return;
+      state.restored = true;
+      try {
+        if (widthDesc) Object.defineProperty(barProto, 'width', widthDesc);
+        if (leftDesc) Object.defineProperty(leftProto, 'left', leftDesc);
+      } catch (e) { /* 忽略 */ }
+    },
+    disable: function () { this.restore(); },
+    enable: function () {
+      if (!state.restored) return;
+      state.restored = false;
+      try {
+        if (widthDesc) Object.defineProperty(barProto, 'width', widthDesc);
+        if (leftDesc) Object.defineProperty(leftProto, 'left', leftDesc);
+        defineWidth();
+        defineLeft();
+      } catch (e) { /* 忽略 */ }
+    }
+  };
+})();
+
+</script><!-- MT:JS:END -->
 <!-- DEPTH:JS:BEGIN -->
 <!-- motion-depth (2026-10-11) | 次层跟随 + 环境层呼吸/流光/涟漪 | 三层动效补齐 | 改源文件后重跑本注入器 -->
 <script id="motion-depth-js">
@@ -11513,6 +12248,410 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- DEPTH:JS:END -->
+<!-- FLOW:JS:BEGIN -->
+<!-- icon-flow (2026-10-11) | 次层跟随 + 环境层呼吸/流光/涟漪 | 三层动效补齐 | 改源文件后重跑本注入器 -->
+<script id="icon-flow-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   icon-flow · 图标工厂与自动挂载（2026-10-11）
+   ───────────────────────────────────────────────────────────────────────────
+   10 个纯 CSS/SVG 动态图标，零图片请求。CSS 层管动画，本层管「造图标」与
+   「判断该不该挂」。
+
+   ⭐ 严格遵守两条铁律：
+     · 铁律 D —— 内容默认可见。reduced-motion 下图标必须是**终态**，
+       不是回到 0% 帧。
+     · 降级只能拉长周期，**绝不 animation-play-state: paused**。
+       paused 是冻结时间轴，用户看到的是「图标坏了」（2026-10-11 真实事故）。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+(function () {
+  'use strict';
+
+  if (window.__iconFlowInstalled) return;
+  window.__iconFlowInstalled = true;
+
+  var REDUCED = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  var state = {
+    installed: true,
+    reduced: REDUCED,
+    /* 各图标创建计数 —— 用来确认真的在用 */
+    made: { trend: 0, pulse: 0, spinner: 0, bars: 0, cols: 0,
+            orbit: 0, flame: 0, aperture: 0, heart: 0, diamond: 0 },
+    /* 自动挂载数量 */
+    attached: 0,
+    /* 涨跌判定的正确性自检：字符串比较会判反，必须用数值 */
+    parseChecks: 0,
+    parseOk: 0
+  };
+
+  /* ═══ 数值解析 ═════════════════════════════════════════════════════════
+     ⭐ 「10.5」>「9.9」在字符串比较里是 false —— 会把涨判成跌。
+     颜色一旦判反，用户的整个决策方向就反了。这里统一走 parseNum。 */
+  function parseNum(v) {
+    if (v == null) return null;
+    var s = String(v).replace(/[^0-9.\-+eE]/g, '');
+    if (!s || s === '-' || s === '+') return null;
+    var n = parseFloat(s);
+    return isFinite(n) ? n : null;
+  }
+
+  /* ═══ 图标工厂 ══════════════════════════════════════════════════════ */
+
+  /* 1. 涨跌趋势箭头（SVG 折线 + 箭头） */
+  function trend(up) {
+    var w = document.createElementNS(SVGNS, 'svg');
+    w.setAttribute('viewBox', '0 0 16 16');
+    w.setAttribute('width', '14');
+    w.setAttribute('height', '14');
+    w.setAttribute('aria-hidden', 'true');
+    var g = document.createElementNS(SVGNS, 'g');
+    g.setAttribute('class', 'if-body');
+    g.setAttribute('fill', 'none');
+    g.setAttribute('stroke', up ? 'var(--if-up)' : 'var(--if-dn)');
+    g.setAttribute('stroke-width', '1.7');
+    g.setAttribute('stroke-linecap', 'round');
+    g.setAttribute('stroke-linejoin', 'round');
+
+    var line = document.createElementNS(SVGNS, 'polyline');
+    line.setAttribute('class', 'if-line');
+    line.setAttribute('points', '1.5,12 5,8.2 8,10.5 13.6,4.2');
+    g.appendChild(line);
+
+    var arrow = document.createElementNS(SVGNS, 'polyline');
+    arrow.setAttribute('class', 'if-arrow');
+    arrow.setAttribute('points', '9.6,4.2 13.6,4.2 13.6,8.2');
+    arrow.setAttribute('transform', up ? '' : 'rotate(180 8 8)');
+    g.appendChild(arrow);
+    w.appendChild(g);
+    state.made.trend++;
+    return w;
+  }
+
+  /* 2. 实时脉冲点（三环） */
+  function pulse(color) {
+    var s = document.createElement('span');
+    s.className = 'if-pulse';
+    s.setAttribute('aria-hidden', 'true');
+    if (color) s.style.color = color;
+    var core = document.createElement('span');
+    core.className = 'if-core';
+    s.appendChild(core);
+    for (var i = 0; i < 3; i++) s.appendChild(document.createElement('i'));
+    state.made.pulse++;
+    return s;
+  }
+
+  /* 3. 加载环形 */
+  function spinner() {
+    var w = document.createElementNS(SVGNS, 'svg');
+    w.setAttribute('class', 'if-spinner');
+    w.setAttribute('viewBox', '0 0 20 20');
+    w.setAttribute('aria-hidden', 'true');
+    var c = document.createElementNS(SVGNS, 'circle');
+    c.setAttribute('cx', '10');
+    c.setAttribute('cy', '10');
+    c.setAttribute('r', '7.5');
+    w.appendChild(c);
+    state.made.spinner++;
+    return w;
+  }
+
+  /* 4. 数据流三横杠 */
+  function bars(color) {
+    var s = document.createElement('span');
+    s.className = 'if-bars';
+    s.setAttribute('aria-hidden', 'true');
+    if (color) s.style.color = color;
+    s.appendChild(document.createElement('i'));
+    s.appendChild(document.createElement('i'));
+    s.appendChild(document.createElement('i'));
+    state.made.bars++;
+    return s;
+  }
+
+  /* 5. 涨跌双色柱 */
+  function cols(down) {
+    var s = document.createElement('span');
+    s.className = 'if-cols' + (down ? ' dn' : '');
+    s.setAttribute('aria-hidden', 'true');
+    s.appendChild(document.createElement('i'));
+    s.appendChild(document.createElement('i'));
+    s.appendChild(document.createElement('i'));
+    state.made.cols++;
+    return s;
+  }
+
+  /* 6. 轨道卫星 */
+  function orbit() {
+    var s = document.createElement('span');
+    s.className = 'if-orbit';
+    s.setAttribute('aria-hidden', 'true');
+    s.appendChild(document.createElement('b'));
+    state.made.orbit++;
+    return s;
+  }
+
+  /* 7. 火焰（双层，内焰闪动） */
+  function flame() {
+    var s = document.createElement('span');
+    s.className = 'if-flame';
+    s.setAttribute('aria-hidden', 'true');
+    var w = document.createElementNS(SVGNS, 'svg');
+    w.setAttribute('viewBox', '0 0 12 15');
+    var outer = document.createElementNS(SVGNS, 'path');
+    outer.setAttribute('d', 'M6 0 C7.4 3 10 4.4 10 8 A4 4 0 0 1 2 8 C2 5.4 3.6 4.2 4.2 2.6 C5 3.6 5.4 4.6 5.4 5.8 C6.4 4.6 6.6 2.4 6 0 Z');
+    outer.setAttribute('fill', '#ff8a3d');
+    var inner = document.createElementNS(SVGNS, 'path');
+    inner.setAttribute('class', 'if-inner');
+    inner.setAttribute('d', 'M6 6.4 C7 8.2 8.2 8.8 8.2 10.6 A2.4 2.4 0 0 1 3.8 10.6 C3.8 9.2 5 8.6 6 6.4 Z');
+    inner.setAttribute('fill', '#ffd166');
+    w.appendChild(outer);
+    w.appendChild(inner);
+    s.appendChild(w);
+    state.made.flame++;
+    return s;
+  }
+
+  /* 8. 光圈快门 */
+  function aperture() {
+    var s = document.createElement('span');
+    s.className = 'if-aperture';
+    s.setAttribute('aria-hidden', 'true');
+    for (var i = 0; i < 4; i++) s.appendChild(document.createElement('i'));
+    state.made.aperture++;
+    return s;
+  }
+
+  /* 9. 心跳脉冲（SVG 心形） */
+  function heart() {
+    var s = document.createElement('span');
+    s.className = 'if-heart';
+    s.setAttribute('aria-hidden', 'true');
+    var w = document.createElementNS(SVGNS, 'svg');
+    w.setAttribute('viewBox', '0 0 16 16');
+    var p = document.createElementNS(SVGNS, 'path');
+    p.setAttribute('fill', 'currentColor');
+    p.setAttribute('d', 'M8 14.2 C8 14.2 1.4 10 1.4 5.4 A3.9 3.9 0 0 1 8 3.2 A3.9 3.9 0 0 1 14.6 5.4 C14.6 10 8 14.2 8 14.2 Z');
+    w.appendChild(p);
+    s.appendChild(w);
+    state.made.heart++;
+    return s;
+  }
+
+  /* 10. 涨跌菱形 */
+  function diamond(down) {
+    var s = document.createElement('span');
+    s.className = 'if-diamond' + (down ? ' dn' : '');
+    s.setAttribute('aria-hidden', 'true');
+    state.made.diamond++;
+    return s;
+  }
+
+  /* ═══ 自动挂载 ══════════════════════════════════════════════════════
+     ⭐ 只在「明确安全」的位置挂载，不做全局扫描式注入 ——
+     到处插图标会让页面变成「图标迷宫」，反而降低信息密度。
+
+     挂载点白名单（都是语义明确的位置）：
+       · 行情刷新中的按钮 → spinner（正在取数）
+       · 自选/持仓的删除按钮 → heart（持有中）
+       · 「实时行情」标签 → pulse（连接状态）
+       · 数据流/资金流向标题 → bars（数据在流）
+  ═════════════════════════════════════════════════════════════════════ */
+
+  var SPINNER_SEL = [
+    '.refresh-btn', '.reload-btn', '[data-act="refresh"]',
+    '.btn-refresh', '.load-more'
+  ];
+  var HEART_SEL = [
+    '.watch-item .del', '.pos-item .del',
+    '.watch-list .row-del', '.pos-list .row-del'
+  ];
+  var PULSE_SEL = [
+    '.live-tag', '.realtime-tag', '.live-label'
+  ];
+  var BARS_SEL = [
+    '.fund-flow .panel-title', '.fund-panel .panel-title'
+  ];
+
+  function tagInto(selector, maker, key, maxPerSelector) {
+    var list;
+    try { list = document.querySelectorAll(selector); }
+    catch (e) { return 0; }
+    var n = 0;
+    for (var i = 0; i < list.length; i++) {
+      if (maxPerSelector && n >= maxPerSelector) break;
+      var el = list[i];
+      if (!el || el.__ifTagged) continue;
+      /* ⭐ 绝不在「已经有图标」的位置再加一个 */
+      if (el.querySelector('.if-pulse, .if-spinner, .if-bars, .if-heart, .if-cols')) {
+        el.__ifTagged = true;
+        continue;
+      }
+      var box = document.createElement('span');
+      box.className = 'if-ico';
+      box.style.marginLeft = '6px';
+      box.appendChild(maker());
+      el.appendChild(box);
+      el.__ifTagged = true;
+      n++;
+      state.attached++;
+      if (key) state.made[key]++;
+    }
+    return n;
+  }
+
+  function attachAll() {
+    if (REDUCED) return 0;
+    var n = 0;
+    n += tagInto(SPINNER_SEL.join(','), spinner, null, 6);
+    n += tagInto(HEART_SEL.join(','), heart, null, 20);
+    n += tagInto(PULSE_SEL.join(','), function () { return pulse('var(--dn)'); }, null, 6);
+    n += tagInto(BARS_SEL.join(','), function () { return bars('var(--if-gold)'); }, null, 4);
+    state.attached = n;
+    return n;
+  }
+
+  /* ═══ 涨跌方向监听：给涨跌数字配趋势箭头 ═════════════════════════════
+     ⭐ 核心价值：颜色是第二通道，**方向是第一通道**。
+     红绿色盲用户（全球约 8% 男性）看不到涨跌色，箭头能补上这个通道。
+     判定必须用 parseNum，字符串比较会把 10.5 判成跌。 */
+
+  var PCT_SEL = '.pct, .chg, .zdf';
+
+  function decoratePct(node) {
+    if (REDUCED) return;
+    var host = (node.parentElement && node.parentElement.closest
+      ? node.parentElement.closest(PCT_SEL) : null) || node.parentElement;
+    if (!host || host.__ifDeco) return;
+
+    var raw = node.data != null ? node.data : host.textContent;
+    var v = parseNum(raw);
+    if (v === null) return;
+
+    /* ⭐ 自检：字符串比较会判反，这里记一笔用于诊断 */
+    state.parseChecks++;
+    var strWrong = String(raw).trim() !== (v > 0 ? '' : '');
+    if (strWrong) state.parseOk++;
+
+    /* 从文本里读方向符号 —— 有 +/- 号时最可靠 */
+    var s = String(raw);
+    var up = /\+/.test(s) || (v > 0 && !/[-−]/.test(s));
+    var down = /[-−]/.test(s);
+    if (down) up = false;
+
+    /* 已经是 0.00 之类的不加箭头 */
+    if (v === 0) return;
+
+    var box = document.createElement('span');
+    box.className = 'if-ico';
+    box.style.marginLeft = '4px';
+    box.appendChild(trend(up));
+    host.appendChild(box);
+    host.__ifDeco = true;
+    state.attached++;
+  }
+
+  function startPctWatch() {
+    if (typeof MutationObserver !== 'function') return;
+    var mo = new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) {
+        if (muts[i].type === 'characterData') decoratePct(muts[i].target);
+      }
+    });
+    try {
+      mo.observe(document.body, {
+        subtree: true, characterData: true, childList: false
+      });
+      state.pctWatch = true;
+    } catch (e) { state.pctWatch = false; }
+
+    /* ⭐ 首屏已经渲染出来的，直接扫一遍（MutationObserver 只看变化） */
+    var first;
+    try { first = document.querySelectorAll(PCT_SEL); }
+    catch (e) { return; }
+    for (var i = 0; i < first.length && i < 60; i++) {
+      if (!first[i].__ifDeco && first[i].textContent) {
+        var span = document.createElement('span');
+        span.textContent = first[i].textContent;
+        decoratePct(span);
+      }
+    }
+  }
+
+  /* ═══ 启动 ══════════════════════════════════════════════════════════ */
+
+  function init() {
+    attachAll();
+    startPctWatch();
+
+    if (typeof MutationObserver === 'function') {
+      var ro = new MutationObserver(function () {
+        clearTimeout(state.retagTimer);
+        state.retagTimer = setTimeout(attachAll, 700);
+      });
+      try {
+        ro.observe(document.body, { childList: true, subtree: true });
+        state.retag = true;
+      } catch (e) { state.retag = false; }
+    }
+    state.ready = true;
+  }
+
+  /* ═══ 对外 API ══════════════════════════════════════════════════════ */
+
+  window.__iconFlow = {
+    /* 10 个图标工厂 */
+    trend: trend, pulse: pulse, spinner: spinner, bars: bars,
+    cols: cols, orbit: orbit, flame: flame, aperture: aperture,
+    heart: heart, diamond: diamond,
+    state: function () {
+      return {
+        ready: !!state.ready,
+        reduced: state.reduced,
+        made: JSON.parse(JSON.stringify(state.made)),
+        attached: state.attached,
+        pctWatch: !!state.pctWatch,
+        retag: !!state.retag,
+        parseChecks: state.parseChecks
+      };
+    },
+    attach: attachAll,
+    parseNum: parseNum,
+    /* 一键插到任意元素后，测试与外部调用用 */
+    mount: function (el, kind, arg) {
+      if (!el || !window.__iconFlow) return false;
+      var f = window.__iconFlow[kind];
+      if (typeof f !== 'function') return false;
+      var box = document.createElement('span');
+      box.className = 'if-ico';
+      box.appendChild(f(arg));
+      el.appendChild(box);
+      state.attached++;
+      return true;
+    },
+    disable: function () {
+      document.documentElement.setAttribute('data-icon-off', '');
+      var all = document.querySelectorAll('.if-ico');
+      for (var i = 0; i < all.length; i++) all[i].remove();
+    },
+    enable: function () {
+      document.documentElement.removeAttribute('data-icon-off');
+      attachAll();
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
+</script><!-- FLOW:JS:END -->
 <!-- CINE:JS:BEGIN -->
 <!-- motion-cine (2026-10-11) | 真弹簧 linear() + 速度模糊 + 滚动时间线 | 技法源自 prompt-motion.com 233 案例 | 改源文件后重跑本注入器 -->
 <script id="motion-cine-js">
@@ -11892,247 +13031,6 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- CINE:JS:END -->
-<!-- MT:JS:BEGIN -->
-<!-- motion-tune (2026-10-11) | 合成层改造 + 退场动画 | 改源文件后重跑本注入器 -->
-<script id="motion-tune-js">
-/* ============================================================================
-   motion-tune —— 合成层改造的 JS 桥接 + 退场编排（2026-10-11）
-   ============================================================================
-   为什么需要 JS：
-
-   1) 进度条 width → scaleX
-      CSS 无法从 width 反推百分比。JS 里写的是
-      `bar.style.width = 42 + '%'`
-      本层用 Proxy 拦截 Element.prototype.style 的 width 写入，
-      命中「进度条家族」的元素时改写成 transform: scaleX()。
-      ⚠️ 拦截 style 对象风险高，故**只在白名单选择器命中时**改写，
-         其余一律原样透传 —— 最坏情况就是退回原行为，不会出错。
-
-   2) .st-cursor 的 style.left → CSS 变量 --mx
-      同理，left 写入翻译成 --mx（px），由 CSS 消费 transform。
-
-   3) .search-drop 退场
-      display:none 不可过渡。用「先播退场，结束后再 display:none」。
-
-   暴露：window.__motionTune
-     state()      当前状态与被桥接的元素计数
-     restore()    还原所有拦截（调试用）
-     disable() / enable()
-
-   铁律：
-     - 全部 try/catch，任何失败静默降级，页面绝不能因此报错
-     - 不覆盖任何已有函数，只包装 style 的 setter
-     - 重复执行幂等（window.__motionTuneInstalled 守卫）
-   ============================================================================ */
-(function () {
-  'use strict';
-
-  if (window.__motionTuneInstalled) return;
-  window.__motionTuneInstalled = true;
-
-  var state = {
-    barCount: 0, cursorCount: 0, dropCount: 0,
-    restored: false, dropTimer: null
-  };
-
-  /* ---------- 进度条白名单 ---------- */
-  /* 只有这些元素类的 width 写入会被翻译成 scaleX。
-     每项记transition 时长，与 CSS 里声明的一致。 */
-  var BAR_SEL = '.sector-chip .sc-bar i, .senti-card .sc-bar i, .fund-bar, '
-              + '.st-up-bar, .st-zt-bar';
-  function isBar(el) {
-    if (!el || el.nodeType !== 1) return false;
-    try { return el.matches && el.matches(BAR_SEL); } catch (e) { return false; }
-  }
-
-  /* 百分比字符串 -> scaleX 数值 */
-  function pctToScale(v) {
-    if (typeof v !== 'string') return null;
-    var s = v.trim();
-    if (s.charAt(s.length - 1) === '%') {
-      var n = parseFloat(s);
-      if (!isFinite(n)) return null;
-      return Math.max(0, Math.min(1, n / 100));
-    }
-    return null;
-  }
-
-  /* ---------- 拦截 style.width ---------- */
-  var barProto = Object.getPrototypeOf(document.createElement('div').style);
-  var origWidth = barProto.width;
-  var widthDesc = Object.getOwnPropertyDescriptor(barProto, 'width');
-
-  function defineWidth() {
-    if (!widthDesc || !widthDesc.set) return;
-    try {
-      Object.defineProperty(barProto, 'width', {
-        configurable: true,
-        enumerable: widthDesc.enumerable,
-        get: function () { return origWidth.call(this); },
-        set: function (v) {
-          /* 非白名单元素：原样透传，零行为变化 */
-          if (!isBar(this)) { origWidth.call(this, v); return; }
-
-          var sc = pctToScale(v);
-          if (sc === null) {           /* 非百分比（如 'auto'）→ 走原路 */
-            origWidth.call(this, v);
-            return;
-          }
-          /* 关键：宽度交给 CSS 的 100%，比例交给 transform。
-             但 CSS 里 width 必须为 100% 才能配合 —— 若内联 width 残留会冲突，
-             所以这里先清掉内联 width，再写 transform。 */
-          this.style.transform = 'scaleX(' + sc + ')';
-          /* 原 transition 是 width .6s，本层 CSS 已改 transition-property:transform，
-             此处只需保证元素有 transform 即可，width 交回样式表控制。 */
-          origWidth.call(this, '100%');
-          state.barCount++;
-        }
-      });
-    } catch (e) { /* 失败则不拦截，页面照常 */ }
-  }
-
-  /* ---------- 拦截 .st-cursor 的 style.left ---------- */
-  function isCursor(el) {
-    if (!el || el.nodeType !== 1) return false;
-    try { return el.id === 'st-cursor' || (el.classList && el.classList.contains('st-cursor')); }
-    catch (e) { return false; }
-  }
-
-  /* 左侧写入形如 `calc(37.5% - 2px)` 或 `37.5%`，需换算成 px。
-     容器宽度此刻未必稳定（首帧可能未布局），故延迟一帧再算。 */
-  var leftProto = Object.getPrototypeOf(document.createElement('div').style);
-  var origLeft = leftProto.left;
-  var leftDesc = Object.getOwnPropertyDescriptor(leftProto, 'left');
-
-  function applyCursorX(el) {
-    var parent = el.parentElement;
-    if (!parent) return;
-    var w = parent.getBoundingClientRect().width;
-    if (!w) { requestAnimationFrame(function () { applyCursorX(el); }); return; }
-    var pct = parseFloat(el.getAttribute('data-mt-pct') || '');
-    if (!isFinite(pct)) return;
-    el.style.setProperty('--mx', (Math.max(0, Math.min(100, pct)) / 100 * w - 2) + 'px');
-    state.cursorCount++;
-  }
-
-  function defineLeft() {
-    if (!leftDesc || !leftDesc.set) return;
-    try {
-      Object.defineProperty(leftProto, 'left', {
-        configurable: true,
-        enumerable: leftDesc.enumerable,
-        get: function () { return origLeft.call(this); },
-        set: function (v) {
-          if (!isCursor(this)) { origLeft.call(this, v); return; }
-          /* 抽出百分比存到 data，真实 px 由 CSS 变量消费 */
-          var m = /(-?[\d.]+)\s*%/.exec(String(v));
-          if (m) {
-            this.setAttribute('data-mt-pct', m[1]);
-            origLeft.call(this, '50%');   /* 基准保持正中，位移交给 transform */
-            requestAnimationFrame(function () { applyCursorX(this); }.bind(this));
-          } else {
-            origLeft.call(this, v);
-          }
-          state.cursorCount++;
-        }
-      });
-    } catch (e) { /* 同上 */ }
-  }
-
-  /* ---------- .search-drop 退场编排 ---------- */
-  /* 用 MutationObserver 监听 .search-drop 的 class，
-     捕获 .show 移除这一瞬间，插入 .mt-out 播退场，
-     动画结束后（transitionend 或超时兜底）才真正 display:none。
-     ★ 必须用超时兜底：若元素此刻不可见，transitionend 永不触发，
-       就会永久停在可见状态 —— 这是此类改法最常见的事故。 */
-  function hookDrop() {
-    var drop = document.querySelector('.search-drop');
-    if (!drop || !window.MutationObserver) return;
-
-    var lastShown = drop.classList.contains('show');
-
-    new MutationObserver(function () {
-      var nowShown = drop.classList.contains('show');
-
-      if (nowShown && !lastShown) {
-        /* 进入：先补 .mt-in 让 @starting-style 有起点，再加 .show */
-        drop.classList.remove('mt-out');
-        drop.classList.add('mt-in');
-        drop.style.display = '';
-        state.dropCount++;
-      } else if (!nowShown && lastShown) {
-        /* 退出：播 .mt-out 再隐藏 */
-        drop.classList.add('mt-out');
-        if (state.dropTimer) clearTimeout(state.dropTimer);
-        var done = false;
-        var finish = function () {
-          if (done) return;
-          done = true;
-          drop.style.display = 'none';
-          drop.classList.remove('mt-out', 'mt-in');
-        };
-        drop.addEventListener('transitionend', finish, { once: true });
-        /* ★ 兜底：260ms 动画 + 60ms 余量，到点必落定 */
-        state.dropTimer = setTimeout(finish, 320);
-      }
-      lastShown = nowShown;
-    }).observe(drop, { attributes: true, attributeFilter: ['class'] });
-  }
-
-  /* ---------- 启动 ---------- */
-  function boot() {
-    defineWidth();
-    defineLeft();
-    hookDrop();
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
-
-  /* ---------- API ---------- */
-  window.__motionTune = {
-    state: function () {
-      return {
-        installed: true,
-        bars: state.barCount,
-        cursor: state.cursorCount,
-        drops: state.dropCount,
-        restored: state.restored,
-        fpsQ: document.documentElement.getAttribute('data-fps-q') || 'default'
-      };
-    },
-    /* 手动触发一次退场（供将来按钮/弹窗复用） */
-    dismiss: function (el) {
-      if (!el) return;
-      el.classList.add('mt-out');
-      setTimeout(function () { el.classList.remove('mt-out'); }, 320);
-    },
-    restore: function () {
-      if (state.restored) return;
-      state.restored = true;
-      try {
-        if (widthDesc) Object.defineProperty(barProto, 'width', widthDesc);
-        if (leftDesc) Object.defineProperty(leftProto, 'left', leftDesc);
-      } catch (e) { /* 忽略 */ }
-    },
-    disable: function () { this.restore(); },
-    enable: function () {
-      if (!state.restored) return;
-      state.restored = false;
-      try {
-        if (widthDesc) Object.defineProperty(barProto, 'width', widthDesc);
-        if (leftDesc) Object.defineProperty(leftProto, 'left', leftDesc);
-        defineWidth();
-        defineLeft();
-      } catch (e) { /* 忽略 */ }
-    }
-  };
-})();
-
-</script><!-- MT:JS:END -->
 <!-- BFX:JS:BEGIN -->
 <script id="banner-fx-js">
 /* ==========================================================================
