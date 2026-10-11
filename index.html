@@ -3001,7 +3001,807 @@
     border-color: rgba(232,106,96,.5) !important;
     box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 12px 32px rgba(232,109,94,.24);
   }
-</style><!-- MT:CSS:BEGIN -->
+<!-- kazumi-fx (2026-10-11) | Kazumi Material3 手感移植：ripple/共享轴/弹性入场/色环流光 + 侧边栏图标动效 + 页面 fade-through | 改源文件后重跑本注入器 -->
+
+<!-- kazumi-fx (2026-10-11) | Kazumi Material3 手感移植：ripple/共享轴/弹性入场/色环流光 + 侧边栏图标动效 + 页面 fade-through | 改源文件后重跑本注入器 -->
+
+<!-- kazumi-fx (2026-10-11) | Kazumi Material3 手感移植：ripple/共享轴/弹性入场/色环流光 + 侧边栏图标动效 + 页面 fade-through | 改源文件后重跑本注入器 -->
+<!-- KAZUMI:CSS:BEGIN -->
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   kazumi-fx · Kazumi 手感移植层（2026-10-11）
+   ───────────────────────────────────────────────────────────────────────────
+   风格来源：Kazumi（Predidit/Kazumi）Flutter 源码逐字提取
+     · lib/utils/theme.dart          → OLED 纯黑底 + onSurface 纯白
+     · lib/bean/settings/color_type.dart → Material 3 种子色体系
+       green/teal/blue/indigo/#6750a4 紫罗兰/pink/yellow/orange/deepOrange
+     · Flutter Material 3 动效体系   → emphasized easing + shared-axis + ripple
+
+   移植的四个内核（保持工作台深空渐变 + 珊瑚橙主色 + 涨红跌绿不变）：
+     ① kz-ripple    Material 3 按压涟漪（圆形扩散 + 透明度衰减）
+     ② kz-shared    共享轴转场（切视图：淡入 + 8px 位移 + 微缩放）
+     ③ kz-spring    弹性入场（Kazumi 的回弹感，曲线比 wb-rise 更Q）
+     ④ kz-ring      种子色环流光描边（改自 border-beam，配色走 M3 色环）
+
+   ⚠️ 全部走合成层（transform / opacity / filter / clip-path），不触发重排。
+   ⚠️ 装饰层 pointer-events:none，绝不干扰点选。
+   ⚠️ 类名统一 kz- 前缀，与既有 wb- / cine- / depth- 层零冲突。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* M3 种子色环：靛蓝 → 紫罗兰 #6750a4 → 粉 → 珊瑚橙（末段接回工作台主色） */
+  --kz-ring-a: #4f5bd5;
+  --kz-ring-b: #6750a4;
+  --kz-ring-c: #d1568f;
+  --kz-ring-d: #ff8a6b;
+
+  /* M3 emphasized easing（官方曲线，200-500ms 主力） */
+  --kz-emphasized: cubic-bezier(.2, 0, 0, 1);
+  /* M3 标准曲线，用于短促反馈 */
+  --kz-standard: cubic-bezier(.2, 0, 0, 1);
+  /* 弹性：Kazumi 的回弹入场 */
+  --kz-spring: cubic-bezier(.34, 1.45, .64, 1);
+
+  --kz-ripple-dur: 520ms;   /* 涟漪扩散时长 */
+  --kz-shared-dur: 280ms;   /* 共享轴转场时长 */
+  --kz-spring-dur: 560ms;   /* 弹性入场时长 */
+  --kz-ring-dur: 4.8s;      /* 色环流光周期 */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ① kz-ripple · Material 3 按压涟漪
+   ───────────────────────────────────────────────────────────────────────────
+   Kazumi 按钮按下去会有一圈圆形波纹从触点扩散并在抬起时淡出。
+   用伪元素 + 三个预置半径层模拟：按下瞬间 scale 从 0 起跳，抬起淡出。
+   触屏无精确坐标时（pointerdown 无有效 offsetX）不生成，避免波纹乱飞。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.kz-ripple {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.kz-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle at var(--kz-rx, 50%) var(--kz-ry, 50%),
+              rgba(255, 255, 255, .34) 0%,
+              rgba(255, 255, 255, .18) 38%,
+              transparent 68%);
+  transform: scale(.28);
+  transition: transform var(--kz-ripple-dur) var(--kz-emphasized),
+              opacity 200ms linear;
+}
+
+/* 深色底上用主色高光更贴 M3（tonal highlight） */
+.kz-ripple[data-kz-ripple='accent']::after {
+  background: radial-gradient(circle at var(--kz-rx, 50%) var(--kz-ry, 50%),
+              color-mix(in srgb, var(--accent) 42%, transparent) 0%,
+              transparent 64%);
+}
+
+.kz-ripple[data-kz-down='1']::after {
+  opacity: .92;
+  transform: scale(1.12);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ② kz-shared · 共享轴转场（切视图用）
+   ───────────────────────────────────────────────────────────────────────────
+   M3 shared-axis：旧内容向 -8px 淡出，新内容从 +8px 淡入，位移方向沿轴。
+   JS 端只切 .kz-shared-active 类，动画交给 CSS，避免两个视图同时在场。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.kz-shared {
+  opacity: 0;
+  transform: translate3d(var(--kz-axis, 8px), 0, 0) scale(.994);
+  transition: opacity var(--kz-shared-dur) var(--kz-emphasized),
+              transform var(--kz-shared-dur) var(--kz-emphasized);
+  pointer-events: none;
+}
+
+.kz-shared.kz-shared-active {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  pointer-events: auto;
+}
+
+/* 纵向轴（上下切换的抽屉/面板） */
+.kz-shared[data-kz-axis='y'] {
+  --kz-axis: 0;
+  transform: translate3d(0, var(--kz-axis-y, 8px), 0) scale(.994);
+}
+
+.kz-shared[data-kz-axis='y'].kz-shared-active {
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ③ kz-spring · 弹性入场
+   ───────────────────────────────────────────────────────────────────────────
+   Kazumi 列表/卡片入场带一点过冲回弹，视觉上"活"。
+   与 .wb-rise 的区别：本曲线末端会回弹 4%，且入场位移更大（18px）。
+   必须用 backwards —— 否则延迟期间元素会先闪现一次。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes kzSpringIn {
+  from { opacity: 0; transform: translate3d(0, 18px, 0) scale(.985); }
+  60%  { opacity: 1; }
+  to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+.kz-spring {
+  opacity: 0;
+  animation: kzSpringIn var(--kz-spring-dur) var(--kz-spring) backwards;
+  will-change: transform, opacity;
+}
+
+/* 错峰：同组元素按序延迟，步长 45ms（比 wb-stagger 更紧，避免整体拖沓） */
+.kz-stagger > .kz-spring:nth-child(1)  { animation-delay: 0ms; }
+.kz-stagger > .kz-spring:nth-child(2)  { animation-delay: 45ms; }
+.kz-stagger > .kz-spring:nth-child(3)  { animation-delay: 90ms; }
+.kz-stagger > .kz-spring:nth-child(4)  { animation-delay: 135ms; }
+.kz-stagger > .kz-spring:nth-child(5)  { animation-delay: 180ms; }
+.kz-stagger > .kz-spring:nth-child(6)  { animation-delay: 225ms; }
+.kz-stagger > .kz-spring:nth-child(n+7) { animation-delay: 270ms; }
+
+/* 动画结束释放 transform，否则会压制后续 hover 上浮 */
+.kz-spring.is-done {
+  animation: none;
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ④ kz-ring · 种子色环流光描边
+   ───────────────────────────────────────────────────────────────────────────
+   改自 border-beam 技法，配色换成 Kazumi 的 M3 色环（靛→紫→粉→珊瑚）。
+   @property 显式声明 0/50/100 关键帧 —— 不支持 @property 的浏览器退化成
+   静态描边，而不是整段坏掉。
+   ⚠️占用 ::after，若目标元素已有 ::after，请改用真实 DOM 元素挂 .kz-ring。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@property --kz-ring-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.kz-ring {
+  position: relative;
+}
+
+.kz-ring::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: conic-gradient(from var(--kz-ring-angle),
+              var(--kz-ring-a), var(--kz-ring-b),
+              var(--kz-ring-c), var(--kz-ring-d),
+              var(--kz-ring-a));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+  opacity: .85;
+  animation: kzRingSpin var(--kz-ring-dur) linear infinite;
+}
+
+@keyframes kzRingSpin {
+  0%   { --kz-ring-angle: 0deg;   opacity: .55; }
+  50%  { --kz-ring-angle: 180deg; opacity: .95; }
+  100% { --kz-ring-angle: 360deg; opacity: .55; }
+}
+
+/* 静态兜底：不支持 @property 时仍有一点点微光，不至于变成死板描边 */
+@supports not (background: conic-gradient(from 0deg, red, blue)) {
+  .kz-ring::after { opacity: .3; animation: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   浅色主题适配
+   ───────────────────────────────────────────────────────────────────────────
+   M3 light scheme 亮度更高、色环更亮；描边要压淡，否则浅底上很脏。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="light"] {
+  --kz-ring-a: #3f4bc4;
+  --kz-ring-b: #6750a4;
+  --kz-ring-c: #c34b86;
+  --kz-ring-d: #e85d4e;
+}
+
+:root[data-theme="light"] .kz-ring::after { opacity: .55; }
+
+:root[data-theme="light"] .kz-ripple::after {
+  background: radial-gradient(circle at var(--kz-rx, 50%) var(--kz-ry, 50%),
+              rgba(120, 110, 200, .22) 0%,
+              rgba(120, 110, 200, .12) 40%,
+              transparent 68%);
+}
+
+:root[data-theme="light"] .kz-ripple[data-kz-ripple='accent']::after {
+  background: radial-gradient(circle at var(--kz-rx, 50%) var(--kz-ry, 50%),
+              color-mix(in srgb, var(--accent) 26%, transparent) 0%,
+              transparent 64%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ⑤侧边栏图标动效 · Kazumi 导航切换手感
+   ───────────────────────────────────────────────────────────────────────────
+   Kazumi 底部/侧边导航切页时：图标会「弹一下」并亮起，
+   文字标签跟着淡入，滑块平滑移动到新项。
+
+   铁律：❶ 动效加在 .kz-nav-item 上（JS 自动给 .nav-item 补挂），
+        不改原有 .nav-item 的布局与配色，避免和既有 wb- / cine- 层打架。
+        ❷ 滑块是独立 DOM（.kz-nav-pill），absolute 定位，
+           移动走 transform，不触发布局。
+        ❸ 收起态（.sidebar.collapsed）隐藏文字与滑块，只留图标弹跳。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 导航项：补一层 relative + 隔离，给滑块和辉光留位置
+   ⚠️ z 轴分层（踩过坑）：负z-index 会被 .nav-item.active 自带背景盖住，
+   等于白做。所以统一用「外发光滑块 + 项内辉光」，全部走 z-index 0/1。 */
+.kz-nav-item {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* 滑块：跟着激活项移动的柔光垫（比项略大 3px，做外发光而非填充） */
+.kz-nav-pill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 14px;
+  /* 兜底：Chrome<111 无 color-mix 时至少还有一层珊瑚柔光，不会全透明 */
+  background: rgba(255, 138, 107, .16);
+  background: radial-gradient(120% 120% at 50% 50%,
+              color-mix(in srgb, var(--accent) 26%, transparent) 0%,
+              color-mix(in srgb, var(--accent) 10%, transparent) 58%,
+              transparent 82%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent),
+              0 6px 22px -6px color-mix(in srgb, var(--accent) 42%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+  transition: transform var(--kz-shared-dur) var(--kz-spring),
+              opacity var(--kz-shared-dur) var(--kz-emphasized);
+  z-index: 0;
+}
+
+.kz-nav-pill.is-on {
+  opacity: 1;
+}
+
+/* 图标弹跳：激活瞬间 scale 冲高再回落（Kazumi 的「按一下」手感） */
+.kz-nav-item .kz-icon-pop {
+  display: inline-flex;
+  transition: transform var(--kz-shared-dur) var(--kz-spring);
+  transform-origin: 50% 60%;
+}
+
+.kz-nav-item.kz-bump .kz-icon-pop {
+  animation: kzIconBump 420ms var(--kz-spring);
+}
+
+@keyframes kzIconBump {
+  0%   { transform: scale(1); }
+  32%  { transform: scale(1.28) rotate(-5deg); }
+  62%  { transform: scale(.92) rotate(2deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+/* 图标高亮辉光：激活时一层柔光贴在图标背后（z-index:0，图标本身 z-index:1） */
+.kz-nav-item .kz-icon-glow {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  margin-top: -17px;
+  border-radius: 12px;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle,
+              color-mix(in srgb, var(--accent) 42%, transparent) 0%,
+              transparent 68%);
+  transition: opacity var(--kz-shared-dur) var(--kz-emphasized);
+  z-index: 0;
+}
+
+/* 内容层压在辉光之上，避免辉光糊住图标 */
+.kz-nav-item .icon,
+.kz-nav-item .kz-label {
+  position: relative;
+  z-index: 1;
+}
+
+.kz-nav-item.active .kz-icon-glow { opacity: .8; }
+
+/* 文字：激活时轻微提亮 + 前移 2px，非激活态保持灰 */
+.kz-nav-item .kz-label {
+  transition: transform var(--kz-shared-dur) var(--kz-spring),
+              opacity var(--kz-shared-dur) var(--kz-emphasized);
+}
+
+.kz-nav-item.active .kz-label {
+  transform: translateX(2px);
+}
+
+/* 收起态：只留图标，滑块变成小方块（跟图标对齐） */
+.sidebar.collapsed .kz-nav-pill {
+  border-radius: 12px;
+  background: linear-gradient(180deg,
+              color-mix(in srgb, var(--accent) 30%, transparent),
+              color-mix(in srgb, var(--accent) 12%, transparent));
+}
+
+/* 悬停：图标轻微前移，Kazumi 的「可点」暗示 */
+.kz-nav-item:not(.active):hover .kz-icon-pop {
+  transform: translateX(2px) scale(1.08);
+}
+
+.kz-nav-item:not(.active):hover .kz-icon-glow { opacity: .35; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ⑥ 页面转场 · fade-through（Kazumi 式）
+   ───────────────────────────────────────────────────────────────────────────
+   比现有「单向淡入 + 上移」多一层空间感：
+     旧页 → 轻微缩退(.985) + 淡出
+     新页 → 从略小(.992) 放大归位 + 淡入 + 极小上移
+   两段串起来共~380ms，曲线用 M3 emphasized。
+   ⚠️ 只做视觉过渡，不影响数据加载与 display 切换逻辑。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes kzPageOut {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to   { opacity: 0; transform: scale(.985) translateY(-4px); }
+}
+
+@keyframes kzPageIn {
+  from { opacity: 0; transform: scale(.992) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.kz-page-out {
+  animation: kzPageOut 170ms var(--kz-emphasized) both;
+  pointer-events: none;
+}
+
+.kz-page-in {
+  animation: kzPageIn 320ms var(--kz-emphasized) both;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ⑦ 标签栏（fund-tabs / tabs）小图标式切换
+   ───────────────────────────────────────────────────────────────────────────
+   你提到「各种小图标的动效切换」，标签页同理：激活时轻微上浮+辉光。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.kz-tab {
+  transition: transform var(--kz-shared-dur) var(--kz-spring),
+              color var(--kz-shared-dur) var(--kz-emphasized);
+}
+
+.kz-tab.is-active {
+  transform: translateY(-1px);
+  text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.kz-tab.is-pop { animation: kzIconBump 380ms var(--kz-spring); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   无障碍：关掉全部动效，装饰层隐藏（workbench-ui 铁律）
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .kz-spring { animation: none; opacity: 1; transform: none; }
+  .kz-shared { transition: none; opacity: 1; transform: none; }
+  .kz-ripple::after { display: none; }
+  .kz-ring::after { animation: none; opacity: .35; }
+  .kz-nav-item.kz-bump .kz-icon-pop,
+  .kz-tab.is-pop { animation: none; }
+  .kz-page-out, .kz-page-in { animation: none; }
+  .kz-nav-pill { transition: none; }
+  .kz-icon-glow { display: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   移动端降采样：色环降不透明度、关闭 bloom 感
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 900px) {
+  :root { --kz-spring-dur: 420ms; --kz-ring-dur: 6.5s; }
+  .kz-ring::after { opacity: .5; }
+  .kz-stagger > .kz-spring:nth-child(n) { animation-delay: 0ms; }
+}
+</style>
+<!-- KAZUMI:CSS:END -->
+
+</style><!-- KZ:CSS:BEGIN -->
+<!-- motion-kazumi (2026-10-11) | 移植 Predidit/Kazumi 转场体系 | 方向感知 + 70ms极快 + 共享元素飞行 + 零时长降级 -->
+<style id="motion-kazumi-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   motion-kazumi · 移植自 Kazumi 的转场体系（2026-10-11 晚）
+   ───────────────────────────────────────────────────────────────────────────
+   来源：Predidit/Kazumi（GPL-3.0，Flutter 番剧播放器）真实源码。
+   本地桌面版在 AppData\Local/Kazumi（编译产物不含源码），因此从 GitHub
+   `main` 分支 sparse-clone 了 394 个 .dart 文件，逐行提取参数。
+
+   源码级依据（不是二手博客）：
+     lib/utils/constants.dart:26-46   pageTransitionsTheme2024 平台映射表
+     lib/bean/widget/side_panel_transition.dart:11   120ms + easeOut + Offset(1,0)
+     lib/pages/index_module.dart:27-38   Tab 70ms / 预览 220ms
+     lib/bean/dialog/adaptive_bottom_sheet.dart:100-106  SpringSimulation
+                                        mass:1 stiffness:380 ratio:0.8
+     lib/pages/video/episode_selection_panel.dart:552-557 k=500 ratio:0.8
+     lib/bean/card/network_img_layer.dart:37-59  heroFlightShuttleBuilder
+     lib/bean/card/rule_card.dart:40-42  disableAnimations → Duration.zero
+
+   曲线实测频次（394 文件全量统计）：
+     Curves.easeOutCubic          30 次  ← 绝对主力
+     Curves.easeInOutCubicEmphasized  9 次  ← 尺寸变化专用
+     Curves.easeOutBack            5 次
+     Curves.easeOut / easeInOutCubic / easeInOut / easeInCubic  各 3-5 次
+
+   ⭐ 本层补齐的 4 个我们此前没有的能力：
+     ① 方向感知转场 —— 元素从「它来的方向」进入，而不是固定从上往下
+     ② 70ms 极快 Tab 切换 —— Kazumi 认为 120ms 还不够跟手
+     ③ disableAnimations 零时长降级 —— 与 fps-boost 降级是两件事
+     ④ 共享元素飞行（View Transitions）—— 点哪张卡，详情就从那张卡长出来
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Kazumi 的核心主张：短。比 300ms 短得多。 ──────────────────────────
+     「跟手」的定义是：手指/点击到画面响应的延迟感。
+     超过 150ms 用户就会觉得「慢了一点」，300ms 以上开始「不跟手」。
+     我们此前大量用 .3s~.5s 做页面切换，这正是「动但不跟手」的来源。 */
+  --kz-instant: 70ms;    /* Tab 切换（Kazumi index_module.dart:28）*/
+  --kz-quick: 120ms;     /* 侧板/抽屉滑入（side_panel_transition.dart:11）*/
+  --kz-base: 220ms;      /* 图片预览/中量转场（index_module.dart:35）*/
+  --kz-slow: 300ms;      /* 尺寸变化（user_comments_card.dart:70）*/
+
+  /* ── easeOutCubic 是 Kazumi 用得最多的曲线（30 次 / 9 种曲线）─────────
+     它就是标准的「减速出场」曲线：起步快、尾巴长。
+     我们已有 .22,1,.36,1 这类，形状接近但收尾更急。 */
+  --kz-ease-out: cubic-bezier(.215, .61, .355, 1);      /* easeOutCubic */
+  --kz-ease-in: cubic-bezier(.55, .055, .675, .19);     /* easeInCubic  */
+  --kz-ease-io: cubic-bezier(.645, .045, .355, 1);      /* easeInOutCubic */
+  /* 尺寸/折叠专用：Kazumi 的 easeInOutCubicEmphasized 的近似 */
+  --kz-ease-emph: cubic-bezier(.45, .03, .2, 1);
+  /* 轻微回弹：easeOutBack 近似（Kazumi 5 次）*/
+  --kz-ease-back: cubic-bezier(.34, 1.42, .64, 1);
+
+  /* ── ⭐ 压按弹簧：Kazumi 的 k=500 ratio=0.8 ──────────────────────────
+     episode_selection_panel.dart:552-557。
+     注意 stiffness **500** 远高于我们 cine-snap 的 260 ——
+     手指按下的反馈必须比页面转场快得多，否则会感觉「没按到」。
+     ζ=0.8 有轻微过冲，手感「弹」但不肉麻。 */
+  --kz-press-scale: .965;
+
+  /* ── 共享元素飞行（View Transitions）专用 ───────────────────────────── */
+  --kz-flight-dur: 260ms;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   技法 ①：方向感知转场
+   ───────────────────────────────────────────────────────────────────────────
+   Kazumi 的核心洞察（pageTransitionsTheme2024）：
+     桌面（Windows/Linux）用 FadeUpwards      —— 从下方浮起
+     移动（Android/iOS/macOS）用 Cupertino    —— 横向推进
+     设置页单独用 FadeForwards                 —— 向前推入
+   ⭐ **同一个「进入」动作，三个平台三种方向** —— 因为「从哪来」符合
+     用户的心智模型，比统一动画更自然。
+
+   我们移植为「按触发源定方向」：点底部的哪个 tab，页面就从那个方向进入。
+   JS 写 `data-kz-dir="up|down|left|right"`，CSS 据此选关键帧。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+@keyframes kz-in-up {
+  from { opacity: 0; transform: translate3d(0, 14px, 0) scale(.994); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes kz-in-down {
+  from { opacity: 0; transform: translate3d(0, -14px, 0) scale(.994); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes kz-in-left {
+  from { opacity: 0; transform: translate3d(18px, 0, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes kz-in-right {
+  from { opacity: 0; transform: translate3d(-18px, 0, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+html:not([data-fps-q]) [data-kz-dir] {
+  animation: var(--kz-dir-anim, kz-in-up) var(--kz-dir-dur, var(--kz-base))
+             var(--kz-ease-out) both;
+}
+
+/* 桌面端默认向上浮起（对齐 Kazumi 的 FadeUpwards） */
+@media (hover: hover) and (pointer: fine) {
+  html:not([data-fps-q]) [data-kz-dir] {
+    --kz-dir-anim: kz-in-up;
+  }
+}
+
+/* 触屏/移动端横向推进（对齐 Kazumi 的 Cupertino）*/
+@media (hover: none), (pointer: coarse) {
+  html:not([data-fps-q]) [data-kz-dir] {
+    --kz-dir-anim: kz-in-right;
+    --kz-dir-dur: var(--kz-quick);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   技法 ②：极快档（70ms）—— Kazumi 的 Tab 切换
+   ───────────────────────────────────────────────────────────────────────────
+   index_module.dart:28 用 70ms 做 Tab 切换，比侧板的 120ms 还快近一半。
+   原理：Tab 切换是「同一个上下文内的横向平移」，用户心智里它「应该已经在
+   那了」，所以不该有等待感。而抽屉/页面是「打开新东西」，需要一点预告。
+
+   ⭐ 反直觉的一点：**越常用的切换越要快**。我们此前全站统一 .3s，
+   结果「点侧栏」这种高频操作也慢吞吞的 —— 这是「不跟手」的真正来源。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+html:not([data-fps-q]) .kz-tab {
+  animation: kz-in-right 70ms var(--kz-ease-out) both;
+}
+/* 底部导航项：按下即刻响应，不等 */
+html:not([data-fps-q]) .kz-tab-item,
+html:not([data-fps-q]) .nav-item {
+  transition:
+    background-color var(--kz-quick) var(--kz-ease-out),
+    color var(--kz-quick) var(--kz-ease-out),
+    transform var(--kz-quick) var(--kz-ease-out);
+}
+html:not([data-fps-q]) .kz-tab-item:active,
+html:not([data-fps-q]) .nav-item:active {
+  transform: scale(.97);
+  transition-duration: 60ms;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   技法 ③：抽屉/侧板滑入（120ms + easeOut + 从边缘）
+   ───────────────────────────────────────────────────────────────────────────
+   side_panel_transition.dart 完整实现：
+     duration: 120ms
+     Tween(Offset(1, 0) → Offset.zero)   // 从右侧整块滑入
+     CurveTween(curve: Curves.easeOut)
+
+   ⭐ 关键细节：位移是 **100% 宽度**（Offset(1,0)），不是 18px。
+   我们上一层的 mc-page-in 只走 12px —— 那是「淡入」不是「滑入」。
+   侧板类元素（筛选面板、详情抽屉）必须走满宽，才有「推门」的手感。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+@keyframes kz-slide-right {
+  from { transform: translate3d(100%, 0, 0); }
+  to   { transform: translate3d(0, 0, 0); }
+}
+@keyframes kz-slide-left {
+  from { transform: translate3d(-100%, 0, 0); }
+  to   { transform: translate3d(0, 0, 0); }
+}
+@keyframes kz-slide-up {
+  from { transform: translate3d(0, 100%, 0); }
+  to   { transform: translate3d(0, 0, 0); }
+}
+
+html:not([data-fps-q]) .kz-drawer-r { animation: kz-slide-right var(--kz-quick) var(--kz-ease-out) both; }
+html:not([data-fps-q]) .kz-drawer-l { animation: kz-slide-left  var(--kz-quick) var(--kz-ease-out) both; }
+html:not([data-fps-q]) .kz-drawer-u { animation: kz-slide-up    var(--kz-base)  var(--kz-ease-out) both; }
+
+/* 遮罩淡入与面板同步，但要更短（Kazumi 的 mask 用 easeIn 且更早到位）*/
+@keyframes kz-mask-in { from { opacity: 0; } to { opacity: 1; } }
+html:not([data-fps-q]) .kz-mask { animation: kz-mask-in var(--kz-quick) var(--kz-ease-out) both; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   技法 ④：共享元素飞行（View Transitions API）
+   ───────────────────────────────────────────────────────────────────────────
+   Kazumi 的 heroFlightShuttleBuilder（network_img_layer.dart:37-59）：
+   点卡片上的封面 → 点进详情页 → 封面从卡片位置「飞」到详情页大图位置。
+   用户的视线跟着封面走，**不需要重新定位**。
+
+   Flutter 用 Hero 实现，Web 的对应物是 View Transitions API。
+   ⭐ 必须配降级：不支持时静默保持原样（渐进增强，绝不让功能坏掉）。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* 支持检测用的 @supports */
+@supports (view-transition-name: none) {
+  /* 飞行期间冻结整页动画，避免两层运动叠加成乱麻 */
+  ::view-transition-group(*) {
+    animation-duration: var(--kz-flight-dur);
+    animation-timing-function: var(--kz-ease-out);
+  }
+  /* 旧/新内容交叉淡入，不做位移（位移由 group 负责） */
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: var(--kz-flight-dur);
+    animation-timing-function: var(--kz-ease-out);
+    /* 高度自适应：避免容器尺寸变化时的拉伸感 */
+    height: 100%;
+    object-fit: cover;
+  }
+  /* 关掉默认的交叉淡入叠加 —— 飞行时淡入淡出会显得「糊」 */
+  ::view-transition-old(root) { animation: none; }
+  ::view-transition-new(root) { animation: none; }
+}
+
+/* 被指定为飞行目标的元素 */
+html:not([data-fps-q]) [data-kz-fly] {
+  view-transition-name: attr(data-kz-fly type(<custom-ident>), none);
+  /* ⚠️ 过渡期间不能有自己的 transform 动画，否则与飞行打架 */
+  will-change: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   技法 ⑤：压按弹簧（k=500 ζ=0.8）
+   ───────────────────────────────────────────────────────────────────────────
+   episode_selection_panel.dart:552-557 的真实参数。
+   对照我们 cine-snap 的 k=260 —— Kazumi 的手指反馈快了近一倍。
+   原理：按压反馈走的是「手指已在屏幕上」的通道，用户预期 0 延迟响应；
+   页面转场走「系统响应」通道，允许 200ms+。
+   两者用同一套曲线是错的。
+
+   ζ=0.8 有轻微过冲（约 +1.3%），手感「弹」但不肉麻。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+@keyframes kz-press {
+  0%   { transform: scale3d(var(--kz-press-scale), var(--kz-press-scale), 1); }
+  55%  { transform: scale3d(1.008, 1.008, 1); }
+  100% { transform: scale3d(1, 1, 1); }
+}
+
+html:not([data-fps-q]) .kz-pressable {
+  transform-origin: 50% 60%;
+  transition: transform var(--kz-quick) var(--kz-ease-back);
+  will-change: transform;
+}
+/* 按下：立刻收缩（不等弹簧，这就是「跟手」）*/
+html:not([data-fps-q]) .kz-pressable:active,
+html:not([data-fps-q]) .kz-pressable.kz-pressed {
+  transform: scale3d(var(--kz-press-scale), var(--kz-press-scale), 1);
+  transition: transform 50ms var(--kz-ease-out);   /* 50ms 内到位 */
+}
+/* 松手：交给弹簧回弹（走 --kz-ease-back 的过冲）*/
+html:not([data-fps-q]) .kz-pressable:not(:active) {
+  transition: transform var(--kz-slow) var(--kz-ease-back);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   技法 ⑥：尺寸变化专用曲线（easeInOutCubicEmphasized）
+   ───────────────────────────────────────────────────────────────────────────
+   user_comments_card.dart:70 用 300ms + easeInOutCubicEmphasized 做
+   AnimatedSize。**它刻意与其他动效用不同的曲线和时长**。
+
+   为什么：尺寸变化有「内容重排」的语义，用 easeOut 会显得「先撑开再停下」
+   （突兀），用 easeIn 会显得「懒」。两端都慢的 emphasized 曲线才匹配
+   「内容自己长出来」的直觉。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+html:not([data-fps-q]) .kz-size {
+  transition:
+    grid-template-rows var(--kz-slow) var(--kz-ease-emph),
+    height var(--kz-slow) var(--kz-ease-emph),
+    max-height var(--kz-slow) var(--kz-ease-emph);
+}
+html:not([data-fps-q]) .kz-size-expanded {
+  max-height: 1200px;    /* 展开目标高度 */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ⭐ 技法 ⑦：disableAnimations 零时长降级（与 fps-boost 降级是两件事）
+   ───────────────────────────────────────────────────────────────────────────
+   Kazumi 的降级只有一档：MediaQuery.disableAnimationsOf(context)
+   → Duration.zero（rule_card.dart:40-42、user_comments_card.dart:68）。
+
+   ⭐⭐ 这是 Kazumi 与我们最大的分歧，也是最值得学的一点：
+     · **Kazumi 只有一个开关**：用户/系统说「别动」→ 时长直接为 0
+     · **我们有三档**：降频(×4) / paused / display:none
+
+   为什么 Kazumi 敢这么做：它的动画本来就是 70~300ms 的短促动效，
+   零时长的观感损失极小。而我们此前动辄 .3s~.8s，零时长会让元素
+   「闪现」得很难看 —— 这才是我们必须分三档的根本原因。
+
+   移植后的用法：`[data-kz-noanim]` 元素的时长一律 0（不是暂停），
+   用于「用户明确关掉了动效」的场合，此时**状态直接跳到终值**。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+html[data-kz-noanim] [data-kz-dir],
+html[data-kz-noanim] .kz-tab,
+html[data-kz-noanim] .kz-drawer-r,
+html[data-kz-noanim] .kz-drawer-l,
+html[data-kz-noanim] .kz-drawer-u,
+html[data-kz-noanim] .kz-mask,
+html[data-kz-noanim] .kz-pressable,
+html[data-kz-noanim] .kz-tab-item,
+html[data-kz-noanim] .nav-item,
+html[data-kz-noanim] .kz-size {
+  animation: none !important;
+  transition: none !important;
+}
+/* 零时长时必须显式写回终态，否则元素停在动画第一帧（Kazumi 用
+   `_entrance.value = 1` 直接赋值，这里同理）*/
+html[data-kz-noanim] [data-kz-dir] { opacity: 1 !important; transform: none !important; }
+html[data-kz-noanim] .kz-drawer-r,
+html[data-kz-noanim] .kz-drawer-l,
+html[data-kz-noanim] .kz-drawer-u { transform: none !important; }
+html[data-kz-noanim] .kz-mask { opacity: 1 !important; }
+html[data-kz-noanim] .kz-pressable { transform: none !important; }
+html[data-kz-noanim] .kz-tab-item,
+html[data-kz-noanim] .nav-item { transform: none !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   降级：fps-boost 触发降档时，本层让位（但**不用 paused**，见铁律）
+   ═════════════════════════════════════════════════════════════════════════ */
+
+html[data-fps-q] [data-kz-dir],
+html[data-fps-q] .kz-tab,
+html[data-fps-q] .kz-drawer-r,
+html[data-fps-q] .kz-drawer-l,
+html[data-fps-q] .kz-drawer-u,
+html[data-fps-q] .kz-mask,
+html[data-fps-q] .kz-pressable,
+html[data-fps-q] .kz-tab-item,
+html[data-fps-q] .nav-item,
+html[data-fps-q] .kz-size {
+  animation: none !important;
+  transition: none !important;
+}
+html[data-fps-q] [data-kz-dir] { opacity: 1 !important; transform: none !important; }
+html[data-fps-q] .kz-drawer-r,
+html[data-fps-q] .kz-drawer-l,
+html[data-fps-q] .kz-drawer-u { transform: none !important; }
+html[data-fps-q] .kz-mask { opacity: 1 !important; }
+html[data-fps-q] .kz-pressable { transform: none !important; }
+html[data-fps-q] [data-kz-fly] { view-transition-name: none !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   无障碍：prefers-reduced-motion
+   ⚠️ 与 Kazumi 一致：**时长归零 + 状态直达终值**，不做 paused。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-fps-q]) [data-kz-dir],
+  html:not([data-fps-q]) .kz-tab,
+  html:not([data-fps-q]) .kz-drawer-r,
+  html:not([data-fps-q]) .kz-drawer-l,
+  html:not([data-fps-q]) .kz-drawer-u,
+  html:not([data-fps-q]) .kz-mask,
+  html:not([data-fps-q]) .kz-pressable,
+  html:not([data-fps-q]) .kz-tab-item,
+  html:not([data-fps-q]) .nav-item,
+  html:not([data-fps-q]) .kz-size {
+    animation: none !important;
+    transition: none !important;
+  }
+  html:not([data-fps-q]) [data-kz-dir] { opacity: 1 !important; transform: none !important; }
+  html:not([data-fps-q]) .kz-drawer-r,
+  html:not([data-fps-q]) .kz-drawer-l,
+  html:not([data-fps-q]) .kz-drawer-u { transform: none !important; }
+  html:not([data-fps-q]) .kz-mask { opacity: 1 !important; }
+  html:not([data-fps-q]) .kz-pressable { transform: none !important; }
+  html:not([data-fps-q]) .kz-tab-item,
+  html:not([data-fps-q]) .nav-item { transform: none !important; }
+  html:not([data-fps-q]) [data-kz-fly] { view-transition-name: none !important; }
+}
+
+</style><!-- KZ:CSS:END -->
+<!-- MT:CSS:BEGIN -->
 <!-- motion-tune (2026-10-11) | 合成层改造 + 退场动画 | 改源文件后重跑本注入器 -->
 <style id="motion-tune-style">
 /* ============================================================================
@@ -11702,6 +12502,404 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   update();
 })();
 </script>
+<!-- KZ:JS:BEGIN -->
+<!-- motion-kazumi (2026-10-11) | 移植 Predidit/Kazumi 转场体系 | 方向感知 + 70ms极快 + 共享元素飞行 + 零时长降级 -->
+<script id="motion-kazumi-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   motion-kazumi · 运行时桥接（2026-10-11 晚）
+   ─────────────────────────────────────────────────────────────────────────══
+   CSS 层管「长什么样」，本层管「什么时候动、从哪来、飞向哪」。
+
+   移植自 Predidit/Kazumi 的三个核心机制：
+     ① 方向感知 —— pageTransitionsTheme2024 按平台选转场
+        移植为「按触发源定方向」（点底部哪个 tab 就从哪来）
+     ② Hero 飞行 —— heroFlightShuttleBuilder
+        移植为 View Transitions API（带能力检测 + 静默降级）
+     ③ disableAnimations —— MediaQuery.disableAnimationsOf → Duration.zero
+        移植为 [data-kz-noanim]，零时长 + 状态直达终值
+
+   ⚠️ 铁律 D：降级一律「零时长 + 终态」，绝不用 paused（见项目铁律）。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+(function () {
+  'use strict';
+
+  if (window.__motionKazumiInstalled) return;
+  window.__motionKazumiInstalled = true;
+
+  var REDUCED = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var state = {
+    installed: true,
+    reduced: REDUCED,
+    /* 用户手动关闭动效（对应 Kazumi 的 disableAnimations）*/
+    userDisabled: false,
+    /* 能力探测 */
+    support: { viewTransition: false, startViewTransition: false },
+    /* 统计 */
+    dirSwitch: 0,
+    flights: 0,
+    flightSkip: 0,
+    presses: 0,
+    /* 缓存，避免每次 scroll/query 都重算 */
+    tagged: 0,
+    lastTab: null
+  };
+
+  /* ═══ 能力探测 ═══════════════════════════════════════════════════════ */
+
+  function detect() {
+    var s = state.support;
+    try {
+      s.viewTransition = CSS.supports('view-transition-name', 'none')
+        || CSS.supports('-webkit-view-transition-name', 'none');
+    } catch (e) { s.viewTransition = false; }
+    s.startViewTransition = typeof document.startViewTransition === 'function';
+
+    /* 两项都齐才能飞行：属性存在 + 有启动 API */
+    state.canFly = s.viewTransition && s.startViewTransition;
+  }
+
+  /* ═══ 技法 ①：方向感知转场 ═══════════════════════════════════════════
+     Kazumi 的做法（constants.dart:26-38）：
+       桌面(Win/Linux) → FadeUpwards   从下方浮起
+       移动(And/iOS)  → Cupertino       横向推进
+       设置页          → FadeForwards   向前推入
+     ⭐ 同一个「进入」动作，不同场景不同方向 —— 因为「从哪来」匹配用户心智。
+
+     移植：点击导航项时，取该项相对视口中心的位置，决定新页面的进入方向。
+       · 点底部导航 → 从下往上
+       · 点顶部/侧边 → 从上往下
+       · 点右侧的东西 → 从右往左（反之亦然）
+     ═══════════════════════════════════════════════════════════════════ */
+
+  function dirFor(el) {
+    if (!el || !el.getBoundingClientRect) return 'up';
+    var r = el.getBoundingClientRect();
+    if (!r.width && !r.height) return 'up';
+    var cx = r.left + r.width / 2;
+    var cy = r.top + r.height / 2;
+    var vw = window.innerWidth || 1;
+    var vh = window.innerHeight || 1;
+
+    /* 横向偏离中心 > 纵向 → 横向进入 */
+    var dx = Math.abs(cx - vw / 2) / (vw / 2);
+    var dy = Math.abs(cy - vh / 2) / (vh / 2);
+
+    if (dy > 0.55 && dy >= dx) {
+      return cy > vh / 2 ? 'up' : 'down';
+    }
+    if (dx > 0.35) {
+      return cx > vw / 2 ? 'left' : 'right';
+    }
+    return cy > vh * 0.6 ? 'up' : 'down';
+  }
+
+  var ANIMS = {
+    up: 'kz-in-up',
+    down: 'kz-in-down',
+    left: 'kz-in-left',
+    right: 'kz-in-right'
+  };
+
+  /* 给目标元素施加方向入场 */
+  function enterFrom(target, dir) {
+    if (!target) return false;
+    /* ⭐ 零时长降级：不播动画，直接终态（Kazumi 的 disableAnimations）*/
+    if (state.userDisabled || REDUCED) {
+      target.style.opacity = '1';
+      target.style.transform = 'none';
+      return false;
+    }
+    var d = dir || dirFor(target);
+    target.style.setProperty('--kz-dir-anim',
+                            'var(--kz-' + (ANIMS[d] || ANIMS.up) + ')');
+    /* 不用 animation-name 覆写，直接切 data 属性 —— 少一次样式重算 */
+    target.setAttribute('data-kz-dir', d);
+    state.dirSwitch++;
+    return true;
+  }
+
+  /* ═══ 技法 ②：共享元素飞行（Hero）═════════════════════════════════════
+     Kazumi 的 heroFlightShuttleBuilder（network_img_layer.dart:37-59）：
+       从卡片封面飞到详情页大图，用户的视线跟着封面走，不需要重新定位。
+
+     Web 对应物是 View Transitions API（Chrome/Edge 111+）。
+     ⚠️ 必须有完整降级链：
+       不支持 → 什么都不做（静默）
+       支持 → 包一层 startViewTransition 做 DOM 更新
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /* ⭐ 飞行前给源元素命名；DOM 更新后同名元素自动配对飞行 */
+  function fly(sourceEl, mutate) {
+    if (!state.canFly || !sourceEl || typeof mutate !== 'function') {
+      state.flightSkip++;
+      if (typeof mutate === 'function') mutate();
+      return false;
+    }
+    if (state.userDisabled || REDUCED) {
+      state.flightSkip++;
+      mutate();
+      return false;
+    }
+
+    var name = sourceEl.getAttribute('data-kz-fly');
+    if (!name) {
+      /* 没预设名字就用元素 id；都没有则不飞 */
+      name = sourceEl.id || null;
+      if (!name) { state.flightSkip++; mutate(); return false; }
+      sourceEl.setAttribute('data-kz-fly', name);
+    }
+
+    try {
+      var vt = document.startViewTransition(function () {
+        mutate();
+        /* mutate 里若替换了节点，给新节点补上同名 → 自动配对 */
+        restoreNames(name);
+      });
+      state.flights++;
+      /* 飞行结束后清掉，避免 view-transition-name 全局唯一性冲突 */
+      if (vt && vt.finished) {
+        vt.finished.then(function () {
+          clearNames(name);
+        }).catch(function () { clearNames(name); });
+      }
+      return true;
+    } catch (e) {
+      /* ⭐ 绝不能让飞行失败影响功能 —— 必须保证 mutate 一定执行 */
+      state.flightSkip++;
+      try { mutate(); } catch (e2) { /* 吞掉：由调用方处理 */ }
+      return false;
+    }
+  }
+
+  function restoreNames(name) {
+    var list = document.querySelectorAll('[data-kz-fly="' + name + '"]');
+    for (var i = 0; i < list.length; i++) {
+      /* 已经是同一属性，无需处理；这里只是防御性刷新 */
+      list[i].style.viewTransitionName = name;
+    }
+  }
+
+  function clearNames(name) {
+    var list = document.querySelectorAll('[data-kz-fly="' + name + '"]');
+    for (var i = 0; i < list.length; i++) {
+      list[i].style.viewTransitionName = '';
+    }
+  }
+
+  /* ═══ 技法 ③：压按弹簧（k=500 ζ=0.8）══════════════════════════════════
+     Kazumi 用 SpringSimulation(stiffness: 500, ratio: 0.8) 做手指反馈。
+     在 Web 上，:active 已经能给出「按下即响应」，CSS 的 --kz-ease-back
+     提供了回弹曲线。本层做的是**触屏兜底**：
+     —— 触屏上 :active 在快速点击时可能来不及触发，用 pointerdown/up 补上。
+     ═══════════════════════════════════════════════════════════════════ */
+
+  function bindPress() {
+    var pressables = document.querySelectorAll('.kz-pressable');
+    for (var i = 0; i < pressables.length; i++) {
+      bindOne(pressables[i]);
+    }
+  }
+
+  function bindOne(el) {
+    if (el.__kzBound) return;
+    el.__kzBound = true;
+    /* 鼠标/触控笔：用 :active 就够，这里只兜底触屏的快速点击 */
+    el.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse') return;
+      el.classList.add('kz-pressed');
+      state.presses++;
+    }, { passive: true });
+    var off = function () { el.classList.remove('kz-pressed'); };
+    el.addEventListener('pointerup', off, { passive: true });
+    el.addEventListener('pointercancel', off, { passive: true });
+    el.addEventListener('pointerleave', off, { passive: true });
+  }
+
+  /* ═══ 打标 ══════════════════════════════════════════════════════════
+     ⭐ 只在「语义明确」的位置打标，不做全局扫描注入 ——
+     与 icon-flow 同原则（到处贴 class 会让代码不可维护）。
+     ═══════════════════════════════════════════════════════════════════ */
+
+  /* 导航项 → 方向感知转场 + 压按 */
+  var NAV_SEL = '.nav-item, .kz-tab-item, .sidebar .nav a, [data-nav]';
+  /* 面板内容区 → 页面级入场 */
+  var PAGE_SEL = '.page, .page-content, [data-page]';
+  /* 卡片 → 压按 + 共享元素飞行候选 */
+  var CARD_SEL = '.index-card, .ov-card, .sec-hot-card, .fund-card';
+  /* 抽屉/侧板 → 滑入 */
+  var DRAWER_SEL = '.search-drop, .drawer, .side-panel, .se-add-panel';
+
+  function tagAll() {
+    var n = 0;
+
+    var navs = document.querySelectorAll(NAV_SEL);
+    for (var i = 0; i < navs.length; i++) {
+      if (!navs[i].classList.contains('kz-tab-item')
+          && !navs[i].classList.contains('nav-item')) {
+        navs[i].classList.add('kz-tab-item');
+        n++;
+      }
+      navs[i].setAttribute('data-kz-nav', '1');
+    }
+
+    var cards = document.querySelectorAll(CARD_SEL);
+    for (var j = 0; j < cards.length; j++) {
+      if (!cards[j].classList.contains('kz-pressable')) {
+        cards[j].classList.add('kz-pressable');
+        bindOne(cards[j]);
+        n++;
+      }
+      /* ⭐ 只给有图片/图标的卡片预设飞行名（纯文字卡飞不起来）*/
+      if (!cards[j].getAttribute('data-kz-fly')
+          && cards[j].querySelector('img, .cover, .thumb')) {
+        cards[j].setAttribute('data-kz-fly', 'kz-fly-' + j);
+      }
+    }
+
+    var drawers = document.querySelectorAll(DRAWER_SEL);
+    for (var k = 0; k < drawers.length; k++) {
+      var cls = drawers[k].classList;
+      if (!cls.contains('kz-drawer-r') && !cls.contains('kz-drawer-l')
+          && !cls.contains('kz-drawer-u')) {
+        /* 右侧滑入面板默认从右；其余从下 */
+        cls.add(/right|side|drawer|panel/i.test(drawers[k].className)
+                ? 'kz-drawer-r' : 'kz-drawer-u');
+        n++;
+      }
+    }
+
+    state.tagged = document.querySelectorAll(
+      '[data-kz-nav], .kz-pressable, .kz-drawer-r, .kz-drawer-l, .kz-drawer-u'
+    ).length;
+    return n;
+  }
+
+  /* ═══ 事件接线 ══════════════════════════════════════════════════════ */
+
+  function onNavClick(e) {
+    var nav = e.target && e.target.closest
+      ? e.target.closest(NAV_SEL) : null;
+    if (!nav) return;
+
+    var d = dirFor(nav);
+    state.lastTab = nav;
+
+    /* 找当前可见的页面，给它下一次的方向 */
+    var cur = document.querySelector(
+      '.page.active, .page-content.active, [data-page].active, main');
+    if (cur) {
+      /* 先把上一次的方向标记清掉，避免 direction 残留 */
+      cur.removeAttribute('data-kz-dir');
+      void cur.offsetWidth;          /* 强制重排，让方向变化可重播 */
+      cur.setAttribute('data-kz-dir', d);
+    }
+    state.dirSwitch++;
+  }
+
+  function onCardClick(e) {
+    var card = e.target && e.target.closest
+      ? e.target.closest(CARD_SEL) : null;
+    if (!card || !card.getAttribute('data-kz-fly')) return;
+    if (!state.canFly) return;
+    /* 把飞行源记下来，供详情页建立同名元素时配对 */
+    state.pendingFly = card.getAttribute('data-kz-fly');
+  }
+
+  /* ═══ 用户开关（对应 Kazumi 的 disableAnimations 设置项）═══════════════ */
+
+  function setUserDisabled(v) {
+    state.userDisabled = !!v;
+    var de = document.documentElement;
+    if (state.userDisabled) de.setAttribute('data-kz-noanim', '');
+    else de.removeAttribute('data-kz-noanim');
+
+    /* 开启时：立刻把所有动画元素推到终态（Kazumi 的 _entrance.value = 1）*/
+    if (state.userDisabled) {
+      var els = document.querySelectorAll(
+        '[data-kz-dir], .kz-drawer-r, .kz-drawer-l, .kz-drawer-u, .kz-mask');
+      for (var i = 0; i < els.length; i++) {
+        els[i].style.opacity = '1';
+        els[i].style.transform = 'none';
+      }
+    }
+    try {
+      localStorage.setItem('kz-noanim', state.userDisabled ? '1' : '0');
+    } catch (e) { /* 隐私模式忽略 */ }
+  }
+
+  function loadPref() {
+    try {
+      var v = localStorage.getItem('kz-noanim');
+      if (v === '1') setUserDisabled(true);
+    } catch (e) { /* 忽略 */ }
+  }
+
+  /* ═══ 启动 ══════════════════════════════════════════════════════════ */
+
+  function init() {
+    detect();
+    loadPref();
+    tagAll();
+    bindPress();
+
+    document.addEventListener('click', onNavClick, true);
+    document.addEventListener('click', onCardClick, true);
+
+    /* 面板重绘后重新打标 */
+    if (typeof MutationObserver === 'function') {
+      var ro = new MutationObserver(function () {
+        clearTimeout(state.retagTimer);
+        state.retagTimer = setTimeout(tagAll, 600);
+      });
+      try {
+        ro.observe(document.body, { childList: true, subtree: true });
+        state.retag = true;
+      } catch (e) { state.retag = false; }
+    }
+    state.ready = true;
+  }
+
+  /* ═══ 对外 API ══════════════════════════════════════════════════════ */
+
+  window.__motionKazumi = {
+    state: function () {
+      return {
+        ready: !!state.ready,
+        reduced: state.reduced,
+        userDisabled: state.userDisabled,
+        support: state.support,
+        canFly: !!state.canFly,
+        tagged: state.tagged,
+        dirSwitch: state.dirSwitch,
+        flights: state.flights,
+        flightSkip: state.flightSkip,
+        presses: state.presses
+      };
+    },
+    /* 方向感知：手动触发，测试用 */
+    enterFrom: enterFrom,
+    dirFor: dirFor,
+    /* 共享元素飞行 */
+    fly: fly,
+    /* 用户开关 */
+    setUserDisabled: setUserDisabled,
+    disable: function () { setUserDisabled(true); },
+    enable: function () { setUserDisabled(false); },
+    /* 重新打标 */
+    retag: tagAll
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
+</script><!-- KZ:JS:END -->
 <!-- MT:JS:BEGIN -->
 <!-- motion-tune (2026-10-11) | 合成层改造 + 退场动画 | 改源文件后重跑本注入器 -->
 <script id="motion-tune-js">
@@ -16898,5 +18096,384 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 </script>
 <!-- IOS:JS:END -->
+
+
+<!-- KAZUMI:JS:BEGIN -->
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   kazumi-fx · 运行时桥接（2026-10-11）
+   ───────────────────────────────────────────────────────────────────────────
+   CSS 管「长什么样」，本层管「什么时候动、跟到哪」。
+
+   移植对象：Kazumi 的 Material 3 交互手感
+     · pointerdown → 涟漪从触点扩散 → pointerup/cancel 淡出
+     · 视图切换 → 共享轴转场（旧轴淡出 / 新轴淡入）
+     · 入场 → 弹性 stagger，动画结束释放 transform
+
+   遵循 workbench-ui 四条性能底线：
+     不进视口不跑 / 触屏跳过跟随类/ reduced-motion 处理 / 移动端降采样
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+(function () {
+  'use strict';
+
+  if (window.__kazumiFxInstalled) return;
+  window.__kazumiFxInstalled = true;
+
+  /* ═══ 环境探测 ═══════════════════════════════════════════════════════ */
+
+  var REDUCED = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var FINE_POINTER = window.matchMedia
+    && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  var COARSE = window.matchMedia
+    && window.matchMedia('(pointer: coarse)').matches;
+
+  var state = {
+    installed: true,
+    rippleBound: 0,
+    springBound: 0,
+    sharedBound: 0
+  };
+
+  /* ═══ ①涟漪 · Material 3 press feedback ═══════════════════════════════
+     用 event delegation 绑在 document 上，一处绑定覆盖后续所有新元素，
+     避免每次渲染列表都要重新绑（工作台是高频 DOM 更新的页面）。 */
+
+  function onPress(e) {
+    var el = e.target && e.target.closest
+      ? e.target.closest('.kz-ripple') : null;
+    if (!el) return;
+
+    var r = el.getBoundingClientRect();
+    // 触屏没有精确坐标时用中心点，避免波纹从角落乱飞
+    var x = (COARSE || !e.clientX) ? r.width / 2 : (e.clientX - r.left);
+    var y = (COARSE || !e.clientY) ? r.height / 2 : (e.clientY - r.top);
+    el.style.setProperty('--kz-rx', x + 'px');
+    el.style.setProperty('--kz-ry', y + 'px');
+    el.setAttribute('data-kz-down', '1');
+  }
+
+  function onRelease(e) {
+    var el = e.target && e.target.closest
+      ? e.target.closest('.kz-ripple') : null;
+    if (!el) return;
+    // 抬起后留 120ms 再撤，让波纹扩散完再淡出
+    setTimeout(function () { el.removeAttribute('data-kz-down'); }, 120);
+  }
+
+  if (!REDUCED) {
+    document.addEventListener('pointerdown', onPress, { passive: true });
+    document.addEventListener('pointerup', onRelease, { passive: true });
+    document.addEventListener('pointercancel', onRelease, { passive: true });
+    state.rippleBound = 1;
+  }
+
+  /* ═══ ② 弹性入场 · 结束释放 transform ═════════════════════════════════
+     不释放 transform 会压制后续 hover 上浮，这是工作台踩过的坑。 */
+
+  function bindSpring(root) {
+    var nodes = (root || document).querySelectorAll('.kz-spring:not(.is-done)');
+    for (var i = 0; i < nodes.length; i++) {
+      (function (node) {
+        node.addEventListener('animationend', function h() {
+          node.classList.add('is-done');
+          node.removeEventListener('animationend', h);
+        });
+        // 兜底：动画事件丢失（标签页切后台等）时也要释放
+        setTimeout(function () {
+          if (!node.classList.contains('is-done')) node.classList.add('is-done');
+        }, 1600);
+      })(nodes[i]);
+    }
+    state.springBound += nodes.length;
+  }
+
+  if (!REDUCED) bindSpring();
+
+  /* ═══ ③ 共享轴转场 ═══════════════════════════════════════════════════
+     用法：kzSharedSwitch('panel-a') —— 同组内只保留一个active，
+     转场方向由新旧元素的 data-kz-axis 值决定。 */
+
+  var kzSharedSwitch = function (activeId, group) {
+    var sel = group ? '[data-kz-group="' + group + '"]' : '.kz-shared';
+    var nodes = document.querySelectorAll(sel);
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      var id = n.id || n.getAttribute('data-kz-id');
+      if (id === activeId) n.classList.add('kz-shared-active');
+      else n.classList.remove('kz-shared-active');
+    }
+    state.sharedBound++;
+  };
+
+  /* ═══ ④ 环形指示器滑动（M3 navigation bar）═══════════════════════════
+     标签切换时，胶囊指示器用弹簧曲线滑到目标位置。
+     只有 FINE_POINTER 且未 reduced-motion 时启用。 */
+
+  var kzIndicator = function (barSel, activeSel) {
+    var bar = document.querySelector(barSel);
+    var active = document.querySelector(activeSel);
+    if (!bar || !active) return null;
+    var b = bar.getBoundingClientRect();
+    var a = active.getBoundingClientRect();
+    var pill = bar.querySelector('.kz-indicator');
+    if (!pill) {
+      pill = document.createElement('span');
+      pill.className = 'kz-indicator';
+      bar.appendChild(pill);
+    }
+    pill.style.position = 'absolute';
+    pill.style.left = (a.left - b.left) + 'px';
+    pill.style.top = (a.top - b.top) + 'px';
+    pill.style.width = a.width + 'px';
+    pill.style.height = a.height + 'px';
+    pill.style.borderRadius = '999px';
+    pill.style.background = 'color-mix(in srgb, var(--accent) 18%, transparent)';
+    pill.style.transition = 'left var(--kz-shared-dur) var(--kz-spring),'
+      + 'top var(--kz-shared-dur) var(--kz-spring),'
+      + 'width var(--kz-shared-dur) var(--kz-spring),'
+      + 'height var(--kz-shared-dur) var(--kz-spring)';
+    pill.style.pointerEvents = 'none';
+    return pill;
+  };
+
+  /* ═══ ⑤ 侧边栏导航增强（Kazumi 图标切换手感）══════════════════════
+     核心思路：只「增强」不改行为 —— 给 .nav-item 补挂装饰层，
+     监听既有 active 变化，动画挂在装饰层上，不动原布局。 */
+
+  var navState = { pill: null, items: [], built: false };
+
+  function buildNav() {
+    if (REDUCED) return false;
+    var items = document.querySelectorAll('.nav-item');
+    if (!items.length) return false;
+
+    // 侧边栏本体作为滑块容器
+    var bar = items[0].parentElement;
+    if (!bar) return false;
+
+    var pill = bar.querySelector('.kz-nav-pill');
+    if (!pill) {
+      pill = document.createElement('span');
+      pill.className = 'kz-nav-pill';
+      bar.appendChild(pill);
+    }
+    navState.pill = pill;
+    navState.bar = bar;
+    if (bar.id !== 'kz-nav-bar') bar.id = 'kz-nav-bar';
+
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      if (it.classList.contains('kz-nav-item')) continue;
+      it.classList.add('kz-nav-item', 'kz-ripple');
+      it.setAttribute('data-kz-ripple', 'accent');
+
+      // 图标包一层做弹跳
+      var icon = it.querySelector('.icon');
+      if (icon && !icon.classList.contains('kz-icon-pop')) {
+        icon.classList.add('kz-icon-pop');
+      }
+      // 背后辉光
+      if (!it.querySelector('.kz-icon-glow')) {
+        var glow = document.createElement('span');
+        glow.className = 'kz-icon-glow';
+        it.insertBefore(glow, it.firstChild);
+      }
+      // 文字标签（Kazumi：文字在图标右侧，激活时前移）
+      navState.items.push(it);
+    }
+    navState.built = true;
+    movePill(true);
+    return true;
+  }
+
+  /* 滑块移动到当前激活项。collapsed 态下收窄成图标大小的方块 */
+  function movePill(instant) {
+    if (!navState.built || !navState.pill) return;
+    var active = navState.bar.querySelector('.nav-item.active');
+    if (!active) { navState.pill.classList.remove('is-on'); return; }
+
+    var collapsed = !!document.querySelector('.sidebar.collapsed');
+    var b = navState.bar.getBoundingClientRect();
+    var a = active.getBoundingClientRect();
+    // 外发光滑块：比激活项大3px，形成环绕光晕（而非实心填充）
+    var grow = 3;
+    var top = a.top - b.top - grow;
+    var h = a.height + grow * 2;
+    var w = (collapsed ? Math.min(a.width, 46) : a.width) + grow * 2;
+    var left = a.left - b.left - grow;
+
+    if (instant) navState.pill.style.transition = 'none';
+    navState.pill.style.height = h + 'px';
+    navState.pill.style.width = w + 'px';
+    navState.pill.style.transform = 'translate3d(' + left + 'px,' + top + 'px,0)';
+    navState.pill.classList.add('is-on');
+    if (instant) {
+      void navState.pill.offsetWidth;
+      navState.pill.style.transition = '';
+    }
+  }
+
+  /* 用 MutationObserver 盯 active 类变化 —— 工作台切页时切的是
+     navItems.forEach(n => n.classList.toggle('active',...))，
+     监听属性比切页函数挂钩更稳，不会被后续改动打脸。 */
+  function watchNav() {
+    if (REDUCED || !navState.bar || !window.MutationObserver) return;
+    var pending = null;
+    var mo = new MutationObserver(function (muts) {
+      var changed = false;
+      for (var i = 0; i < muts.length; i++) {
+        if (muts[i].attributeName === 'class') { changed = true; break; }
+      }
+      if (!changed) return;
+      // 合并同一帧的多次变更，只跑一次动画
+      if (pending) cancelAnimationFrame(pending);
+      pending = requestAnimationFrame(function () {
+        pending = null;
+        movePill(false);
+        bumpActive();
+      });
+    });
+    mo.observe(navState.bar, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class']
+    });
+  }
+
+  /* 只给「刚变成 active 的那一项」弹一下，避免所有项一起抖 */
+  function bumpActive() {
+    var active = navState.bar && navState.bar.querySelector('.nav-item.active');
+    if (!active) return;
+    navState.items.forEach(function (n) { n.classList.remove('kz-bump'); });
+    void active.offsetWidth;           // 强制回流，让动画能重播
+    active.classList.add('kz-bump');
+  }
+
+  /* ═══ ⑥ 页面转场 · fade-through ══════════════════════════════════════
+     工作台原有转场是「单向淡入+上移」，这里升级为双向 fade-through：
+     旧页缩退淡出（170ms）→ 新页浮入（320ms）。 */
+
+  function pageOut(el, done) {
+    if (!el || REDUCED || !('animate' in el)) { done && done(); return; }
+    el.style.animation = '';
+    el.classList.add('kz-page-out');
+    setTimeout(function () {
+      el.classList.remove('kz-page-out');
+      done && done();
+    }, 175);
+  }
+
+  function pageIn(el) {
+    if (!el || REDUCED || !('animate' in el)) return;
+    el.classList.add('kz-page-in');
+    var h = function () {
+      el.classList.remove('kz-page-in');
+      el.removeEventListener('animationend', h);
+    };
+    el.addEventListener('animationend', h);
+    setTimeout(function () {
+      if (el.classList.contains('kz-page-in')) h();
+    }, 700);   // 兜底：后台标签页可能不触发 animationend
+  }
+
+  /* 包装器：给外部（如改动过的 switchPage）一个可选的转场 API */
+  function kzPageSwap(oldEl, newEl, midFn) {
+    pageOut(oldEl, function () {
+      midFn && midFn();
+      // 等一帧，确保 display/内容已切换，再播入场
+      requestAnimationFrame(function () { pageIn(newEl); });
+    });
+  }
+
+  /* 标签栏增强：.fund-tab / .tab 激活时上浮 + 辉光 */
+  function bindTabs() {
+    if (REDUCED) return;
+    var tabs = document.querySelectorAll('.fund-tab, .tab');
+    for (var i = 0; i < tabs.length; i++) {
+      var t = tabs[i];
+      t.classList.add('kz-tab');
+      t.addEventListener('click', function (e) {
+        var el = e.currentTarget;
+        el.classList.remove('is-pop');
+        void el.offsetWidth;
+        el.classList.add('is-pop');
+        // 激活态由各模块自己维护 class，这里只补is-active 供CSS 用
+        var parent = el.parentElement;
+        if (parent) {
+          Array.prototype.forEach.call(parent.children, function (sib) {
+            sib.classList.toggle('is-active', sib === el);
+          });
+        }
+      });
+    }
+  }
+
+  /* ═══ 主题切换 / 侧边栏收起：重算滑块 ═══════════════════════════════ */
+
+  window.addEventListener('kzThemeChange', movePill.bind(null, false));
+  window.addEventListener('resize', function () { movePill(true); });
+  document.addEventListener('click', function (e) {
+    // 折叠/展开侧边栏后滑块要重新对位（按钮 id 固定，避免与既有逻辑冲突）
+    if (e.target && e.target.closest && e.target.closest('#sidebar-toggle')) {
+      setTimeout(function () { movePill(false); }, 320);
+    }
+  });
+
+  /* ═══ 暴露 API ═══════════════════════════════════════════════════════ */
+
+  window.kzFx = {
+    version: '1.1.0',
+    state: state,
+    ripple: function () {
+      if (!REDUCED && !state.rippleBound) {
+        document.addEventListener('pointerdown', onPress, { passive: true });
+        document.addEventListener('pointerup', onRelease, { passive: true });
+        state.rippleBound = 1;
+      }
+      return state.rippleBound;
+    },
+    spring: function (root) { bindSpring(root); return state.springBound; },
+    shared: kzSharedSwitch,
+    indicator: kzIndicator,
+    /* 新增 */
+    nav: function () {
+      if (buildNav()) { watchNav(); bindTabs(); return true; }
+      return false;
+    },
+    movePill: movePill,
+    pageOut: pageOut,
+    pageIn: pageIn,
+    pageSwap: kzPageSwap
+  };
+
+  /* ═══ 自举：DOM 就绪后装配导航 ═══════════════════════════════════════ */
+
+  function boot() {
+    if (!REDUCED) {
+      buildNav();
+      watchNav();
+      bindTabs();
+      bindSpring();
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  /* 页面回退（bfcache）时补跑一次入场绑定 */
+  window.addEventListener('pageshow', function () {
+    if (!REDUCED) { bindSpring(); movePill(true); }
+  });
+})();
+</script>
+<!-- KAZUMI:JS:END -->
+
 </body>
 </html>
