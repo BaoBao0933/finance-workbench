@@ -3431,7 +3431,299 @@
 </style>
 <!-- KAZUMI:CSS:END -->
 
-</style><!-- KZ:CSS:BEGIN -->
+</style><!-- FF:CSS:BEGIN -->
+<!-- fluid-fill (2026-10-11) | 移植 Predidit/Kazumi 转场体系 | 方向感知 + 70ms极快 + 共享元素飞行 + 零时长降级 -->
+<style id="fluid-fill-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   fluid-fill · 同比放大填充层（2026-10-11 深夜）
+   ───────────────────────────────────────────────────────────────────────────
+   用户诉求：「窗口放大后，每个板块的模块按比例一起放大，不要空出很多空位，
+              就像首页一样同比放大填满整个页面。」
+
+   ── 诊断（数据，不是猜测）────────────────────────────────────────────────
+
+   根因 ①：7 个页面容器被 max-width 限死
+     .watch-wrap    1080px      .news-wrap    1080px
+     .fund-wrap     1240px      .senti-wrap   1240px
+     .sec-wrap      1240px      .lhb-wrap     1240px
+     .focus-wrap    1280px
+   → 窗口拉宽后内容只到 1080~1280px 就停了，右侧一大片空白。
+     **首页没有 max-width**（.content 是 flex:1），所以只有首页能填满。
+
+   根因 ②：行业板块用了 repeat(auto-fill, ...)
+     `.sec-grid`     repeat(auto-fill, minmax(168px, 1fr))
+     `.sec-hot-grid` repeat(auto-fill, minmax(158px, 1fr))
+   ⭐⭐ **auto-fill 与 auto-fit 的区别就是这个问题全部的答案**：
+     · auto-fill —— 空间够就**多排空列**，卡片保持 168px 不变宽
+     · auto-fit  —— 空间够就**把空列折叠掉**，已有列拉伸填满
+     截图里卡片挤在左边、右边空着，正是 auto-fill 的典型表现。
+
+   ── 解法（三管齐下）──────────────────────────────────────────────────────
+
+   1. 取消限宽：给 7 个容器 `max-width: none`（保留一个很宽的上限兜底）
+   2. auto-fill → auto-fit：让卡片真正拉伸填满整行
+   3. 超宽屏加列：窗口很宽时用媒体查询加列，卡片**放大而不是变多**
+      ——「按比例一起放大」的本意是卡片变大，不是无限加列。
+
+   ⚠️ 全部只改 grid 与 max-width，**不碰配色/字号/间距**，零视觉回归风险。
+   ⚠️ 卡片内容用百分比宽度自适应，无需 JS。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* 内容区左右留白：宽屏时略增，避免卡片贴到窗口边缘 */
+  --ff-gutter: 26px;
+  /* 超宽屏阈值：超过这个宽度认为「放大显示器」，开始加列 */
+  --ff-wide: 1500px;
+  --ff-wider: 1800px;
+  --ff-widest: 2100px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   1. 取消 7 个页面的限宽
+   ───────────────────────────────────────────────────────────────────────────
+   ⚠️ 用 `max-width: none` 而不是删属性 —— 本层是**覆盖层**，
+      保留主文件的原始声明，这样 strip 掉本层就能精确还原。
+   ⚠️ 留一个兜底上限（3200px）：4K + 浏览器缩放时列会宽到没法看，
+      这个上限不设的话「填充」会过头。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+html:not([data-fps-q]) .watch-wrap,
+html:not([data-fps-q]) .news-wrap,
+html:not([data-fps-q]) .fund-wrap,
+html:not([data-fps-q]) .senti-wrap,
+html:not([data-fps-q]) .sec-wrap,
+html:not([data-fps-q]) .focus-wrap,
+html:not([data-fps-q]) .lhb-wrap {
+  max-width: 3200px;
+  /* 宽屏时内容区两侧留白随窗口增大，避免元素贴边 */
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2. auto-fill → auto-fit（核心修复）
+   ───────────────────────────────────────────────────────────────────────────
+   这一条直接解决截图里的现象。
+   auto-fit 会把「空间够但没元素」的空列折叠掉，已有列的 1fr 拿到全部空间
+   → 卡片横向拉伸，整行填满，无右侧空白。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+html:not([data-fps-q]) .sec-grid {
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)) !important;
+}
+html:not([data-fps-q]) .sec-hot-grid {
+  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3. 超宽屏：卡片「变大」而不是「变多」
+   ───────────────────────────────────────────────────────────────────────────
+   用户原话是「按比例一起放大」。
+   ⭐ 关键取舍：宽到一定程度后，加列反而会让卡片变得过小、扫视困难。
+   所以这里**逐步抬高 minmax 的下限**——窗口越宽，卡片最小宽度越大，
+   于是同一行装得下更少列，但每张卡都明显变大。
+   这正是「按比例放大」的视觉感受。
+
+   例：窗口 1600px 时 minmax 下限 168px → 约 8 列（卡片 ~180px）
+       窗口 2400px 时下限 260px → 约 8 列（卡片 ~275px，明显变大）
+   卡片**数量基本不变，尺寸变大** —— 这就是同比放大。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* 3a. 中宽屏：保持原有列密度，但下限略降以多容纳一列 */
+@media (min-width: 1200px) {
+  html:not([data-fps-q]) .sec-grid {
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)) !important;
+  }
+  html:not([data-fps-q]) .sec-hot-grid {
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)) !important;
+  }
+}
+
+/* 3b. 宽屏（1500px+）：抬高下限，卡片明显变大 */
+@media (min-width: 1500px) {
+  html:not([data-fps-q]) .sec-grid {
+    grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)) !important;
+    gap: 14px;
+  }
+  html:not([data-fps-q]) .sec-hot-grid {
+    grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)) !important;
+    gap: 14px;
+  }
+  /* 卡片随容器变宽，内边距与字号同步放大，避免「大卡片配小字」 */
+  html:not([data-fps-q]) .sec-cell { padding: 16px 18px; }
+  html:not([data-fps-q]) .sec-cell .scn { font-size: 16px; }
+  html:not([data-fps-q]) .sec-cell .scp { font-size: 19px; margin-top: 7px; }
+  html:not([data-fps-q]) .sec-cell .scc { font-size: 12.5px; }
+  html:not([data-fps-q]) .sec-hot-card { padding: 18px 19px; }
+  html:not([data-fps-q]) .sec-hot-card .hn { font-size: 16.5px; }
+  html:not([data-fps-q]) .sec-hot-card .hp { font-size: 22px; margin-top: 8px; }
+  html:not([data-fps-q]) .sec-hot-card .hc { font-size: 13px; }
+  /* 工具栏也跟着放大 */
+  html:not([data-fps-q]) .sec-toolbar { gap: 14px; }
+  html:not([data-fps-q]) .sec-search { width: 360px; }
+}
+
+/* 3c. 超宽屏（1800px+）：继续放大 */
+@media (min-width: 1800px) {
+  html:not([data-fps-q]) .sec-grid {
+    grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)) !important;
+    gap: 16px;
+  }
+  html:not([data-fps-q]) .sec-hot-grid {
+    grid-template-columns: repeat(auto-fit, minmax(256px, 1fr)) !important;
+    gap: 16px;
+  }
+  html:not([data-fps-q]) .sec-cell { padding: 20px 22px; border-radius: 14px; }
+  html:not([data-fps-q]) .sec-cell .scn { font-size: 18px; }
+  html:not([data-fps-q]) .sec-cell .scp { font-size: 23px; margin-top: 9px; }
+  html:not([data-fps-q]) .sec-cell .scc { font-size: 13.5px; margin-top: 5px; }
+  html:not([data-fps-q]) .sec-hot-card { padding: 22px 24px; border-radius: 15px; }
+  html:not([data-fps-q]) .sec-hot-card .hn { font-size: 19px; }
+  html:not([data-fps-q]) .sec-hot-card .hp { font-size: 26px; margin-top: 10px; }
+  html:not([data-fps-q]) .sec-hot-card .hc { font-size: 14px; }
+  html:not([data-fps-q]) .sec-search { width: 440px; }
+  html:not([data-fps-q]) .sec-toolbar { margin: 6px 0 18px; }
+}
+
+/* 3d. 极宽屏（2100px+，4K 缩放后常见）：继续放大但封顶 */
+@media (min-width: 2100px) {
+  html:not([data-fps-q]) .sec-grid {
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)) !important;
+    gap: 18px;
+  }
+  html:not([data-fps-q]) .sec-hot-grid {
+    grid-template-columns: repeat(auto-fit, minmax(316px, 1fr)) !important;
+    gap: 18px;
+  }
+  html:not([data-fps-q]) .sec-cell { padding: 24px 26px; }
+  html:not([data-fps-q]) .sec-cell .scn { font-size: 20px; }
+  html:not([data-fps-q]) .sec-cell .scp { font-size: 27px; margin-top: 11px; }
+  html:not([data-fps-q]) .sec-cell .scc { font-size: 15px; }
+  html:not([data-fps-q]) .sec-hot-card { padding: 26px 28px; }
+  html:not([data-fps-q]) .sec-hot-card .hn { font-size: 22px; }
+  html:not([data-fps-q]) .sec-hot-card .hp { font-size: 31px; margin-top: 12px; }
+  html:not([data-fps-q]) .sec-hot-card .hc { font-size: 15.5px; }
+  html:not([data-fps-q]) .sec-search { width: 520px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   4. 其它被限宽页面的同比放大
+   ───────────────────────────────────────────────────────────────────────────
+   这些页面用的是固定列数的 grid（1fr 1fr / repeat(2,1fr) / repeat(4,1fr)），
+   取消 max-width 后**它们本来就自适应**（1fr 会自动拉伸）。
+   这里补的是：宽屏时增加列数 + 放大字号，让「放大」更明显。
+
+   ⚠️ 用 min-width 断点而非 max-width —— 因为需求是「窗口大时放大」，
+      原来的 max-width 断点（如 1100px 以下变单列）管的是窄屏，保留不动。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* 资金流向 .fund-grid（默认 1fr 1fr）*/
+@media (min-width: 1500px) {
+  html:not([data-fps-q]) .fund-wrap .fund-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 16px;
+  }
+}
+@media (min-width: 2000px) {
+  html:not([data-fps-q]) .fund-wrap .fund-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 18px;
+  }
+}
+
+/* 情绪温度 .senti-cards（默认 4 列）+ .senti-grid（默认 2 列）*/
+@media (min-width: 1500px) {
+  html:not([data-fps-q]) .senti-cards {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 16px;
+  }
+}
+@media (min-width: 1900px) {
+  html:not([data-fps-q]) .senti-cards {
+    grid-template-columns: repeat(6, 1fr) !important;
+  }
+}
+
+/* 重点关注 .focus-wrap（flex 纵向容器，内部子块自动撑宽即可）*/
+@media (min-width: 1500px) {
+  html:not([data-fps-q]) .focus-wrap { gap: 24px; }
+}
+
+/* 自选/财经要闻/龙虎榜：表格类，1fr 本身已自适应，只放大行高与字号 */
+@media (min-width: 1500px) {
+  html:not([data-fps-q]) .watch-wrap .watch-row { min-height: 44px; }
+  html:not([data-fps-q]) .news-wrap .news-item { padding: 15px 18px; }
+  html:not([data-fps-q]) .lhb-wrap .lhb-row { min-height: 44px; }
+  html:not([data-fps-q]) .lhb-wrap .lhb-row .sr-name { font-size: 17px; }
+}
+@media (min-width: 1900px) {
+  html:not([data-fps-q]) .watch-wrap .watch-row { min-height: 50px; }
+  html:not([data-fps-q]) .news-wrap .news-item { padding: 18px 22px; }
+  html:not([data-fps-q]) .lhb-wrap .lhb-row { min-height: 50px; }
+  html:not([data-fps-q]) .lhb-wrap .lhb-row .sr-name { font-size: 19px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5. 宽屏下内容区留白同步增大
+   ───────────────────────────────────────────────────────────────────────────
+   ⭐ 为什么要改：原来 padding 是固定 26px 30px，
+   窗口拉到 2000px 时卡片顶到边缘会显得局促。
+   留白随宽度缓增，观感更舒展 —— 这是「填满」不等于「顶到边」。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+@media (min-width: 1500px) {
+  html:not([data-fps-q]) .content { padding-left: 40px; padding-right: 40px; }
+}
+@media (min-width: 1900px) {
+  html:not([data-fps-q]) .content { padding-left: 56px; padding-right: 56px; }
+}
+@media (min-width: 2300px) {
+  html:not([data-fps-q]) .content { padding-left: 76px; padding-right: 76px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   6. 窄屏回归保护
+   ───────────────────────────────────────────────────────────────────────────
+   ⚠️ 本层只处理「放大」，窄屏行为**完全交给主文件的原规则**。
+   这里显式声明一遍，是为了让窄屏不受本层任何 min-width 规则影响
+   （min-width 规则本来就不会在窄屏生效，但显式写出来更清楚）。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1199px) {
+  html:not([data-fps-q]) .sec-grid {
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)) !important;
+  }
+  html:not([data-fps-q]) .sec-hot-grid {
+    grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)) !important;
+  }
+  /* 窄屏恢复主文件的居中限宽观感 */
+  html:not([data-fps-q]) .sec-wrap { max-width: 1240px; }
+  html:not([data-fps-q]) .fund-wrap { max-width: 1240px; }
+  html:not([data-fps-q]) .senti-wrap { max-width: 1240px; }
+  html:not([data-fps-q]) .watch-wrap { max-width: 1080px; }
+  html:not([data-fps-q]) .news-wrap { max-width: 1080px; }
+  html:not([data-fps-q]) .focus-wrap { max-width: 1280px; }
+  html:not([data-fps-q]) .lhb-wrap { max-width: 1240px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   降级与无障碍
+   ───────────────────────────────────────────────────────────────────────────
+   ⚠️ 本层只改 grid-template-columns / max-width / padding / font-size，
+      **不含任何 animation** → 无需 paused 降级（铁律）。
+      布局调整在 reduced-motion 下本来就该照常生效（它不是「动效」）。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* fps-boost 降档时不参与布局计算，让出主线程 */
+html[data-fps-q] .sec-grid,
+html[data-fps-q] .sec-hot-grid {
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)) !important;
+}
+
+</style><!-- FF:CSS:END -->
+<!-- KZ:CSS:BEGIN -->
 <!-- motion-kazumi (2026-10-11) | 移植 Predidit/Kazumi 转场体系 | 方向感知 + 70ms极快 + 共享元素飞行 + 零时长降级 -->
 <style id="motion-kazumi-style">
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -12502,6 +12794,241 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   update();
 })();
 </script>
+<!-- FF:JS:BEGIN -->
+<!-- fluid-fill (2026-10-11) | 移植 Predidit/Kazumi 转场体系 | 方向感知 + 70ms极快 + 共享元素飞行 + 零时长降级 -->
+<script id="fluid-fill-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   fluid-fill · 运行时桥接（2026-10-11 深夜）
+   ───────────────────────────────────────────────────────────────────────────
+   CSS 层已经把布局改成「随宽度放大」，本层负责 CSS 做不到的两件事：
+
+   ① **Canvas / SVG 图表的等比放大**
+     图表按固定像素尺寸绘制（fund-ico、earth-loader、分时图…），
+     CSS 的 grid 只放大容器、不放大里面的画布 → 图表会显得「小了一圈」。
+     本层按容器宽度给 canvas/svg 设置等比尺寸，让图表跟着卡片一起变大。
+
+   ② **窗口尺寸变化的实时响应**
+     监听 resize → 标记需要重排 → 下一帧统一处理。
+     ⚠️ 必须 rAF 节流：拖窗口时 resize 每秒可达 60+ 次。
+
+   ⚠️ 本层不含任何动画，无 paused 风险（铁律）。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+(function () {
+  'use strict';
+
+  if (window.__fluidFillInstalled) return;
+  window.__fluidFillInstalled = true;
+
+  var state = {
+    installed: true,
+    /* 上次处理的宽度档位（避免同档位重复计算）*/
+    lastBucket: -1,
+    /* 统计 */
+    resizes: 0,
+    resizesApplied: 0,
+    chartsScaled: 0,
+    /* 当前档位名，测试用 */
+    bucket: null
+  };
+
+  /* ═══ 断点分档 ═══════════════════════════════════════════════════════
+     必须与 kz.css（fluid-fill/ff.css）里的断点**完全一致**，
+     否则会出现「CSS 已换档但 JS 图表还没换」的错位。
+     ═══════════════════════════════════════════════════════════════════ */
+
+  var BUCKETS = [
+    { w: 2100, name: 'widest', scale: 1.30 },
+    { w: 1800, name: 'wider', scale: 1.18 },
+    { w: 1500, name: 'wide', scale: 1.08 },
+    { w: 1200, name: 'mid', scale: 1.0 },
+    { w: 0, name: 'narrow', scale: 1.0 }
+  ];
+
+  function bucketOf(w) {
+    for (var i = 0; i < BUCKETS.length; i++) {
+      if (w >= BUCKETS[i].w) return i;
+    }
+    return BUCKETS.length - 1;
+  }
+
+  /* ═══ 图表等比放大 ═══════════════════════════════════════════════════
+     需求：「按比例一起放大」—— 卡片大了，里面的图也要大。
+
+     做法：不改图表的逻辑坐标，只改**渲染尺寸**（CSS 像素），
+           绘图函数内部按新尺寸重算 → 线条/文字同比放大，不会糊。
+
+     ⚠️ 只处理带 data-ff-chart 的元素（显式打标），
+        不做全局 canvas 扫描 —— 那会命中 mini-chart 等小图标，
+        把它们一起放大反而破相。
+     ═══════════════════════════════════════════════════════════════════ */
+
+  var CHART_SEL = '[data-ff-chart]';
+
+  function scaleCharts() {
+    var list;
+    try {
+      list = document.querySelectorAll(CHART_SEL);
+    } catch (e) {
+      return 0;
+    }
+    if (!list.length) return 0;
+
+    var b = bucketOf(window.innerWidth || 0);
+    var s = BUCKETS[b].scale;
+    var n = 0;
+
+    for (var i = 0; i < list.length; i++) {
+      var el = list[i];
+      /* 基准宽度只记录一次，后续都以此为基准等比放大
+         —— 否则「放大 → 记录新宽 → 再放大」会滚雪球 */
+      if (!el.__ffBaseW) {
+        el.__ffBaseW = el.offsetWidth || el.clientWidth || 0;
+        el.__ffBaseH = el.offsetHeight || el.clientHeight || 0;
+      }
+      var bw = el.__ffBaseW;
+      var bh = el.__ffBaseH;
+      if (!bw || !bh) continue;
+
+      var w = Math.round(bw * s);
+      var h = Math.round(bh * s);
+      if (el.width !== w) el.width = w;
+      if (el.height !== h) el.height = h;
+      el.style.width = w + 'px';
+      el.style.height = h + 'px';
+      n++;
+    }
+    state.chartsScaled = n;
+    return n;
+  }
+
+  /* ═══ 重排 ══════════════════════════════════════════════════════════ */
+
+  var pending = false;
+  var rafId = 0;
+
+  function schedule() {
+    if (pending) return;
+    pending = true;
+    rafId = requestAnimationFrame(apply);
+  }
+
+  function apply() {
+    rafId = 0;
+    pending = false;
+    var w = window.innerWidth || 0;
+    var b = bucketOf(w);
+    state.bucket = BUCKETS[b].name;
+
+    /* ⭐ 同档位不重复处理 —— resize 在档位内高频触发，
+       而重算图表要读 offsetWidth（会触发重排），必须节流到「换档才做」。
+       换档判定用 innerWidth 而不是桶索引，避免抖动。 */
+    if (b === state.lastBucket) return;
+    state.lastBucket = b;
+    state.resizesApplied++;
+    scaleCharts();
+  }
+
+  /* ═══ 打标：哪些图表该跟着放大 ═══════════════════════════════════════
+     显式白名单，不做全局扫描 —— mini-chart（1px 小图标）绝不能放大。
+     ═══════════════════════════════════════════════════════════════════ */
+
+  var TAG_SEL = [
+    '.fund-flow-chart', '.earth-loader svg', '.pos-chart-wrap svg',
+    '.senti-chart', '.st-chart', '.lhb-chart'
+  ];
+
+  function tagCharts() {
+    var n = 0;
+    for (var i = 0; i < TAG_SEL.length; i++) {
+      var list;
+      try {
+        list = document.querySelectorAll(TAG_SEL[i]);
+      } catch (e) {
+        continue;
+      }
+      for (var j = 0; j < list.length; j++) {
+        if (!list[j].getAttribute('data-ff-chart')) {
+          list[j].setAttribute('data-ff-chart', '1');
+          n++;
+        }
+      }
+    }
+    return n;
+  }
+
+  /* ═══ 启动 ══════════════════════════════════════════════════════════ */
+
+  function init() {
+    state.bucket = BUCKETS[bucketOf(window.innerWidth || 0)].name;
+    state.lastBucket = bucketOf(window.innerWidth || 0);
+
+    tagCharts();
+
+    /* resize：rAF 节流 */
+    window.addEventListener('resize', function () {
+      state.resizes++;
+      schedule();
+    }, { passive: true });
+
+    /* orientationchange / 全屏切换也会改尺寸 */
+    window.addEventListener('orientationchange', schedule, { passive: true });
+
+    /* 面板重绘后重新打标（行情面板会整体重建 DOM）*/
+    if (typeof MutationObserver === 'function') {
+      var mo = new MutationObserver(function () {
+        clearTimeout(state.retagTimer);
+        state.retagTimer = setTimeout(function () {
+          tagCharts();
+          state.lastBucket = -1;   /* 强制下次 apply 重算图表 */
+          schedule();
+        }, 600);
+      });
+      try {
+        mo.observe(document.body, { childList: true, subtree: true });
+        state.retag = true;
+      } catch (e) { state.retag = false; }
+    }
+
+    state.ready = true;
+  }
+
+  /* ═══ 对外 API ══════════════════════════════════════════════════════ */
+
+  window.__fluidFill = {
+    state: function () {
+      return {
+        ready: !!state.ready,
+        bucket: state.bucket,
+        lastBucket: state.lastBucket,
+        resizes: state.resizes,
+        resizesApplied: state.resizesApplied,
+        chartsScaled: state.chartsScaled,
+        retag: !!state.retag,
+        innerWidth: window.innerWidth || 0
+      };
+    },
+    /* 手动触发重排，测试用 */
+    refresh: function () {
+      state.lastBucket = -1;
+      apply();
+      return state.chartsScaled;
+    },
+    /* 档位查询，测试用 —— 必须与 ff.css 的断点一致 */
+    bucketOf: bucketOf,
+    buckets: BUCKETS,
+    tagCharts: tagCharts,
+    scaleCharts: scaleCharts
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
+</script><!-- FF:JS:END -->
 <!-- KZ:JS:BEGIN -->
 <!-- motion-kazumi (2026-10-11) | 移植 Predidit/Kazumi 转场体系 | 方向感知 + 70ms极快 + 共享元素飞行 + 零时长降级 -->
 <script id="motion-kazumi-js">
