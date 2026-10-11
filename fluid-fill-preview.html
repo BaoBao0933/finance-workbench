@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0d16">
+<title>工作台 · 手机端对比</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0a0d16;--surf:#111525;--surf2:#161d31;--line:#242c42;
+  --txt:#e8eaf2;--sub:#8b93b5;--gold:#e8b84b;--up:#ff5a5a;--dn:#2ed591;
+}
+body{background:var(--bg);color:var(--txt);
+  font:15px/1.6 -apple-system,"Segoe UI",system-ui,"PingFang SC",sans-serif;
+  padding:0 0 env(safe-area-inset-bottom)}
+.hd{position:sticky;top:0;z-index:20;background:rgba(10,13,22,.94);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  padding:calc(env(safe-area-inset-top) + 11px) 14px 11px;
+  border-bottom:1px solid var(--line)}
+.hd h1{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.hd p{font-size:12px;color:var(--sub);margin-top:2px}
+.wrap{padding:14px}
+/* 提示 */
+.tip{background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.28);
+  border-radius:11px;padding:11px 13px;font-size:12.5px;color:#f0d9a8;margin-bottom:14px;line-height:1.65}
+.tip b{color:var(--gold)}
+/* 开关 */
+.sw{display:flex;gap:8px;margin-bottom:14px}
+.sw button{flex:1;padding:11px 8px;border-radius:11px;font:inherit;font-size:13.5px;
+  font-weight:500;cursor:pointer;border:1px solid var(--line);
+  background:var(--surf2);color:var(--sub);transition:all .15s}
+.sw button.on{background:rgba(232,184,75,.16);border-color:var(--gold);color:var(--gold)}
+/* 模拟窗口：宽度=真实屏幕宽 */
+.stage{background:#070a10;border:1px solid var(--line);border-radius:13px;
+  overflow:hidden;margin-bottom:14px;position:relative}
+.vp{position:relative;overflow:hidden;background:#0b0f18;
+  height:min(62vh,520px)}
+.win{position:absolute;left:0;top:0;height:100%}
+.win.old{background:#0d1119}
+.win.old::after{content:'';position:absolute;inset:0;border:2px dashed rgba(248,113,113,.35);pointer-events:none}
+.win.new{background:#0e1220}
+.win.old::before,.win.new::before{content:attr(data-l);position:absolute;top:9px;left:12px;
+  font-size:11px;font-family:"Cascadia Mono",monospace;z-index:3}
+.win.old::before{color:#f8b4b4}
+.win.new::before{color:#a8e6cd}
+.tb{position:absolute;bottom:0;left:0;right:0;height:26px;background:rgba(255,255,255,.03);
+  border-top:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+  font-size:10.5px;color:var(--sub);z-index:2}
+/* 页面 */
+.pg{position:absolute;top:40px;bottom:34px;left:12px;right:12px}
+.pg-old .sec-wrap{max-width:1240px}
+.pg-old .sec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px}
+.pg-new .sec-wrap{max-width:3200px;margin:0 auto;width:100%}
+.pg-new .sec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px}
+.cell{background:linear-gradient(135deg,#1a2033,#212942);border:1px solid var(--line);
+  border-radius:11px;padding:11px 13px;min-width:0}
+.pg-new .cell{background:linear-gradient(135deg,#1c2b4d,#1d3a5e);border-color:rgba(52,211,153,.2)}
+.cell b{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell span{display:block;font-size:16px;font-weight:800;margin-top:3px;
+  font-family:"Cascadia Mono",monospace}
+/* 空位标注 */
+.gap{position:absolute;top:40px;bottom:34px;
+  background:repeating-linear-gradient(45deg,rgba(248,113,113,.12),rgba(248,113,113,.12) 8px,transparent 8px,transparent 16px);
+  border-left:1px dashed rgba(248,113,113,.5);display:flex;align-items:center;
+  justify-content:center;font-size:10.5px;color:#f8b4b4;writing-mode:vertical-rl;letter-spacing:2px;z-index:2}
+/* 测量条 */
+.mm{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+.mm>div{background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.mm span{font-size:11px;color:var(--sub);display:block}
+.mm b{font-size:16px;font-family:"Cascadia Mono",monospace;display:block;margin-top:2px}
+/* 信息卡 */
+.sec{margin-bottom:16px}
+.sec h2{font-size:14.5px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:7px}
+.sec h2 i{background:var(--gold);color:#1a1400;width:19px;height:19px;border-radius:5px;
+  display:grid;place-items:center;font-size:11px;font-weight:700;font-style:normal;flex:none}
+.sec p{font-size:12.5px;color:var(--sub);line-height:1.7}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line)}
+th{color:var(--sub);font-weight:500;font-size:11.5px}
+td.m{font-family:"Cascadia Mono",Consolas,monospace;font-variant-numeric:tabular-nums}
+.note{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.24);
+  border-radius:10px;padding:10px 12px;font-size:12.5px;color:#a8e6cd;margin-top:9px;line-height:1.65}
+.note b{color:var(--dn)}
+/* 主页入口 */
+.go{display:block;text-align:center;padding:14px;border-radius:12px;
+  background:linear-gradient(135deg,rgba(232,184,75,.18),rgba(232,184,75,.08));
+  border:1px solid rgba(232,184,75,.35);color:var(--gold);text-decoration:none;
+  font-size:15px;font-weight:600;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class="hd">
+  <h1>工作台 · 手机端填充对比</h1>
+  <p>左右对照：旧写法 vs 修复后</p>
+</div>
+<div class="wrap">
+  <div class="tip">
+    <b>建议横屏打开</b> —— 手机竖屏宽度只有 390px 左右，看不出「放大」的效果。
+    横屏后宽度到 700~900px，才能看到卡片拉伸填满的差别。
+  </div>
+
+  <div class="sw">
+    <button id="b1" class="on" onclick="mode(1)">◀ ▶ 对照</button>
+    <button id="b2" onclick="mode(2)">只看修复后</button>
+  </div>
+
+  <div class="stage">
+    <div class="vp">
+      <div class="win old" id="wOld" data-l="旧：限宽 + auto-fill">
+        <div class="pg pg-old"><div class="sec-wrap"><div class="sec-grid" id="gOld"></div></div></div>
+        <div class="gap" id="gap">空出来的位置</div>
+        <div class="tb" id="tb1">旧版</div>
+      </div>
+      <div class="win new" id="wNew" data-l="新：解锁 + auto-fit">
+        <div class="pg pg-new"><div class="sec-wrap"><div class="sec-grid" id="gNew"></div></div></div>
+        <div class="tb" id="tb2">修复后</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mm">
+    <div><span>旧版右侧空白</span><b id="m1">—</b></div>
+    <div><span>新版右侧空白</span><b id="m2">—</b></div>
+    <div><span>新版卡片宽度</span><b id="m3">—</b></div>
+    <div><span>新版列数</span><b id="m4">—</b></div>
+  </div>
+
+  <a class="go" href="https://baobao0933.github.io/finance-workbench/" target="_blank">
+    打开完整工作台 →
+  </a>
+
+  <div class="sec">
+    <h2><i>1</i>为什么旧版会空一块</h2>
+    <p>行业板块用了 <code>repeat(auto-fill, minmax(158px,1fr))</code>。
+    <b>auto-fill 在空间够时会多排空列</b>，卡片保持 158px 不变宽，右边就空出来了。
+    改成 <code>auto-fit</code> 后空列被折叠，卡片拉伸吃满整行。</p>
+    <table>
+      <thead><tr><th>写法</th><th>空间够时</th><th>结果</th></tr></thead>
+      <tbody>
+        <tr><td class="m">auto-fill</td><td style="color:var(--up)">多排空列</td><td>右侧留白</td></tr>
+        <tr><td class="m">auto-fit</td><td style="color:var(--dn)">折叠空列</td><td>拉伸填满</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="sec">
+    <h2><i>2</i>还有第二个原因</h2>
+    <p>行业板块、资金流向等 <b>7 个页面容器</b>被 <code>max-width</code> 限死
+    （1240px / 1080px / 1280px），而首页的 <code>.content</code> 是 <code>flex:1</code>
+    没有限宽 —— 这就是<b>只有首页能填满</b>的原因。</p>
+    <div class="note">全部改成 <b>max-width: 3200px</b> + 居中。留 3200px 兜底是因为
+    4K 屏 + 浏览器缩放时列会宽到没法看。</div>
+  </div>
+
+  <div class="sec">
+    <h2><i>3</i>手机竖屏不受影响</h2>
+    <p>本次改动<b>只在 ≥1200px 生效</b>。手机竖屏（约 390px）走的还是原来的规则，
+    列密度、限宽、留白全部不变。</p>
+    <div class="note">⚠️ 也就是说：<b>手机上这个改动基本看不出差别</b> ——
+    请务必<b>横屏</b>看，或者用桌面版把窗口拉宽验证。</div>
+  </div>
+</div>
+
+<script>
+var NAMES=['医疗器械','光通信','印制包装','农林牧渔','纺织机械','服装鞋类',
+'物流外贸','生物制药','公路桥梁','医药电商','电子信息','医疗器械',
+'综合行业','视觉行业','纺织行业','光伏','环保行业','休闲食品',
+'酒店旅游','文化传媒','影视院线','交通运输','船舶制造','汽车零部件','电源设备',
+'航天航空','医疗器械','开关区','电子元件','飞机'];
+var PCT=['+0.01','+2.91','+2.74','+2.71','+2.42','+2.19','+1.90','+1.76','+1.62','+1.22',
+'+1.17','+1.10','+1.10','-1.09','+1.07','+1.01','+0.99','+0.86','+0.81','+0.80',
+'+0.78','+0.78','+0.77','+0.66','+0.62','+0.61','+0.60','+0.54','+0.45','+0.37',
+'+0.33','+0.25','+0.20','+0.12'];
+function fill(id){
+  var g=document.getElementById(id);g.innerHTML='';
+  for(var i=0;i<24;i++){
+    var d=document.createElement('div');d.className='cell';
+    var up=PCT[i].charAt(0)!=='-';
+    d.innerHTML='<b>'+NAMES[i]+'</b><span style="color:'+(up?'var(--up)':'var(--dn)')+'">'+PCT[i]+'%</span>';
+    g.appendChild(d);
+  }
+}
+fill('gOld');fill('gNew');
+
+function gapOf(gridId,wrapSel){
+  var w=document.querySelector(wrapSel),g=document.getElementById(gridId);
+  if(!w||!g) return 0;
+  return Math.round(w.getBoundingClientRect().right-g.getBoundingClientRect().right);
+}
+function cellW(gridId){
+  var c=document.querySelectorAll('#'+gridId+' .cell');
+  return c.length?Math.round(c[0].getBoundingClientRect().width):0;
+}
+function upd(){
+  var vp=document.querySelector('.vp').getBoundingClientRect().width;
+  var split=Math.floor(vp/2);
+  document.getElementById('wOld').style.width=split+'px';
+  document.getElementById('wNew').style.width=split+'px';
+  document.getElementById('wNew').style.left=split+'px';
+  document.getElementById('tb1').textContent='旧版（宽度 '+split+'px）';
+  document.getElementById('tb2').textContent='修复后（宽度 '+split+'px）';
+  setTimeout(function(){
+    var go=gapOf('gOld','.pg-old .sec-wrap');
+    var gn=gapOf('gNew','.pg-new .sec-wrap');
+    var cm=cellW('gNew');
+    var gc=document.getElementById('gNew').getBoundingClientRect().width;
+    var cols=cm?Math.round(gc/(cm+10)):0;
+    var gp=document.getElementById('gap');
+    if(go>14){gp.style.display='flex';gp.style.left=(document.querySelector('.pg-old .sec-wrap').getBoundingClientRect().width+document.querySelector('.pg-old .sec-wrap').getBoundingClientRect().left+14)+'px';gp.style.width=(go-14)+'px';}
+    else gp.style.display='none';
+    var m1=document.getElementById('m1');m1.textContent=Math.max(0,go)+'px';
+    m1.style.color=go>14?'var(--up)':'var(--dn)';
+    var m2=document.getElementById('m2');m2.textContent=Math.max(0,gn)+'px';
+    m2.style.color=gn>14?'var(--up)':'var(--dn)';
+    document.getElementById('m3').textContent=cm+'px';
+    var m4=document.getElementById('m4');m4.textContent=cols+' 列';
+    m4.style.color='var(--dn)';
+  },260);
+}
+function mode(m){
+  var vp=document.querySelector('.vp').getBoundingClientRect().width;
+  var o=document.getElementById('wOld'),n=document.getElementById('wNew');
+  if(m===1){o.style.display='';n.style.left=(vp/2)+'px';n.style.width=(vp/2)+'px';
+    document.getElementById('b1').classList.add('on');document.getElementById('b2').classList.remove('on');}
+  else{o.style.display='none';n.style.left='0';n.style.width=vp+'px';
+    document.getElementById('b2').classList.add('on');document.getElementById('b1').classList.remove('on');}
+  setTimeout(upd,40);
+}
+window.addEventListener('resize',upd);
+window.addEventListener('orientationchange',function(){setTimeout(upd,300)});
+upd();
+</script>
+</body>
+</html>
