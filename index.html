@@ -3482,6 +3482,23 @@
   --dock-amp: 1.42;        /* 悬停项最大放大倍数 */
   --dock-falloff: 92px;    /* 衰减半径：超过此距离不放大 */
   --dock-near: 0.62;       /* 相邻项的基础跟随比例 */
+
+  /* ══════════════════════════════════════════════════════════════════════
+     点击动效参数（2026-10-12，依 motion-design skill 的时长表取值）
+     ───────────────────────────────────────────────────────────────────────
+     skill 的 Duration Table：
+       Button press / toggle   → 120-180ms   → 按压收缩用 120ms
+       Interactive feedback    → Press <150ms / Release-settle 200-300ms
+                                                          → 回弹用 300ms
+       Icon transition         → 150-250ms   → 高亮回落用 200ms
+     ═════════════════════════════════════════════════════════════════════ */
+  --dock-press-scale: .88;   /* 按压收缩目标（Anticipation + Squash）*/
+  --dock-press-in: 120ms;    /* 按下：必须快，否则不跟手 */
+  --dock-press-out: 300ms;   /* 松手：弹簧回弹（Release/settle）*/
+  --dock-ripple-dur: 420ms;  /* 涟漪扩散 */
+  --dock-flash-dur: 200ms;   /* 图标高亮回落 */
+  --dock-sink: 2px;          /* dock 整体下沉距离（Ambient 层）*/
+  --dock-ripple-color: 232, 184, 75;   /* 主题金 RGB */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -3517,9 +3534,24 @@
     0 2px 8px rgba(0, 0, 0, .22),
     inset 0 1px 0 rgba(255, 255, 255, .14);
 
+  /* ⭐ Ambient 层：dock 整体「下沉」—— 按下时整条栏跟着沉一点，
+     松手用 iOS 弹簧回弹。这是「实体感」的来源：不是图标在动，
+     而是你按下了一块有重量的东西。
+     ⚠️ 必须用变量拆开 translateX(-50%)，不能直接覆盖 transform
+         （会丢掉水平居中）。 */
+  transform: translateX(-50%) translateY(var(--dock-sink-y, 0px));
+  transition: transform var(--dock-press-out) var(--ios-spring);
+
   /* ⭐ 入场：从下方浮起（只播一次）*/
   animation: dock-in .58s cubic-bezier(.22, 1, .36, 1) both;
   animation-delay: .12s;
+}
+
+/* 按下时整条 dock 下沉 */
+.mac-dock.kz-pressed {
+  --dock-sink-y: var(--dock-sink);
+  /* 按下要快（120ms），回弹才用弹簧 —— 与图标同步 */
+  transition-duration: var(--dock-press-in);
 }
 
 @keyframes dock-in {
@@ -3595,6 +3627,90 @@
 
 .mac-dock .md-item:hover svg,
 .mac-dock .md-item.active svg { color: #fff; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2b. 点击动效（Primary + Secondary + Ambient 三层）
+   ───────────────────────────────────────────────────────────────────────────
+   按 motion-design skill 的 Button Press 模式 + 三运动层：
+
+   ① Primary（主）—— 按压 squash + 弹簧回弹
+      按下：.icon scale → .88，120ms ease-out（快，要跟手）
+      松手：.icon scale → 1，300ms iOS 弹簧（有过冲，手感「弹」）
+
+      ⭐ 为什么作用在 `.icon` 而不是 `.md-item`：
+         `.md-item` 的 transform 已被距离衰减占用（JS 写 --dock-scale），
+         两者会互相覆盖。作用在内层 `.icon` 上，父子 transform 自然叠加。
+
+   ② Secondary（次）—— 涟漪 + 图标高亮
+      涟漪：从点击点径向扩散，scale .2→2.4 + opacity .55→0
+      高亮：svg 瞬间提亮再回落（200ms）
+
+   ③ Ambient（环境）—— dock 整体下沉 2px（见 .kz-pressed）
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* ① Primary：按压 */
+.mac-dock .md-item .icon {
+  transform: scale(1);
+  /* 松手回弹：iOS 弹簧（有轻微过冲）*/
+  transition: transform var(--dock-press-out) var(--ios-spring);
+  will-change: transform;
+}
+
+/* 按下态：收缩。用 120ms ease-out —— 必须比回弹快，
+   否则「按下去」的反应会拖沓（skill: Press < 150ms）*/
+.mac-dock .md-item.kz-down .icon {
+  transform: scale(var(--dock-press-scale));
+  transition: transform var(--dock-press-in) var(--kz-ease-out);
+}
+
+/* ② Secondary：图标高亮（点击瞬间提亮）*/
+.mac-dock .md-item .icon > svg {
+  transition: color var(--dock-flash-dur) var(--ios-ease-out);
+}
+.mac-dock .md-item.kz-down .icon > svg,
+.mac-dock .md-item.kz-flash .icon > svg {
+  color: #fff;
+  /* 提亮 + 轻微发光，让「按到了」有视觉确认 */
+  filter: drop-shadow(0 0 6px rgba(var(--dock-ripple-color), .85));
+  transition: color 60ms linear, filter 60ms linear;
+}
+
+/* ② Secondary：涟漪 */
+.mac-dock .md-item .md-ripple {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--dock-icon);
+  height: var(--dock-icon);
+  margin-left: calc(var(--dock-icon) / -2);
+  margin-top: calc(var(--dock-icon) / -2);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+
+  background: radial-gradient(circle,
+    rgba(var(--dock-ripple-color), .5) 0%,
+    rgba(var(--dock-ripple-color), .22) 45%,
+    rgba(var(--dock-ripple-color), 0) 70%);
+
+  /* ⭐ 默认态：完全不可见但不占交互（铁律 D：不许 opacity:0 常驻
+     导致动画不触发——这里用 scale(0) + opacity:0，播放时 JS 加 .go）*/
+  transform: scale(.2);
+  opacity: 0;
+}
+
+/* 播放：一次性扩散，forwards 保证结束态是透明的 */
+.mac-dock .md-item .md-ripple.go {
+  animation: md-ripple var(--dock-ripple-dur) var(--ios-ease-out) forwards;
+}
+
+@keyframes md-ripple {
+  0%   { transform: scale(.2);  opacity: .55; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* ⭐ 涟漪要能被看见 —— dock 不能 overflow:hidden（会连名称气泡一起裁掉）*/
+.mac-dock { overflow: visible; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    3. 上方名称气泡
@@ -3790,6 +3906,16 @@ html[data-fps-q] .mac-dock .md-item::before {
   animation: none !important;
   transition: none !important;
 }
+/* 点击动效降级：零时长 + 状态复位（绝不用暂停那招）*/
+html[data-fps-q] .mac-dock .md-item .icon,
+html[data-fps-q] .mac-dock .md-item .icon > svg,
+html[data-fps-q] .mac-dock .md-item .md-ripple,
+html[data-fps-q] .mac-dock {
+  animation: none !important;
+  transition: none !important;
+}
+html[data-fps-q] .mac-dock .md-item .icon { transform: scale(1) !important; }
+html[data-fps-q] .mac-dock .md-item .md-ripple { opacity: 0 !important; transform: scale(.2) !important; }
 html[data-fps-q] .mac-dock {
   opacity: 1 !important;
   transform: translateX(-50%) !important;
@@ -3813,6 +3939,9 @@ html[data-fps-q] .mac-dock .md-item::after {
   .mac-dock .md-item .md-dot,
   .mac-dock .md-item::after,
   .mac-dock .md-item::before,
+  .mac-dock .md-item .icon,
+  .mac-dock .md-item .icon > svg,
+  .mac-dock .md-item .md-ripple,
   html:not([data-fps-q]) .sidebar {
     animation: none !important;
     transition: none !important;
@@ -3822,6 +3951,10 @@ html[data-fps-q] .mac-dock .md-item::after {
   .mac-dock .md-item .md-dot {
     opacity: 1 !important; transform: translateX(-50%) scale(1) !important;
   }
+  /* 点击动效：直接跳过（铁律 D：状态必须到达终值，不能停在中间）*/
+  .mac-dock .md-item .icon { transform: scale(1) !important; }
+  .mac-dock .md-item .md-ripple { opacity: 0 !important; transform: scale(.2) !important; }
+  .mac-dock .md-item .icon > svg { filter: none !important; }
   .mac-dock .md-item::after,
   .mac-dock .md-item::before { opacity: 0; visibility: hidden; }
 }
@@ -13236,8 +13369,13 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     mouseMoves: 0,
     scaled: 0,
     clicks: 0,
+    presses: 0,      /* 按下次数（点击动效 Primary 层）*/
+    ripples: 0,      /* 涟漪播放次数（Secondary 层）*/
     /* 上一次的鼠标 X，用于跳过无变化的事件 */
     lastX: -1,
+    /* 最近一次按下的坐标（供涟漪定位）*/
+    lastDownX: null,
+    lastDownY: null,
     /* 降档中 */
     degraded: false
   };
@@ -13350,8 +13488,13 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
       dot.className = 'md-dot';
       item.appendChild(dot);
 
+      /* 涟漪元素：每个图标一个，复用（不每次创建 DOM）*/
+      var rip = document.createElement('span');
+      rip.className = 'md-ripple';
+      item.appendChild(rip);
+
       /* ⭐ 点击转发到原 nav-item —— 原页面逻辑（switchPage 等）照常工作 */
-      (function (orig) {
+      (function (orig, el) {
         var fire = function (e) {
           if (e && e.type === 'keydown') {
             if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -13360,9 +13503,60 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
           state.clicks++;
           if (typeof orig.click === 'function') orig.click();
         };
-        item.addEventListener('click', fire);
-        item.addEventListener('keydown', fire);
-      })(src);
+        el.addEventListener('click', fire);
+        el.addEventListener('keydown', fire);
+      })(src, item);
+
+      /* ⭐ 点击动效三层：按压（Primary）+ 涟漪（Secondary）+ dock 下沉（Ambient）
+         与上面的 click 转发分开 —— 转发管「功能」，这里管「手感」，
+         两者互不影响：动效挂了也不该挡住点击。 */
+      (function (el, dockEl) {
+        var down = function (e) {
+          if (state.degraded || REDUCED) return;
+          /* 右键/中键不响应 */
+          if (e.type === 'pointerdown' && e.button !== 0) return;
+          el.classList.add('kz-down');
+          dockEl.classList.add('kz-pressed');
+          state.presses++;
+          /* 记住按下位置，松手时涟漪从这里扩散 */
+          if (e && typeof e.clientX === 'number') {
+            state.lastDownX = e.clientX;
+            state.lastDownY = e.clientY;
+          }
+        };
+        var up = function (e) {
+          el.classList.remove('kz-down');
+          dockEl.classList.remove('kz-pressed');
+          /* 松手才放涟漪 —— 按住不放时不出涟漪，避免「预支」反馈 */
+          if (e && e.type === 'pointerup' && e.button === 0) {
+            ripple(el, e.clientX, e.clientY);
+            flash(el);
+          }
+        };
+        el.addEventListener('pointerdown', down, { passive: true });
+        el.addEventListener('pointerup', up, { passive: true });
+        el.addEventListener('pointercancel', up, { passive: true });
+        el.addEventListener('pointerleave', up, { passive: true });
+
+        /* 键盘触发：Enter/Space 也要有反馈（可访问性）*/
+        el.addEventListener('keydown', function (e) {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          down(e);
+          /* 键盘没有「位置」，涟漪从中心出 */
+          ripple(el, null, null);
+          flash(el);
+          /* 短暂按压后自动回弹（模拟手指抬起）*/
+          setTimeout(function () {
+            el.classList.remove('kz-down');
+            dockEl.classList.remove('kz-pressed');
+          }, 130);
+        });
+        el.addEventListener('keyup', function (e) {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          el.classList.remove('kz-down');
+          dockEl.classList.remove('kz-pressed');
+        });
+      })(item, dock);
 
       frag.appendChild(item);
       count++;
@@ -13399,6 +13593,47 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
         items[i].removeAttribute('aria-current');
       }
     }
+    return true;
+  }
+
+  /* ═══ 点击动效：涟漪 + 高亮 ═════════════════════════════════════════════ */
+
+  /* 涟漪：从点击点径向扩散。
+     ⚠️ 必须先移除 .go、强制 reflow、再加回 .go —— 否则连续点击时
+        第二次动画不会重播（class 没变，浏览器认为无需重启动画）。*/
+  function ripple(item, clientX, clientY) {
+    if (state.degraded || REDUCED) return false;
+    var el = qs('.md-ripple', item);
+    if (!el) return false;
+
+    /* 有坐标就按点击点定位，没有（键盘）就用中心 */
+    if (typeof clientX === 'number') {
+      var r = item.getBoundingClientRect();
+      /* item 有 scale，rect 是缩放后的 → 除回缩放量才是本地坐标 */
+      var sc = parseFloat(item.style.getPropertyValue('--dock-scale')) || 1;
+      if (sc <= 0) sc = 1;
+      el.style.left = ((clientX - r.left) / sc) + 'px';
+      el.style.top = ((clientY - r.top) / sc) + 'px';
+      /* 定位后不再用 margin 居中 */
+      el.style.marginLeft = 'calc(var(--dock-icon) / -2)';
+      el.style.marginTop = 'calc(var(--dock-icon) / -2)';
+    } else {
+      el.style.left = '50%';
+      el.style.top = '50%';
+    }
+
+    el.classList.remove('go');
+    void el.offsetWidth;          /* 强制 reflow */
+    el.classList.add('go');
+    state.ripples++;
+    return true;
+  }
+
+  /* 图标高亮闪一下（视觉确认「按到了」）*/
+  function flash(item) {
+    if (state.degraded || REDUCED) return false;
+    item.classList.add('kz-flash');
+    setTimeout(function () { item.classList.remove('kz-flash'); }, 200);
     return true;
   }
 
@@ -13528,6 +13763,8 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
         mouseMoves: state.mouseMoves,
         scaled: state.scaled,
         clicks: state.clicks,
+        presses: state.presses,
+        ripples: state.ripples,
         retag: !!state.retag
       };
     },
@@ -13537,6 +13774,9 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     applyScale: applyScale,
     build: build,
     syncActive: syncActive,
+    /* 点击动效（测试可直接调）*/
+    ripple: ripple,
+    flash: flash,
     /* 手动模拟一次悬停，测试用 */
     hover: function (x) {
       var dock = qs('.mac-dock');
@@ -13547,7 +13787,20 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     /* 降级开关 */
     setDegraded: function (v) {
       state.degraded = !!v;
-      if (state.degraded) onLeave();
+      if (state.degraded) {
+        onLeave();
+        /* 点击动效也要复位 —— 否则降档后图标还缩着 */
+        var dock = qs('.mac-dock');
+        if (dock) {
+          dock.classList.remove('kz-pressed');
+          var its = qsa('.md-item', dock);
+          for (var i = 0; i < its.length; i++) {
+            its[i].classList.remove('kz-down', 'kz-flash');
+            var rp = qs('.md-ripple', its[i]);
+            if (rp) rp.classList.remove('go');
+          }
+        }
+      }
     },
     disable: function () { this.setDegraded(true); },
     enable: function () { this.setDegraded(false); }
