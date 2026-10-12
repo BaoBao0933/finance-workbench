@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0d16">
+<title>Dock 停靠栏 · 预览</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0a0d16;--surf:#111525;--surf2:#161d31;--line:#242c42;
+  --txt:#e8eaf2;--sub:#8b93b5;--gold:#e8b84b;
+  --dock-icon:38px;--dock-gap:8px;--dock-pad:9px;--dock-radius:21px;
+  --dock-amp:1.42;--dock-falloff:92px;--dock-near:0.62;
+}
+body{background:var(--bg);color:var(--txt);
+  font:15px/1.6 -apple-system,"Segoe UI",system-ui,"PingFang SC",sans-serif;
+  padding:0 0 calc(var(--dock-icon) + 90px) env(safe-area-inset-bottom)}
+.hd{position:sticky;top:0;z-index:20;background:rgba(10,13,22,.94);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  padding:calc(env(safe-area-inset-top) + 11px) 14px 11px;border-bottom:1px solid var(--line)}
+.hd h1{font-size:16px;font-weight:600}
+.hd p{font-size:12px;color:var(--sub);margin-top:2px}
+.wrap{padding:14px}
+.tip{background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.28);
+  border-radius:11px;padding:11px 13px;font-size:12.5px;color:#f0d9a8;margin-bottom:14px;line-height:1.65}
+.tip b{color:var(--gold)}
+/* 演示区 */
+.stage{background:#070a10;border:1px solid var(--line);border-radius:13px;
+  position:relative;height:min(58vh,460px);overflow:hidden;margin-bottom:14px}
+.fake{position:absolute;inset:0;padding:16px;opacity:.55}
+.fake h4{font-size:15px;margin-bottom:10px}
+.fcard{height:38px;background:rgba(255,255,255,.04);border-radius:9px;margin-bottom:8px}
+/* ══ 真正的 dock ══ */
+.mac-dock{
+  position:absolute;left:50%;bottom:16px;transform:translateX(-50%);
+  display:flex;align-items:flex-end;gap:var(--dock-gap);
+  padding:var(--dock-pad) var(--dock-pad) calc(var(--dock-pad) + 3px);
+  background:rgba(28,32,44,.62);
+  backdrop-filter:blur(22px) saturate(180%);-webkit-backdrop-filter:blur(22px) saturate(180%);
+  border:1px solid rgba(255,255,255,.13);border-radius:var(--dock-radius);
+  box-shadow:0 12px 32px rgba(0,0,0,.38),0 2px 8px rgba(0,0,0,.22),
+             inset 0 1px 0 rgba(255,255,255,.14);
+  z-index:10;
+}
+.md-item{
+  --dock-scale:1;position:relative;width:var(--dock-icon);height:var(--dock-icon);
+  flex:none;display:grid;place-items:center;border-radius:12px;cursor:pointer;
+  transform:scale(var(--dock-scale));transform-origin:center bottom;
+  transition:transform .16s cubic-bezier(.22,1,.36,1);
+  opacity:1;will-change:transform;
+}
+.md-item>svg{width:21px;height:21px;pointer-events:none;color:#cdd3de;
+  stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+  transition:color .16s}
+.md-item:hover>svg,.md-item.active>svg{color:#fff}
+.md-item::after{
+  content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 13px);
+  transform:translateX(-50%) translateY(5px) scale(.94);
+  padding:5px 11px;border-radius:8px;white-space:nowrap;
+  font-size:12.5px;font-weight:500;color:#f2f4f8;
+  background:rgba(20,24,34,.92);backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.12);box-shadow:0 6px 18px rgba(0,0,0,.34);
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .16s ease,transform .18s cubic-bezier(.22,1,.36,1),visibility .16s;
+}
+.md-item::before{
+  content:'';position:absolute;left:50%;bottom:calc(100% + 8px);
+  transform:translateX(-50%) translateY(5px);width:6px;height:6px;
+  background:rgba(20,24,34,.92);border-right:1px solid rgba(255,255,255,.12);
+  border-bottom:1px solid rgba(255,255,255,.12);rotate:45deg;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .16s ease,transform .18s cubic-bezier(.22,1,.36,1),visibility .16s;
+}
+.md-item:hover::after,.md-item:hover::before{
+  opacity:1;visibility:visible;transform:translateX(-50%) translateY(0) scale(1)}
+.md-item:hover::before{transform:translateX(-50%) translateY(0)}
+.md-dot{position:absolute;left:50%;bottom:-5px;transform:translateX(-50%);
+  width:5px;height:5px;border-radius:50%;background:var(--gold);
+  box-shadow:0 0 6px rgba(232,184,75,.75);opacity:1;pointer-events:none}
+@keyframes md-dot-pop{0%{transform:translateX(-50%) scale(.2);opacity:0}
+  60%{transform:translateX(-50%) scale(1.5);opacity:1}
+  100%{transform:translateX(-50%) scale(1);opacity:1}}
+.md-item.active .md-dot{animation:md-dot-pop .42s cubic-bezier(.34,1.56,.64,1) both}
+/* 说明 */
+.sec{margin-bottom:16px}
+.sec h2{font-size:14.5px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:7px}
+.sec h2 i{background:var(--gold);color:#1a1400;width:19px;height:19px;border-radius:5px;
+  display:grid;place-items:center;font-size:11px;font-weight:700;font-style:normal;flex:none}
+.sec p{font-size:12.5px;color:var(--sub);line-height:1.75}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line)}
+th{color:var(--sub);font-weight:500;font-size:11.5px}
+td.m{font-family:"Cascadia Mono",Consolas,monospace}
+.note{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.24);
+  border-radius:10px;padding:10px 12px;font-size:12.5px;color:#a8e6cd;margin-top:9px;line-height:1.65}
+.note b{color:#2ed591}
+.note.warn{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.24);color:#f8b4b4}
+/* 测量 */
+.mm{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+.mm>div{background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.mm span{font-size:11px;color:var(--sub);display:block}
+.mm b{font-size:15px;font-family:"Cascadia Mono",monospace;display:block;margin-top:2px}
+.go{display:block;text-align:center;padding:14px;border-radius:12px;
+  background:linear-gradient(135deg,rgba(232,184,75,.18),rgba(232,184,75,.08));
+  border:1px solid rgba(232,184,75,.35);color:var(--gold);text-decoration:none;
+  font-size:15px;font-weight:600;margin-bottom:12px}
+@media (max-width:640px){
+  :root{--dock-icon:32px;--dock-gap:4px;--dock-pad:7px;--dock-radius:18px}
+  .md-item>svg{width:18px;height:18px}
+  .md-item::after{font-size:11.5px;padding:4px 9px}
+}
+</style>
+</head>
+<body>
+<div class="hd"><h1>Dock 停靠栏 · 预览</h1><p>手指/鼠标在下面那排图标上滑一滑</p></div>
+<div class="wrap">
+  <div class="tip">
+    <b>把鼠标或手指放到底部那排图标上慢慢移动</b> ——
+    会看到<b>鼠标附近的图标变大、越远越小</b>，像拉手风琴一样。
+    这就是 macOS Dock 的效果。
+  </div>
+
+  <div class="stage">
+    <div class="fake">
+      <h4>（这里是页面内容，被 dock 挡不住）</h4>
+      <div class="fcard"></div><div class="fcard"></div><div class="fcard"></div>
+      <div class="fcard"></div><div class="fcard"></div>
+    </div>
+    <nav class="mac-dock" id="dock" role="navigation" aria-label="主导航"></nav>
+  </div>
+
+  <div class="mm">
+    <div><span>当前悬停项放大</span><b id="m1">1.00×</b></div>
+    <div><span>相邻项放大</span><b id="m2">1.00×</b></div>
+    <div><span>衰减半径</span><b>92px</b></div>
+    <div><span>图标数</span><b id="m3">—</b></div>
+  </div>
+
+  <a class="go" href="https://baobao0933.github.io/finance-workbench/" target="_blank">
+    打开完整工作台 →
+  </a>
+
+  <div class="sec">
+    <h2><i>1</i>四个需求逐个看</h2>
+    <table>
+      <thead><tr><th>需求</th><th>实现</th></tr></thead>
+      <tbody>
+        <tr><td>底部居中浮动玻璃</td><td>fixed + 左50% + translateX(-50%)，毛玻璃 + 内描边高光</td></tr>
+        <tr><td>只放图标</td><td>原「图标+文字」横排项，dock 里只留图标</td></tr>
+        <tr><td>当前放大 + 相邻跟随</td><td>JS 算鼠标到每个图标的<b>水平距离</b>，按平方衰减写 CSS 变量</td></tr>
+        <tr><td>上方显示名称</td><td>悬停时 ::after 气泡浮出（content: attr(data-tip)）</td></tr>
+        <tr><td>当前页小圆点</td><td>.active 项下方 5px 金点 + 首次弹跳</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="sec">
+    <h2><i>2</i>「相邻跟随」为什么必须用 JS</h2>
+    <p>纯 CSS 的 <code>:hover + .next</code> 只能让<b>直接相邻</b>的那一个放大，
+    而 macOS Dock 是「距离鼠标越近放大越多」的<b>连续曲线</b>。
+    所以必须由 JS 在移动时逐个算距离、写 CSS 变量。</p>
+    <table>
+      <thead><tr><th>距鼠标</th><th>放大</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td class="m">0px</td><td class="m">1.42×</td><td>悬停项本身</td></tr>
+        <tr><td class="m">12px</td><td class="m">1.34×</td><td>左右邻居（明显）</td></tr>
+        <tr><td class="m">24px</td><td class="m">1.27×</td><td>隔一个（仍看得出）</td></tr>
+        <tr><td class="m">46px</td><td class="m">1.14×</td><td>第四个（轻微）</td></tr>
+        <tr><td class="m">92px+</td><td class="m">1.00×</td><td>不放大</td></tr>
+      </tbody>
+    </table>
+    <div class="note">⭐ 用<b>平方</b>而不是线性衰减：线性看起来像一排被推开的积木，
+    平方才有「中间鼓起来」的弧度 —— 这是 macOS Dock 的辨识度所在。</div>
+  </div>
+
+  <div class="sec">
+    <h2><i>3</i>一个修掉的 bug</h2>
+    <div class="note warn">
+      第一版算法在 d≈6px 处会翘到 <b>1.59×</b>，比悬停项本身（1.42×）还高 ——
+      <b>鼠标明明在 A 上，旁边 B 却鼓得更高</b>，视觉像在抖。<br>
+      测试里加了一条硬断言「d=0 必须是全局最大值」当场抓住，
+      改成 <code>(1 + near × (1-t))</code> 后曲线恢复正常。
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2><i>4</i>手机上也适配了</h2>
+    <p>10 个图标 × 46px = 460px，竖屏只有 ~390px 会溢出。已按三档缩放：</p>
+    <table>
+      <thead><tr><th>屏宽</th><th>图标</th><th>间距</th><th>dock 总宽</th></tr></thead>
+      <tbody>
+        <tr><td>常规</td><td class="m">38px</td><td class="m">8px</td><td class="m">~530px</td></tr>
+        <tr><td>≤640px</td><td class="m">32px</td><td class="m">4px</td><td class="m">363px ✓</td></tr>
+        <tr><td>≤380px</td><td class="m">28px</td><td class="m">2px</td><td class="m">304px ✓</td></tr>
+      </tbody>
+    </table>
+    <div class="note">另外：侧边栏<b>没有删掉</b>，只是推出视口 + 视觉隐藏。
+    键盘 Tab 和读屏仍可用；dock 上的点击会<b>转发给原导航项</b>，原页面逻辑照常工作。</div>
+  </div>
+</div>
+
+<script>
+var ICONS=[
+ {n:'工作台首页',p:'M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8|M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'},
+ {n:'行业板块',p:'M10 12h4|M10 8h4|M14 21v-3a2 2 0 0 0-4 0v3|M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2|M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16'},
+ {n:'资金流向',p:'M16 7h6v6|m22 7-8.5 8.5-5-5L2 17'},
+ {n:'走势分析',p:'M9 5v4|M9 15v2|M17 3v2|M17 13v3|M3 3v16a2 2 0 0 0 2 2h16'},
+ {n:'期货市场',p:'M12 3v18|M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1|m5 8 3 8a5 5 0 0 1-6 0z|M7 21h10'},
+ {n:'重点关注',p:'M12 2a10 10 0 1 0 10 10|M12 6a6 6 0 1 0 6 6|M12 10a2 2 0 1 0 2 2'},
+ {n:'财经要闻',p:'M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9a2 2 0 0 1 2-2h2'},
+ {n:'龙虎榜',p:'M4 22h16|M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z'},
+ {n:'自选股票',p:'M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z'},
+ {n:'持仓股',p:'M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16|M2 6h20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z'}
+];
+var dock=document.getElementById('dock');
+ICONS.forEach(function(it,i){
+  var d=document.createElement('div');
+  d.className='md-item'+(i===0?' active':'');
+  d.setAttribute('data-tip',it.n);
+  d.setAttribute('role','button');d.setAttribute('tabindex','0');
+  d.setAttribute('aria-label',it.n);
+  var s='<svg viewBox="0 0 24 24">';
+  it.p.split('|').forEach(function(seg){s+='<path d="'+seg+'"/>'});
+  s+='</svg>';
+  d.innerHTML=s+'<span class="md-dot"></span>';
+  d.addEventListener('click',function(){
+    document.querySelectorAll('.md-item').forEach(function(x){x.classList.remove('active')});
+    d.classList.add('active');
+  });
+  dock.appendChild(d);
+});
+document.getElementById('m3').textContent=ICONS.length+' 个';
+
+/* ⭐ 距离衰减（与线上实现完全一致）*/
+var AMP=1.42,FALL=92,NEAR=0.62,IDLE=1.0;
+function scaleAt(d){
+  if(d<=0)return AMP;
+  if(d>=FALL)return IDLE;
+  var t=1-d/FALL;
+  return IDLE+(AMP-IDLE)*t*t*(1+NEAR*(1-t));
+}
+var raf=0,px=null,last=-1;
+function flush(){
+  raf=0;
+  if(px===null)return;
+  var its=dock.querySelectorAll('.md-item'),n=0;
+  for(var i=0;i<its.length;i++){
+    var r=its[i].getBoundingClientRect();
+    var cx=r.left+r.width/2;
+    var v=scaleAt(Math.abs(px-cx));
+    its[i].style.setProperty('--dock-scale',v.toFixed(3));
+  }
+  document.getElementById('m1').textContent=scaleAt(0).toFixed(2)+'×';
+  document.getElementById('m2').textContent=scaleAt(12).toFixed(2)+'×';
+}
+dock.addEventListener('mousemove',function(e){
+  px=e.clientX;state_resizes=1;
+  if(Math.abs(e.clientX-last)<1)return;
+  last=e.clientX;px=e.clientX;
+  if(!raf)raf=requestAnimationFrame(flush);
+},{passive:true});
+dock.addEventListener('mouseleave',function(){
+  last=-1;px=null;
+  dock.querySelectorAll('.md-item').forEach(function(x){
+    x.style.setProperty('--dock-scale','1')});
+});
+dock.addEventListener('touchmove',function(e){
+  var t=e.touches&&e.touches[0];
+  if(t){px=t.clientX;if(!raf)raf=requestAnimationFrame(flush);}
+},{passive:true});
+dock.addEventListener('touchend',function(){
+  dock.querySelectorAll('.md-item').forEach(function(x){
+    x.style.setProperty('--dock-scale','1')});
+},{passive:true});
+</script>
+</body>
+</html>
