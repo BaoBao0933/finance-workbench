@@ -3431,7 +3431,381 @@
 </style>
 <!-- KAZUMI:CSS:END -->
 
-</style><!-- FF:CSS:BEGIN -->
+</style><!-- DOCK:CSS:BEGIN -->
+<!-- mac-dock (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<style id="mac-dock-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   mac-dock · 底部浮动玻璃停靠栏（2026-10-12）
+   ───────────────────────────────────────────────────────────────────────────
+   需求（来自截图 + 原话）：
+     「菜单做成底部居中的浮动玻璃停靠栏，只放图标；
+       悬停时当前图标放大，相邻图标跟随放大；
+       上方显示名称；当前页图标下方加一个小圆点。」
+
+   ── 实现要点 ────────────────────────────────────────────────────────────
+
+   ① 玻璃停靠栏
+      底部居中悬浮，不占布局空间（position: fixed）。
+      backdrop-filter 毛玻璃 + 内描边高光（macOS 的玻璃质感）。
+
+   ② 只放图标
+      侧边栏原来的「图标 + 文字」横排项，在 dock 里只留图标。
+      ⚠️ **文字没有删**，只是视觉隐藏（Dock 用 tooltip 显示名称）——
+         侧边栏本身保留原样，只是被 dock 遮住，键盘/读屏仍可用。
+
+   ③ 悬停放大 + 相邻跟随
+      ⭐ 这是本层最核心的算法，**纯 CSS 做不到**：
+         `:hover + .next` 只能让**直接相邻**的那一个放大，
+         而 macOS Dock 是「距离鼠标越近，放大越多」的**连续衰减**。
+         必须由 JS 在 mousemove 时算出每个图标到鼠标的距离，
+         按衰减函数分配缩放比例，写入 CSS 变量。
+      CSS 侧只负责把变量应用到 transform: scale()。
+
+   ④ 上方显示名称
+      悬停时图标正上方浮出名称气泡。用 ::after + content: attr() 取 data-tip。
+
+   ⑤ 当前页小圆点
+      .nav-item.active 下方加 6px 圆点（macOS 的「正在运行」指示器）。
+
+   ⚠️ 铁律：全部走 transform / opacity，零重排。
+   ⚠️ 铁律 D：默认态必须可见 —— 圆点、名称气泡都不得用 opacity:0 常驻。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Dock 尺寸 */
+  --dock-icon: 38px;
+  --dock-gap: 8px;
+  --dock-pad: 9px;
+  --dock-radius: 21px;
+
+  /* ⭐ 放大衰减参数（JS 与 CSS 共用，改这里即全局生效）*/
+  --dock-amp: 1.42;        /* 悬停项最大放大倍数 */
+  --dock-falloff: 92px;    /* 衰减半径：超过此距离不放大 */
+  --dock-near: 0.62;       /* 相邻项的基础跟随比例 */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   1. Dock 容器
+   ───────────────────────────────────────────────────────────────────────────
+   ⚠️ 用 `body > .mac-dock` 而非侧边栏内的元素 ——
+      侧边栏有 overflow-y:auto，放 fixed 子元素会被裁剪。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.mac-dock {
+  position: fixed;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 9000;
+
+  display: flex;
+  align-items: flex-end;
+  gap: var(--dock-gap);
+
+  padding: var(--dock-pad) var(--dock-pad) calc(var(--dock-pad) + 3px);
+
+  /* 玻璃质感：毛玻璃 + 半透明底 + 内描边 */
+  background: rgba(28, 32, 44, .62);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: var(--dock-radius);
+
+  /* 悬浮阴影：让 dock 「浮」在内容之上 */
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, .38),
+    0 2px 8px rgba(0, 0, 0, .22),
+    inset 0 1px 0 rgba(255, 255, 255, .14);
+
+  /* ⭐ 入场：从下方浮起（只播一次）*/
+  animation: dock-in .58s cubic-bezier(.22, 1, .36, 1) both;
+  animation-delay: .12s;
+}
+
+@keyframes dock-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(26px) scale(.96); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2. Dock 图标项
+   ───────────────────────────────────────────────────────────────────────────
+   ⭐ 关键：用 CSS 变量承载 JS 算出的缩放值。
+      --dock-scale 由 JS 写入，未写入时默认 1（铁律 D：默认可见）。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.mac-dock .md-item {
+  --dock-scale: 1;
+
+  position: relative;
+  width: var(--dock-icon);
+  height: var(--dock-icon);
+  flex: none;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 12px;
+  cursor: pointer;
+
+  /* ⭐ 放大走 transform —— 合成层，零重排 */
+  transform: scale(var(--dock-scale));
+  transform-origin: center bottom;    /* 底部对齐：放大时向上长，不挤压邻居 */
+  transition: transform .16s cubic-bezier(.22, 1, .36, 1);
+
+  /* ⚠️ 默认态图标必须完全可见（铁律 D）*/
+  opacity: 1;
+  will-change: transform;
+}
+
+/* 图标本体 */
+.mac-dock .md-item > svg {
+  width: 21px;
+  height: 21px;
+  display: block;
+  pointer-events: none;      /* 点击交给父级 */
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: #cdd3de;
+  transition: color .16s ease;
+}
+
+.mac-dock .md-item:hover > svg,
+.mac-dock .md-item.active > svg { color: #fff; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3. 上方名称气泡
+   ───────────────────────────────────────────────────────────────────────────
+   ⚠️ 绝不用 opacity:0 作默认态 —— 铁律 D。
+      这里用 visibility + transform 的组合：默认隐藏但**占位计算已完成**，
+      且 reduced-motion 下仍能正常显示（不会永久消失）。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.mac-dock .md-item::after {
+  content: attr(data-tip);
+
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 13px);
+  transform: translateX(-50%) translateY(5px) scale(.94);
+
+  padding: 5px 11px;
+  border-radius: 8px;
+  white-space: nowrap;
+
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #f2f4f8;
+
+  background: rgba(20, 24, 34, .92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, .12);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .34);
+
+  /* ⭐ 默认隐藏，但不影响布局、不影响功能 */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+
+  transition:
+    opacity .16s ease,
+    transform .18s cubic-bezier(.22, 1, .36, 1),
+    visibility .16s;
+}
+
+/* 小箭头 */
+.mac-dock .md-item::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(5px);
+  width: 6px;
+  height: 6px;
+  background: rgba(20, 24, 34, .92);
+  border-right: 1px solid rgba(255, 255, 255, .12);
+  border-bottom: 1px solid rgba(255, 255, 255, .12);
+  rotate: 45deg;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .16s ease, transform .18s cubic-bezier(.22, 1, .36, 1),
+              visibility .16s;
+}
+
+/* 悬停才显示名称 */
+.mac-dock .md-item:hover::after,
+.mac-dock .md-item:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+.mac-dock .md-item:hover::before,
+.mac-dock .md-item:focus-visible::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   4. 当前页小圆点（macOS 的「正在运行」指示器）
+   ───────────────────────────────────────────────────────────────────────────
+   ⚠️ 默认态就必须可见（铁律 D）—— 不是「播放后才出现」，
+      它表示「这是当前页」，是个**状态**不是**动画**。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.mac-dock .md-item .md-dot {
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  transform: translateX(-50%);
+
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+
+  background: var(--gold, #e8b84b);
+  box-shadow: 0 0 6px rgba(232, 184, 75, .75);
+
+  /* ⭐ 状态指示：默认可见，绝不用 opacity:0 起手 */
+  opacity: 1;
+  pointer-events: none;
+}
+
+/* 首次出现时轻微弹一下（只播一次，不循环）*/
+@keyframes md-dot-pop {
+  0%   { transform: translateX(-50%) scale(.2); opacity: 0; }
+  60%  { transform: translateX(-50%) scale(1.5); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+.mac-dock .md-item.active .md-dot {
+  animation: md-dot-pop .42s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5. 隐藏侧边栏
+   ───────────────────────────────────────────────────────────────────────────
+   ⚠️ 不是 display:none（那会杀掉键盘访问和读屏），
+      而是把侧边栏推出视口 + 隐藏可视性。
+      内容移进 dock 后，原 nav-item 变成「影子按钮」，仍可点击。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+html:not([data-fps-q]) .app,
+html:not([data-fps-q]) body {
+  /* 侧边栏让位后，主区占满 */
+}
+
+html:not([data-fps-q]) .sidebar {
+  position: fixed !important;
+  left: -240px;
+  top: 0;
+  bottom: 0;
+  width: 216px !important;
+  min-width: 216px;
+  z-index: 1;
+  /* ⭐ 视觉隐藏但保留在 DOM 与可访问性树里 */
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform .3s cubic-bezier(.4, 0, .2, 1), visibility .3s;
+}
+
+/* 侧边栏隐藏后主区拉满（原来是 flex 子项，flex:1 自适应即可）*/
+html:not([data-fps-q]) .main {
+  width: 100%;
+}
+
+/* Dock 出现后，内容底部留出空间，避免最后一行被 dock 遮住 */
+html:not([data-fps-q]) .content {
+  padding-bottom: calc(var(--dock-icon) + 46px) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   6. 窄屏适配
+   ───────────────────────────────────────────────────────────────────────────
+   ⭐ 手机竖屏：10 个图标 × (38+8) = 460px，超过手机宽度。
+      必须缩小图标 + 收紧间距，否则 dock 会横向溢出。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+  :root {
+    --dock-icon: 32px;
+    --dock-gap: 4px;
+    --dock-pad: 7px;
+    --dock-radius: 18px;
+  }
+  .mac-dock .md-item > svg { width: 18px; height: 18px; }
+  .mac-dock .md-item::after { font-size: 11.5px; padding: 4px 9px; }
+  /* 手机上名称气泡常显会挡住 dock，只在悬停/聚焦时显示（已是默认）*/
+}
+
+/* 超窄屏（< 380px）：图标再缩一档 */
+@media (max-width: 380px) {
+  :root {
+    --dock-icon: 28px;
+    --dock-gap: 2px;
+    --dock-pad: 6px;
+  }
+  .mac-dock .md-item > svg { width: 16px; height: 16px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   7. 降级
+   ───────────────────────────────────────────────────────────────────────────
+   ⚠️ 本层降级只有一档：`animation: none` + 状态直达终值。
+      ⭐ 绝不用「暂停动画」那招（会把元素冻结在第 0 帧）。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+html[data-fps-q] .mac-dock,
+html[data-fps-q] .mac-dock .md-item,
+html[data-fps-q] .mac-dock .md-item .md-dot,
+html[data-fps-q] .mac-dock .md-item::after,
+html[data-fps-q] .mac-dock .md-item::before {
+  animation: none !important;
+  transition: none !important;
+}
+html[data-fps-q] .mac-dock {
+  opacity: 1 !important;
+  transform: translateX(-50%) !important;
+}
+html[data-fps-q] .mac-dock .md-item {
+  transform: scale(1) !important;
+  opacity: 1 !important;
+}
+html[data-fps-q] .mac-dock .md-item .md-dot {
+  opacity: 1 !important;
+  transform: translateX(-50%) scale(1) !important;
+}
+/* 名称气泡在降档下改为「始终可见」更省心 */
+html[data-fps-q] .mac-dock .md-item::after {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mac-dock,
+  .mac-dock .md-item,
+  .mac-dock .md-item .md-dot,
+  .mac-dock .md-item::after,
+  .mac-dock .md-item::before,
+  html:not([data-fps-q]) .sidebar {
+    animation: none !important;
+    transition: none !important;
+  }
+  .mac-dock { opacity: 1 !important; transform: translateX(-50%) !important; }
+  .mac-dock .md-item { transform: scale(1) !important; opacity: 1 !important; }
+  .mac-dock .md-item .md-dot {
+    opacity: 1 !important; transform: translateX(-50%) scale(1) !important;
+  }
+  .mac-dock .md-item::after,
+  .mac-dock .md-item::before { opacity: 0; visibility: hidden; }
+}
+
+</style><!-- DOCK:CSS:END -->
+<!-- FF:CSS:BEGIN -->
 <!-- fluid-fill (2026-10-11) | 移植 Predidit/Kazumi 转场体系 | 方向感知 + 70ms极快 + 共享元素飞行 + 零时长降级 -->
 <style id="fluid-fill-style">
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -12794,6 +13168,377 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   update();
 })();
 </script>
+<!-- DOCK:JS:BEGIN -->
+<!-- mac-dock (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<script id="mac-dock-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   mac-dock · 运行时（2026-10-12）
+   ───────────────────────────────────────────────────────────────────────────
+   CSS 负责「长什么样」，本层负责三件 CSS 做不到的事：
+
+   ① ⭐⭐⭐ 距离衰减放大（macOS Dock 的灵魂）
+      纯 CSS 只能做到「直接相邻的那一个放大」（:hover + .next），
+      而 macOS Dock 是「距离鼠标越近放大越多」的**连续函数**。
+      这里在 mousemove 时算出每个图标中心到鼠标的水平距离，
+      按余弦衰减算出缩放值，写入 CSS 变量 --dock-scale。
+
+   ② 把侧边栏的 10 个 nav-item 搬进 dock（DOM 迁移，不重写 HTML）
+
+   ③ 点击转发 + 当前页状态同步
+      dock 上的点击要触发原 nav-item 的点击（原页面逻辑照常工作），
+      当前页切换时同步移动小圆点。
+
+   ⚠️ 铁律：只写 CSS 变量 + transform，零重排。
+   ╠️ 铁律 D：所有默认态必须可见。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+(function () {
+  'use strict';
+
+  if (window.__macDockInstalled) return;
+  window.__macDockInstalled = true;
+
+  var REDUCED = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var state = {
+    installed: true,
+    reduced: REDUCED,
+    /* dock 是否已建立 */
+    built: false,
+    /* 图标数 */
+    items: 0,
+    /* 当前页 */
+    active: null,
+    /* 统计 */
+    mouseMoves: 0,
+    scaled: 0,
+    clicks: 0,
+    /* 上一次的鼠标 X，用于跳过无变化的事件 */
+    lastX: -1,
+    /* 降档中 */
+    degraded: false
+  };
+
+  /* ═══ 参数（与 dock.css 的 :root 保持一致）═══════════════════════════════ */
+
+  var CFG = {
+    amp: 1.42,        // 悬停项最大放大倍数
+    falloff: 92,      // 衰减半径（px）
+    near: 0.62,       // 相邻项基础跟随比例
+    idle: 1.0,        // 常态
+    maxItems: 12      // 安全上限
+  };
+
+  /* ═══ 工具 ═══════════════════════════════════════════════════════════ */
+
+  function qs(sel, root) {
+    return (root || document).querySelector(sel);
+  }
+  function qsa(sel, root) {
+    return Array.prototype.slice.call((root || document).querySelectorAll(sel));
+  }
+
+  /* ═══ ① 距离衰减放大 ═════════════════════════════════════════════════
+     算法：对每个图标，算它中心到鼠标的水平距离 d，
+           d = 0        → 放大到 amp（悬停项本身）
+           0 < d < falloff → 按 (1 - d/falloff) 的平方衰减到 1
+           d >= falloff → 1（不放大）
+
+     ⭐ 为什么用**平方**而不是线性：
+        线性衰减在视觉上是「等距递减」，看起来像一排被推开的积木；
+        平方衰减才有 macOS 那种「中间鼓起来」的弧度 —— 邻居明显、
+        隔壁的隔壁几乎看不出。这是 macOS Dock 的辨识度所在。
+
+     ⚠️ 只算水平距离：dock 是横向排列的，纵向距离没有意义。
+     ═══════════════════════════════════════════════════════════════════ */
+
+  function scaleAt(d) {
+    if (d <= 0) return CFG.amp;
+    if (d >= CFG.falloff) return CFG.idle;
+    var t = 1 - d / CFG.falloff;
+    /* ⭐ 2026-10-12 修正：原来写的是 `t * t * (1 + near)`，
+       而 near=0.62 是个 >1 的系数 → 曲线在 d≈6px 处会翘到 1.59，
+       **比悬停项本身（1.42）还大**。这违反了「d=0 是最大值」的基本前提，
+       视觉表现是：鼠标明明在 A 上，旁边 B 却鼓得更高，看着像抖动。
+       正解：near 只作为**下限**参与，不参与放大顶部 ——
+       用 (1 + near * (1 - t)) 让系数从 (1+near) 平滑降到 1，
+       既保留「邻居也明显」的效果，又保证 d=0 仍是全局最大值。 */
+    return CFG.idle + (CFG.amp - CFG.idle) * t * t * (1 + CFG.near * (1 - t));
+  }
+
+  function applyScale(dock, mouseX) {
+    var items = qsa('.md-item', dock);
+    if (!items.length) return 0;
+    var n = 0;
+
+    for (var i = 0; i < items.length; i++) {
+      var r = items[i].getBoundingClientRect();
+      if (!r.width) continue;
+      var cx = r.left + r.width / 2;
+      var d = Math.abs(mouseX - cx);
+      var s = scaleAt(d);
+      /* 只在变化超过 1% 时才写变量 —— 减少样式重算 */
+      var prev = parseFloat(items[i].style.getPropertyValue('--dock-scale'));
+      if (isNaN(prev) || Math.abs(prev - s) > 0.01) {
+        items[i].style.setProperty('--dock-scale', s.toFixed(3));
+        n++;
+      }
+    }
+    state.scaled = n;
+    return n;
+  }
+
+  /* ═══ ② 建 dock：把侧边栏 nav-item 搬进来 ═══════════════════════════════ */
+
+  function build() {
+    if (state.built) return false;
+
+    var navs = qsa('.nav-item');
+    if (!navs.length) return false;
+
+    var dock = document.createElement('nav');
+    dock.className = 'mac-dock';
+    dock.setAttribute('role', 'navigation');
+    dock.setAttribute('aria-label', '主导航');
+
+    var frag = document.createDocumentFragment();
+    var count = 0;
+
+    for (var i = 0; i < navs.length && count < CFG.maxItems; i++) {
+      var src = navs[i];
+      var page = src.getAttribute('data-page') || '';
+      var active = src.classList.contains('active');
+
+      var item = document.createElement('div');
+      item.className = 'md-item' + (active ? ' active' : '');
+      item.setAttribute('data-page', page);
+      item.setAttribute('data-tip', page);       /* 名称气泡取这里 */
+      item.setAttribute('role', 'button');
+      item.setAttribute('tabindex', '0');
+      item.setAttribute('aria-label', page);
+      if (active) item.setAttribute('aria-current', 'page');
+
+      /* ⭐ 图标直接搬过来（不重新解析 SVG 字符串，避免丢属性）*/
+      var ico = qs('.icon', src);
+      if (ico) item.appendChild(ico.cloneNode(true));
+
+      /* 小圆点：当前页标记 */
+      var dot = document.createElement('span');
+      dot.className = 'md-dot';
+      item.appendChild(dot);
+
+      /* ⭐ 点击转发到原 nav-item —— 原页面逻辑（switchPage 等）照常工作 */
+      (function (orig) {
+        var fire = function (e) {
+          if (e && e.type === 'keydown') {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+          }
+          state.clicks++;
+          if (typeof orig.click === 'function') orig.click();
+        };
+        item.addEventListener('click', fire);
+        item.addEventListener('keydown', fire);
+      })(src);
+
+      frag.appendChild(item);
+      count++;
+    }
+
+    if (!count) return false;
+    dock.appendChild(frag);
+
+    /* ⭐ 挂到 body 下，不挂侧边栏（侧边栏 overflow-y:auto 会裁掉 fixed 子元素）*/
+    document.body.appendChild(dock);
+    state.items = count;
+    state.built = true;
+    return true;
+  }
+
+  /* ═══ ③ 当前页状态同步 ═══════════════════════════════════════════════ */
+
+  function syncActive() {
+    var dock = qs('.mac-dock');
+    if (!dock) return false;
+    var cur = qsa('.nav-item.active');
+    var page = cur.length ? cur[0].getAttribute('data-page') : null;
+    if (page === state.active) return false;
+    state.active = page;
+
+    var items = qsa('.md-item', dock);
+    for (var i = 0; i < items.length; i++) {
+      var isOn = items[i].getAttribute('data-page') === page;
+      if (isOn) {
+        items[i].classList.add('active');
+        items[i].setAttribute('aria-current', 'page');
+      } else {
+        items[i].classList.remove('active');
+        items[i].removeAttribute('aria-current');
+      }
+    }
+    return true;
+  }
+
+  /* ═══ 鼠标跟随 ═══════════════════════════════════════════════════════ */
+
+  var rafId = 0;
+  var pendingX = null;
+
+  function onMove(e) {
+    var x = e && typeof e.clientX === 'number' ? e.clientX : null;
+    if (x === null) return;
+    state.mouseMoves++;
+    /* ⭐ 同一个 X 不重复计算 */
+    if (Math.abs(x - state.lastX) < 1) return;
+    state.lastX = x;
+    pendingX = x;
+    if (rafId) return;
+    rafId = requestAnimationFrame(flush);
+  }
+
+  function flush() {
+    rafId = 0;
+    var dock = qs('.mac-dock');
+    if (!dock || pendingX === null) return;
+    if (state.degraded || REDUCED) {
+      /* 降档：一律不放大 */
+      var its = qsa('.md-item', dock);
+      for (var i = 0; i < its.length; i++) {
+        its[i].style.setProperty('--dock-scale', '1');
+      }
+      return;
+    }
+    applyScale(dock, pendingX);
+  }
+
+  function onLeave() {
+    var dock = qs('.mac-dock');
+    if (!dock) return;
+    state.lastX = -1;
+    pendingX = null;
+    var items = qsa('.md-item', dock);
+    for (var i = 0; i < items.length; i++) {
+      items[i].style.setProperty('--dock-scale', '1');
+    }
+  }
+
+  /* ═══ 启动 ══════════════════════════════════════════════════════════ */
+
+  function init() {
+    if (!build()) {
+      /* 侧边栏还没渲染出来（极少见），等 DOM 就绪再试 */
+      return false;
+    }
+
+    var dock = qs('.mac-dock');
+
+    /* ⭐ 只在 dock 自身范围内监听 —— 不在 document 上，
+       否则整页移动鼠标都会触发计算（性能）*/
+    dock.addEventListener('mousemove', onMove, { passive: true });
+    dock.addEventListener('mouseleave', onLeave, { passive: true });
+
+    /* 触屏：tap 即放大一下（用 :active 已够，这里只兜底聚焦态）*/
+    dock.addEventListener('touchstart', function (e) {
+      var t = e.touches && e.touches[0];
+      if (t) onMove({ clientX: t.clientX });
+    }, { passive: true });
+
+    /* 键盘 Tab 也能触发放大（可访问性）*/
+    dock.addEventListener('focusin', function (e) {
+      var item = e.target && e.target.closest
+        ? e.target.closest('.md-item') : null;
+      if (!item) return;
+      var r = item.getBoundingClientRect();
+      onMove({ clientX: r.left + r.width / 2 });
+    });
+
+    /* 侧边栏切换页时同步圆点 */
+    document.addEventListener('click', function (e) {
+      var n = e.target && e.target.closest
+        ? e.target.closest('.nav-item') : null;
+      if (n) setTimeout(syncActive, 60);
+    });
+
+    /* 面板重绘后重新同步（行情面板会重建 DOM）*/
+    if (typeof MutationObserver === 'function') {
+      var mo = new MutationObserver(function () {
+        clearTimeout(state.syncTimer);
+        state.syncTimer = setTimeout(function () {
+          syncActive();
+          /* nav-item 被重建则重搬 */
+          if (!qs('.mac-dock')) {
+            state.built = false;
+            build();
+            bind();
+          }
+        }, 400);
+      });
+      try {
+        mo.observe(document.body, { childList: true, subtree: true });
+        state.retag = true;
+      } catch (e) { state.retag = false; }
+    }
+
+    syncActive();
+    state.ready = true;
+    return true;
+  }
+
+  function bind() {
+    var dock = qs('.mac-dock');
+    if (!dock) return;
+    dock.addEventListener('mousemove', onMove, { passive: true });
+    dock.addEventListener('mouseleave', onLeave, { passive: true });
+  }
+
+  /* ═══ 对外 API ══════════════════════════════════════════════════════ */
+
+  window.__macDock = {
+    state: function () {
+      return {
+        ready: !!state.ready,
+        reduced: state.reduced,
+        degraded: state.degraded,
+        built: state.built,
+        items: state.items,
+        active: state.active,
+        mouseMoves: state.mouseMoves,
+        scaled: state.scaled,
+        clicks: state.clicks,
+        retag: !!state.retag
+      };
+    },
+    cfg: CFG,
+    /* ⭐ 衰减函数单独暴露 —— 测试可直接验证算法 */
+    scaleAt: scaleAt,
+    applyScale: applyScale,
+    build: build,
+    syncActive: syncActive,
+    /* 手动模拟一次悬停，测试用 */
+    hover: function (x) {
+      var dock = qs('.mac-dock');
+      if (!dock) return 0;
+      state.lastX = -1;
+      return applyScale(dock, x);
+    },
+    /* 降级开关 */
+    setDegraded: function (v) {
+      state.degraded = !!v;
+      if (state.degraded) onLeave();
+    },
+    disable: function () { this.setDegraded(true); },
+    enable: function () { this.setDegraded(false); }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
+</script><!-- DOCK:JS:END -->
 <!-- FF:JS:BEGIN -->
 <!-- fluid-fill (2026-10-11) | 移植 Predidit/Kazumi 转场体系 | 方向感知 + 70ms极快 + 共享元素飞行 + 零时长降级 -->
 <script id="fluid-fill-js">
