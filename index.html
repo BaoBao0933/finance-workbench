@@ -3492,12 +3492,18 @@
                                                           → 回弹用 300ms
        Icon transition         → 150-250ms   → 高亮回落用 200ms
      ═════════════════════════════════════════════════════════════════════ */
-  --dock-press-scale: .88;   /* 按压收缩目标（Anticipation + Squash）*/
-  --dock-press-in: 120ms;    /* 按下：必须快，否则不跟手 */
+  --dock-press-scale: .82;   /* 按压收缩目标（Anticipation + Squash）
+                                ⚠️ 2026-10-12 从 .88 调到 .82：
+                                悬停时 .md-item 已被距离衰减放到 1.42，
+                                视觉缩放 = 1.42 × icon-scale。.88 时视觉只从
+                                1.42→1.25（差 .17），回弹被大基数稀释；
+                                .82 时 1.42→1.16（差 .26），按压才感觉得到。*/
+  --dock-press-in: 100ms;    /* 按下：必须快，否则不跟手 */
   --dock-press-out: 300ms;   /* 松手：弹簧回弹（Release/settle）*/
+  --dock-bounce-dur: 560ms;  /* ⭐ 弹跳动画总时长（含二次振荡）*/
   --dock-ripple-dur: 420ms;  /* 涟漪扩散 */
   --dock-flash-dur: 200ms;   /* 图标高亮回落 */
-  --dock-sink: 2px;          /* dock 整体下沉距离（Ambient 层）*/
+  --dock-sink: 3px;          /* dock 整体下沉距离（Ambient 层）*/
   --dock-ripple-color: 232, 184, 75;   /* 主题金 RGB */
 }
 
@@ -3651,16 +3657,78 @@
 /* ① Primary：按压 */
 .mac-dock .md-item .icon {
   transform: scale(1);
-  /* 松手回弹：iOS 弹簧（有轻微过冲）*/
-  transition: transform var(--dock-press-out) var(--ios-spring);
+  /* 兜底过渡：动画没接到时至少有个平滑回归 */
+  transition: transform 180ms var(--ios-ease-out);
   will-change: transform;
 }
 
-/* 按下态：收缩。用 120ms ease-out —— 必须比回弹快，
+/* 按下态：收缩。用 100ms ease-out —— 必须比回弹快，
    否则「按下去」的反应会拖沓（skill: Press < 150ms）*/
 .mac-dock .md-item.kz-down .icon {
   transform: scale(var(--dock-press-scale));
   transition: transform var(--dock-press-in) var(--kz-ease-out);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ⭐⭐⭐ 松手弹跳（2026-10-12 重写：原来用 transition + --ios-spring，
+         用户反馈「完全没用回弹的感觉」）
+   ───────────────────────────────────────────────────────────────────────────
+   为什么原来的写法没弹感（两个原因叠加）：
+
+   ① 悬停时 .md-item 已被距离衰减放到 **1.42**，
+      视觉缩放 = 1.42 × icon-scale。.88→1 的过渡，视觉只从
+      1.42×.88=1.25 回到 1.42 —— **变化仅 0.17，被大基数稀释**。
+
+   ② cubic-bezier(.32,1.42,.36,1) 的过冲实测只有 **5.8%**
+      （曲线最大 y=1.058）。这曲线是给「26px 大幅位移」设计的
+      （5.8% × 26px = 1.5px，刚好）；用在 scale 上，
+      .88→1 的过冲峰值只有 1.007 —— 等于没有。
+
+   正解：**多关键帧动画**。transition 只能表达「单调曲线 + 一次过冲」，
+   而真正的弹感来自**多次衰减振荡** —— 这正是 cubic-bezier 的表达盲区
+   （与 motion-cine 那次「假弹簧 vs 真弹簧」是同一个结论）。
+
+   关键帧幅度按「补偿 1.42 基数」设计：
+     视觉 = 1.42 × keyframe-scale
+       .82 → 1.16（按下）
+       1.24 → 1.76（第一次过冲，非常明显）
+       .90 → 1.28（回落）
+       1.08 → 1.53（二次振荡）
+       .97 → 1.38
+       1.00 → 1.42（落定）
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.mac-dock .md-item .icon.kz-bounce {
+  animation: md-bounce var(--dock-bounce-dur) linear both;
+}
+
+@keyframes md-bounce {
+  0%   { transform: scale(.82); }
+  22%  { transform: scale(1.24); }   /* 第一次过冲：+42% */
+  42%  { transform: scale(.90); }    /* 回落 */
+  60%  { transform: scale(1.08); }   /* 二次振荡：+8% */
+  76%  { transform: scale(.97); }
+  89%  { transform: scale(1.02); }   /* 三次微荡 */
+  100% { transform: scale(1); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Ambient 层：dock 整体弹跳
+   ───────────────────────────────────────────────────────────────────────────
+   同样的问题：2px 位移配 5.8% 过冲 = 0.12px，看不见。
+   改成 3px + 关键帧振荡。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.mac-dock.kz-bounce {
+  animation: md-dock-bounce var(--dock-bounce-dur) linear both;
+}
+
+@keyframes md-dock-bounce {
+  0%   { transform: translateX(-50%) translateY(3px); }
+  30%  { transform: translateX(-50%) translateY(-2px); }  /* 回弹过头 */
+  52%  { transform: translateX(-50%) translateY(1px); }
+  72%  { transform: translateX(-50%) translateY(-.5px); }
+  100% { transform: translateX(-50%) translateY(0); }
 }
 
 /* ② Secondary：图标高亮（点击瞬间提亮）*/
@@ -3908,8 +3976,10 @@ html[data-fps-q] .mac-dock .md-item::before {
 }
 /* 点击动效降级：零时长 + 状态复位（绝不用暂停那招）*/
 html[data-fps-q] .mac-dock .md-item .icon,
+html[data-fps-q] .mac-dock .md-item .icon.kz-bounce,
 html[data-fps-q] .mac-dock .md-item .icon > svg,
 html[data-fps-q] .mac-dock .md-item .md-ripple,
+html[data-fps-q] .mac-dock.kz-bounce,
 html[data-fps-q] .mac-dock {
   animation: none !important;
   transition: none !important;
@@ -3940,8 +4010,10 @@ html[data-fps-q] .mac-dock .md-item::after {
   .mac-dock .md-item::after,
   .mac-dock .md-item::before,
   .mac-dock .md-item .icon,
+  .mac-dock .md-item .icon.kz-bounce,
   .mac-dock .md-item .icon > svg,
   .mac-dock .md-item .md-ripple,
+  .mac-dock.kz-bounce,
   html:not([data-fps-q]) .sidebar {
     animation: none !important;
     transition: none !important;
@@ -13370,6 +13442,8 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     scaled: 0,
     clicks: 0,
     presses: 0,      /* 按下次数（点击动效 Primary 层）*/
+    bounces: 0,      /* 弹跳播放次数 */
+    bounces: 0,      /* 弹跳播放次数 */
     ripples: 0,      /* 涟漪播放次数（Secondary 层）*/
     /* 上一次的鼠标 X，用于跳过无变化的事件 */
     lastX: -1,
@@ -13527,10 +13601,11 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
         var up = function (e) {
           el.classList.remove('kz-down');
           dockEl.classList.remove('kz-pressed');
-          /* 松手才放涟漪 —— 按住不放时不出涟漪，避免「预支」反馈 */
+          /* 松手才放涟漪 + 弹跳 —— 按住不放时不出，避免「预支」反馈 */
           if (e && e.type === 'pointerup' && e.button === 0) {
             ripple(el, e.clientX, e.clientY);
             flash(el);
+            bounce(el, dockEl);
           }
         };
         el.addEventListener('pointerdown', down, { passive: true });
@@ -13545,6 +13620,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
           /* 键盘没有「位置」，涟漪从中心出 */
           ripple(el, null, null);
           flash(el);
+          bounce(el, dockEl);
           /* 短暂按压后自动回弹（模拟手指抬起）*/
           setTimeout(function () {
             el.classList.remove('kz-down');
@@ -13634,6 +13710,38 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     if (state.degraded || REDUCED) return false;
     item.classList.add('kz-flash');
     setTimeout(function () { item.classList.remove('kz-flash'); }, 200);
+    return true;
+  }
+
+  /* ═══ 松手弹跳 ═══════════════════════════════════════════════════════
+     ⭐ 2026-10-12：用户反馈「完全没用回弹的感觉」。
+     根因：悬停时 .md-item 已被距离衰减放到 1.42，.icon 的 .88↔1
+     过渡在视觉上只值 0.17；且 --ios-spring 的过冲只有 5.8%，
+     用在 scale 上等于没有。
+     正解：多关键帧动画（多次衰减振荡），这是 cubic-bezier 的表达盲区。
+
+     ⚠️ 动画结束后必须移除 class，否则下次点击不重播。
+     ⚠️ 播放中再次点击要能打断重播 → 同样先 remove + 强制 reflow。
+     ⚠️ animationend 在元素不可见时不触发 → 必须加 setTimeout 兜底。 */
+  function bounce(item, dockEl) {
+    if (state.degraded || REDUCED) return false;
+    var ico = qs('.icon', item);
+    if (!ico) return false;
+
+    /* 重播：先摘 class、强制 reflow、再加回 */
+    ico.classList.remove('kz-bounce');
+    if (dockEl) dockEl.classList.remove('kz-bounce');
+    void ico.offsetWidth;
+    ico.classList.add('kz-bounce');
+    if (dockEl) dockEl.classList.add('kz-bounce');
+    state.bounces++;
+
+    /* 兜底清理：animationend 可能因元素隐藏而不触发 */
+    clearTimeout(ico.__kzBT);
+    ico.__kzBT = setTimeout(function () {
+      ico.classList.remove('kz-bounce');
+      if (dockEl) dockEl.classList.remove('kz-bounce');
+    }, 620);
     return true;
   }
 
@@ -13765,6 +13873,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
         clicks: state.clicks,
         presses: state.presses,
         ripples: state.ripples,
+        bounces: state.bounces,
         retag: !!state.retag
       };
     },
@@ -13777,6 +13886,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     /* 点击动效（测试可直接调）*/
     ripple: ripple,
     flash: flash,
+    bounce: bounce,
     /* 手动模拟一次悬停，测试用 */
     hover: function (x) {
       var dock = qs('.mac-dock');
@@ -13796,6 +13906,10 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
           var its = qsa('.md-item', dock);
           for (var i = 0; i < its.length; i++) {
             its[i].classList.remove('kz-down', 'kz-flash');
+            var _ic = qs('.icon', its[i]);
+            if (_ic) _ic.classList.remove('kz-bounce');
+            var _ic = qs('.icon', its[i]);
+            if (_ic) _ic.classList.remove('kz-bounce');
             var rp = qs('.md-ripple', its[i]);
             if (rp) rp.classList.remove('go');
           }
