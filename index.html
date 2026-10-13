@@ -9051,6 +9051,173 @@ html[data-fps-q] :root[data-theme="light"] body::after {
 }
 
 </style><!-- GL:CSS:END -->
+<!-- PG:CSS:BEGIN -->
+<!-- perf-glide (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<style id="perf-glide-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   perf-glide · 全站帧率优化层（2026-10-13，依 web-perf-fps skill）
+   ───────────────────────────────────────────────────────────────────────────
+   诊断结论（diagnose.py）：三要素齐全 ——
+     backdrop-filter 124 处（≥20px 的大面积 70 处）/ fixed 层 15 个 /
+     infinite 动画 71 处。GL 浅色层又新增 .content/.module/dock 全套 blur28。
+
+   按 skill 收益排序落地：
+     ① 零视觉改动档：全屏层/玻璃卡提升合成层（translate 独立属性，
+        不覆盖 hover transform —— skill 陷阱表第 1 条）+ contain 隔离 +
+        长列表 content-visibility
+     ② 模糊半径分档降级补齐：GL/Dock/FD 的新 blur 全部进 medium/low 档
+        （fps.css 原分档只覆盖旧选择器，GL 的新层漏了）
+     ③ low 档暂停纯装饰循环动画（infinite 冻结在当前帧无害；
+        ⚠️ 入场动画绝不在名单 —— 2026-10-11 冻结事故不重演）
+   ⚠️ 降档全带 !important（与 fps.css 同模式）：GL 覆盖层与本层同特异性，
+      源序不分先后，必须 !important 才能压过 GL 的 blur(28px)。
+   ⚠️ 默认不设 data-fps-q → 本层规则全不生效 → 视觉与优化前一致。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ═══ ① 零视觉改动档：合成层 + 隔离（永远生效）══════════════════════════ */
+
+/* 全屏装饰层 → 缓存成纹理。
+   用独立 translate 属性而非 transform —— 不覆盖元素已有的 hover/动画。 */
+.zt-overlay,
+#minute-mask,
+body::before,
+body::after,
+.fd-scrim {
+  translate: 0 0;
+  backface-visibility: hidden;
+}
+
+/* 玻璃卡大军提升合成层（backdrop-filter 每帧采样背景，
+   自身提升后采样结果可缓存）*/
+.ov-card,
+.index-card,
+.live-bar,
+.sector-chip,
+.sec-hot-card,
+.search-input,
+.search-drop,
+.senti-card,
+.senti-panel,
+.fund-panel,
+.pos-sum-card,
+.pos-chart-card,
+.mac-dock,
+.fd-bar,
+.module {
+  translate: 0 0;
+}
+
+/* 主滚动容器：重绘范围锁在内部 + 滚动不穿透 */
+.content {
+  contain: layout paint style;
+  overscroll-behavior: contain;
+}
+
+/* 页面容器隔离：切页动画时其他页零成本 */
+.page {
+  contain: layout style;
+}
+
+/* 长列表行：视口外跳过布局与绘制（滚动长列表收益最大）。
+   ⚠️ 必须配 contain-intrinsic-size（skill 陷阱表：否则滚动条跳）*/
+.news-item,
+.lhb-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
+}
+
+/* FD 详情模式兼容：被搬进详情容器的模块取消列表优化
+   （FLIP 需要真实矩形，离屏跳渲染会让 Last 矩形为 0）*/
+.fd-host .module,
+.fd-in-host {
+  content-visibility: visible;
+  contain: none;
+}
+
+/* ═══ ② medium 档：模糊半径砍半（视觉几乎无感，成本降 ~70%）═══════════ */
+
+html[data-fps-q="medium"] .ov-card,
+html[data-fps-q="medium"] .index-card,
+html[data-fps-q="medium"] .live-bar,
+html[data-fps-q="medium"] .sector-chip,
+html[data-fps-q="medium"] .sec-hot-card,
+html[data-fps-q="medium"] .search-input,
+html[data-fps-q="medium"] .search-drop,
+html[data-fps-q="medium"] .senti-card,
+html[data-fps-q="medium"] .senti-panel,
+html[data-fps-q="medium"] .senti-thermo,
+html[data-fps-q="medium"] .fund-panel,
+html[data-fps-q="medium"] .pos-sum-card,
+html[data-fps-q="medium"] .pos-chart-card,
+html[data-fps-q="medium"] .module,
+html[data-fps-q="medium"] .content,
+html[data-fps-q="medium"] .mac-dock,
+html[data-fps-q="medium"] .fd-host .module,
+html[data-fps-q="medium"] .fd-bar,
+html[data-fps-q="medium"] .fd-scrim,
+html[data-fps-q="medium"] .search-box,
+html[data-fps-q="medium"] .rise-pop,
+html[data-fps-q="medium"] .watch-surge {
+  backdrop-filter: blur(14px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(140%) !important;
+}
+
+/* ═══ ③ low 档：半径再砍 + 关光弧 + 停装饰动画 ═════════════════════════ */
+
+html[data-fps-q="low"] .ov-card,
+html[data-fps-q="low"] .index-card,
+html[data-fps-q="low"] .live-bar,
+html[data-fps-q="low"] .sector-chip,
+html[data-fps-q="low"] .sec-hot-card,
+html[data-fps-q="low"] .search-input,
+html[data-fps-q="low"] .search-drop,
+html[data-fps-q="low"] .senti-card,
+html[data-fps-q="low"] .senti-panel,
+html[data-fps-q="low"] .senti-thermo,
+html[data-fps-q="low"] .fund-panel,
+html[data-fps-q="low"] .pos-sum-card,
+html[data-fps-q="low"] .pos-chart-card,
+html[data-fps-q="low"] .module,
+html[data-fps-q="low"] .content,
+html[data-fps-q="low"] .mac-dock,
+html[data-fps-q="low"] .fd-host .module,
+html[data-fps-q="low"] .fd-bar,
+html[data-fps-q="low"] .fd-scrim,
+html[data-fps-q="low"] .search-box,
+html[data-fps-q="low"] .rise-pop,
+html[data-fps-q="low"] .watch-surge {
+  backdrop-filter: blur(8px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(120%) !important;
+}
+
+/* low 档：光弧层直接隐藏（纯装饰）*/
+html[data-fps-q="low"] body::before,
+html[data-fps-q="low"] body::after {
+  display: none !important;
+}
+
+/* low 档：暂停纯装饰的 infinite 循环动画。
+   ⚠️ paused 对循环动画=冻在当前帧，无害（它们本来就是无限循环）；
+   ⚠️ 名单里绝无入场动画（dock-in/md-dot-pop/fb-entered 等）
+      —— 入场冻第 0 帧 = 2026-10-11 事故，绝不重演。 */
+html[data-fps-q="low"] .m-ico img,
+html[data-fps-q="low"] .title-ico img,
+html[data-fps-q="low"] .logo-icon,
+html[data-fps-q="low"] .fun-banner .spark,
+html[data-fps-q="low"] .fun-banner .fb-emoji,
+html[data-fps-q="low"] .earth-loader,
+html[data-fps-q="low"] .hc-dog {
+  animation-play-state: paused !important;
+}
+
+/* ═══ reduce 用户（这台机器曾关系统动画）：光弧常驻但去模糊 ═══════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after { filter: none; }
+}
+
+</style><!-- PG:CSS:END -->
 </head>
 <body>
 
@@ -21274,5 +21441,24 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- GL:JS:END -->
+<!-- PG:JS:BEGIN -->
+<!-- perf-glide (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<script id="perf-glide-js">
+/* perf-glide · 极小运行时：状态钩子（优化主体是纯 CSS，分档由 fps-boost 驱动） */
+(function () {
+  'use strict';
+  if (window.__perfGlideInstalled) return;
+  window.__perfGlideInstalled = true;
+  window.__perfGlide = {
+    state: function () {
+      var q = document.documentElement.getAttribute('data-fps-q');
+      return { ready: true, tier: q || 'default',
+               reduced: !!(window.matchMedia &&
+                 window.matchMedia('(prefers-reduced-motion: reduce)').matches) };
+    }
+  };
+})();
+
+</script><!-- PG:JS:END -->
 </body>
 </html>
