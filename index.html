@@ -3635,6 +3635,38 @@
 .mac-dock .md-item.active svg { color: #fff; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   2a. 当前页图标的背景高亮（2026-10-13 用户反馈）
+   ───────────────────────────────────────────────────────────────────────────
+   「图标的背景颜色没有根据变色一起变」——
+   侧边栏的当前页有橙色玻璃渐变（.nav-item.active，index.html:431），
+   dock 之前只有圆点、图标本身毫无区分，切页时看不出「我在这页」。
+
+   这里复用侧边栏的**同一材质配方**：
+     · 橙色玻璃渐变 rgba(255,150,110,.30) → rgba(232,106,96,.40)
+     · 内描边高光 + 暖色外发光（与 dock 容器同一材质语言）
+
+   非 active 项保留透明边框占位（避免 hover 时布局跳动）。
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.mac-dock .md-item.active {
+  background: linear-gradient(135deg,
+    rgba(255, 150, 110, .30) 0%, rgba(232, 106, 96, .40) 100%);
+  border: 1px solid rgba(255, 175, 145, .38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .22),
+    0 4px 14px rgba(232, 106, 96, .30);
+}
+
+/* 非 active 项：透明占位（边框占位防 hover 跳动）*/
+.mac-dock .md-item:not(.active) {
+  border: 1px solid transparent;
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.mac-dock .md-item:not(.active):hover {
+  background: rgba(255, 255, 255, .06);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    2b. 点击动效（Primary + Secondary + Ambient 三层）
    ───────────────────────────────────────────────────────────────────────────
    按 motion-design skill 的 Button Press 模式 + 三运动层：
@@ -3876,9 +3908,22 @@
   background: var(--gold, #e8b84b);
   box-shadow: 0 0 6px rgba(232, 184, 75, .75);
 
-  /* ⭐ 状态指示：默认可见，绝不用 opacity:0 起手 */
-  opacity: 1;
+  /* ⭐⭐ 2026-10-13 修正：默认隐藏，只有当前页（.active）才亮。
+     用户反馈「不要一直全都亮着，没有重点」。
+     ⚠️ 铁律 D 在这里不适用 —— 铁律 D 禁止的是
+     「用 opacity:0 起手等动画点亮**内容**」（图标/文字/页面）；
+     圆点是**状态指示器**，默认隐藏 + active 显示是状态逻辑，
+     跟「页面加载后内容消失」是两回事。 */
+  opacity: 0;
   pointer-events: none;
+
+  /* 切页过渡：旧圆点淡出、新圆点亮起 */
+  transition: opacity .2s ease;
+}
+
+/* 只有当前页的圆点亮（弹跳动画在下方 active 规则里叠加）*/
+.mac-dock .md-item.active .md-dot {
+  opacity: 1;
 }
 
 /* 首次出现时轻微弹一下（只播一次，不循环）*/
@@ -3888,6 +3933,7 @@
   100% { transform: translateX(-50%) scale(1); opacity: 1; }
 }
 .mac-dock .md-item.active .md-dot {
+  opacity: 1;
   animation: md-dot-pop .42s cubic-bezier(.34, 1.56, .64, 1) both;
 }
 
@@ -3995,8 +4041,11 @@ html[data-fps-q] .mac-dock .md-item {
   opacity: 1 !important;
 }
 html[data-fps-q] .mac-dock .md-item .md-dot {
-  opacity: 1 !important;
+  /* ⭐ 降档也要遵守「只亮当前页」——不能 opacity:1 全亮 */
   transform: translateX(-50%) scale(1) !important;
+}
+html[data-fps-q] .mac-dock .md-item.active .md-dot {
+  opacity: 1 !important;
 }
 /* 名称气泡在降档下改为「始终可见」更省心 */
 html[data-fps-q] .mac-dock .md-item::after {
@@ -4021,8 +4070,10 @@ html[data-fps-q] .mac-dock .md-item::after {
   .mac-dock { opacity: 1 !important; transform: translateX(-50%) !important; }
   .mac-dock .md-item { transform: scale(1) !important; opacity: 1 !important; }
   .mac-dock .md-item .md-dot {
-    opacity: 1 !important; transform: translateX(-50%) scale(1) !important;
+    /* ⭐ reduce 档同样只亮当前页 */
+    transform: translateX(-50%) scale(1) !important;
   }
+  .mac-dock .md-item.active .md-dot { opacity: 1 !important; }
   /* ══════════════════════════════════════════════════════════════════════
      ⭐⭐ 2026-10-13 重写：reduce 不等于「什么都不做」
      ─────────────────────────────────────────────────────────────────────
