@@ -4023,10 +4023,43 @@ html[data-fps-q] .mac-dock .md-item::after {
   .mac-dock .md-item .md-dot {
     opacity: 1 !important; transform: translateX(-50%) scale(1) !important;
   }
-  /* 点击动效：直接跳过（铁律 D：状态必须到达终值，不能停在中间）*/
+  /* ══════════════════════════════════════════════════════════════════════
+     ⭐⭐ 2026-10-13 重写：reduce 不等于「什么都不做」
+     ─────────────────────────────────────────────────────────────────────
+     原来的写法把 transform 锁成 `scale(1) !important`，
+     结果用户的 Windows 关闭了窗口动画（注册表 MinAnimate=0）
+     → Chromium 报 prefers-reduced-motion: reduce = true
+     → **整个 dock 完全静止**（用户反馈「EXE 里都不动，预览页却正常」）。
+
+     ⭐ `prefers-reduced-motion` 是给**前庭障碍用户**的：
+       他们需要「不要大幅位移/旋转」，**不是「界面变成死的」**。
+       把「减动效」做成「零反馈」是把无障碍偏好误读成了「关功能」。
+
+     正解：
+       · 缩放降到 ±4%（.96~1.04），仍有反馈但位移极小
+       · 涟漪关掉（径向扩散是大位移，正是 reduce 的核心目标）
+       · **保留颜色/高亮**（对前庭障碍完全无害）
+       · 关键：⚠️ 不能是 scale(1) —— 静止时也要留一点点
+     ══════════════════════════════════════════════════════════════════ */
+
   .mac-dock .md-item .icon { transform: scale(1) !important; }
+  /* 按下：压到 .96（不是 .82）*/
+  .mac-dock .md-item.kz-down .icon { transform: scale(.96) !important; }
+  /* 多关键帧弹跳关掉（大位移），换成一次极短的轻微脉冲 */
+  .mac-dock .md-item .icon.kz-bounce { animation: none !important; }
+  .mac-dock .md-item .icon.kz-bounce-lite {
+    transform: scale(1.04) !important;
+    transition: transform 160ms ease-out !important;
+  }
+  /* 涟漪：关掉 */
   .mac-dock .md-item .md-ripple { opacity: 0 !important; transform: scale(.2) !important; }
+  /* ⭐ 颜色/发光保留 —— 这两个不会诱发前庭不适 */
   .mac-dock .md-item .icon > svg { filter: none !important; }
+  .mac-dock .md-item.kz-flash .icon > svg,
+  .mac-dock .md-item.kz-down .icon > svg { color: #fff !important; }
+  /* dock 整体不做位移下沉 */
+  .mac-dock.kz-pressed { --dock-sink-y: 0px !important; }
+  .mac-dock.kz-bounce { animation: none !important; }
   .mac-dock .md-item::after,
   .mac-dock .md-item::before { opacity: 0; visibility: hidden; }
 }
@@ -13425,8 +13458,39 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   if (window.__macDockInstalled) return;
   window.__macDockInstalled = true;
 
-  var REDUCED = window.matchMedia
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* ══════════════════════════════════════════════════════════════════════════
+     ⭐⭐⭐ 2026-10-13 重写：reduced-motion 的正确处理方式
+     ─────────────────────────────────────────────────────────────────────────
+     症状：用户报「EXE 里悬停没动效，全都不动」，但预览页正常。
+
+     根因：Windows「关闭了窗口动画」（注册表 MinAnimate=0）→
+     Chromium/Electron 报 `prefers-reduced-motion: reduce` = **true** →
+     本层 `REDUCED=true` 把 **放大/按压/涟漪/弹跳全部短路**，
+     CSS 侧的 reduce 分支又把 transform 锁成 scale(1)。
+     结果：整个 dock 完全静态。
+
+     ⭐ 为什么这是设计错误（不只是环境问题）：
+       `prefers-reduced-motion` 是给**前庭障碍用户**的 —— 他们需要的是
+       「不要大幅位移/旋转」，**不是「整个界面变成死的」**。
+       我原来的实现把「减动效」做成了「零反馈」，
+       这是把无障碍偏好误读成了「关掉功能」。
+
+     正解：**降级但保留最小反馈**
+       · 缩放幅度压到 ±4%（几乎不产生位移感，但仍能看出「碰到了」）
+       · 取消涟漪（径向扩散是大位移，reduce 的核心目标）
+       · 保留颜色/透明度变化（对前庭障碍完全无害）
+       · 关键：⚠️ 静止时也要给一点点 scale，不能是 1
+     ════════════════════════════════════════════════════════════════════════ */
+  var REDUCED = !!(window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  /* ⭐ 减动效档的缩放幅度：仍有反馈，但位移小到不会诱发不适 */
+  var REDUCED_AMP = 1.04;
+  var REDUCED_FALLOFF = 60;
+
+  /* 档位参数：reduce 用小幅度，其余用全量 */
+  function ampOf() { return REDUCED ? REDUCED_AMP : CFG.amp; }
+  function falloffOf() { return REDUCED ? REDUCED_FALLOFF : CFG.falloff; }
 
   var state = {
     installed: true,
@@ -13488,9 +13552,12 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
      ═══════════════════════════════════════════════════════════════════ */
 
   function scaleAt(d) {
-    if (d <= 0) return CFG.amp;
-    if (d >= CFG.falloff) return CFG.idle;
-    var t = 1 - d / CFG.falloff;
+    /* ⭐ 2026-10-13：reduce 档位走小幅度，而不是「不放大」 */
+    var _amp = ampOf();
+    var _fall = falloffOf();
+    if (d <= 0) return _amp;
+    if (d >= _fall) return CFG.idle;
+    var t = 1 - d / _fall;
     /* ⭐ 2026-10-12 修正：原来写的是 `t * t * (1 + near)`，
        而 near=0.62 是个 >1 的系数 → 曲线在 d≈6px 处会翘到 1.59，
        **比悬停项本身（1.42）还大**。这违反了「d=0 是最大值」的基本前提，
@@ -13498,7 +13565,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
        正解：near 只作为**下限**参与，不参与放大顶部 ——
        用 (1 + near * (1 - t)) 让系数从 (1+near) 平滑降到 1，
        既保留「邻居也明显」的效果，又保证 d=0 仍是全局最大值。 */
-    return CFG.idle + (CFG.amp - CFG.idle) * t * t * (1 + CFG.near * (1 - t));
+    return CFG.idle + (_amp - CFG.idle) * t * t * (1 + CFG.near * (1 - t));
   }
 
   function applyScale(dock, mouseX) {
@@ -13586,7 +13653,9 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
          两者互不影响：动效挂了也不该挡住点击。 */
       (function (el, dockEl) {
         var down = function (e) {
-          if (state.degraded || REDUCED) return;
+          /* ⭐ reduce 档位也响应按下 —— CSS 侧会把幅度压到很小，
+             不响应等于「点不动」，那是功能缺失不是减动效 */
+          if (state.degraded) return;
           /* 右键/中键不响应 */
           if (e.type === 'pointerdown' && e.button !== 0) return;
           el.classList.add('kz-down');
@@ -13678,6 +13747,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
      ⚠️ 必须先移除 .go、强制 reflow、再加回 .go —— 否则连续点击时
         第二次动画不会重播（class 没变，浏览器认为无需重启动画）。*/
   function ripple(item, clientX, clientY) {
+    /* reduce 档位跳过涟漪（径向扩散位移大），但图标高亮仍会播 */
     if (state.degraded || REDUCED) return false;
     var el = qs('.md-ripple', item);
     if (!el) return false;
@@ -13707,7 +13777,8 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
   /* 图标高亮闪一下（视觉确认「按到了」）*/
   function flash(item) {
-    if (state.degraded || REDUCED) return false;
+    /* ⭐ reduce 档位仍播高亮 —— 颜色/透明度变化不会诱发前庭不适 */
+    if (state.degraded) return false;
     item.classList.add('kz-flash');
     setTimeout(function () { item.classList.remove('kz-flash'); }, 200);
     return true;
@@ -13724,9 +13795,22 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
      ⚠️ 播放中再次点击要能打断重播 → 同样先 remove + 强制 reflow。
      ⚠️ animationend 在元素不可见时不触发 → 必须加 setTimeout 兜底。 */
   function bounce(item, dockEl) {
-    if (state.degraded || REDUCED) return false;
+    if (state.degraded) return false;
     var ico = qs('.icon', item);
     if (!ico) return false;
+    /* ⭐ reduce 档位：不做多关键帧振荡（那是大幅位移的源头），
+       改为一次极短的轻微缩放脉冲 —— 保留「按到了」的确认感 */
+    if (REDUCED) {
+      ico.classList.remove('kz-bounce-lite');
+      void ico.offsetWidth;
+      ico.classList.add('kz-bounce-lite');
+      clearTimeout(ico.__kzBTL);
+      ico.__kzBTL = setTimeout(function () {
+        ico.classList.remove('kz-bounce-lite');
+      }, 200);
+      state.bounces++;
+      return true;
+    }
 
     /* 重播：先摘 class、强制 reflow、再加回 */
     ico.classList.remove('kz-bounce');
@@ -13766,8 +13850,10 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     rafId = 0;
     var dock = qs('.mac-dock');
     if (!dock || pendingX === null) return;
-    if (state.degraded || REDUCED) {
-      /* 降档：一律不放大 */
+    /* ⭐ 2026-10-13 修正：只有 fps 降档才锁死 1。
+       reduce 档位仍然放大（只是幅度 1.04）—— 因为
+       「减动效」≠「零反馈」，锁死 1 等于把界面做成死的。 */
+    if (state.degraded) {
       var its = qsa('.md-item', dock);
       for (var i = 0; i < its.length; i++) {
         its[i].style.setProperty('--dock-scale', '1');
