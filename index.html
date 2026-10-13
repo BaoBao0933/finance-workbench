@@ -8739,7 +8739,7 @@ html[data-fps-q="low"] .se-add-panel {
 
    ── 实现策略 ────────────────────────────────────────────────────────────
    · 纯 CSS 覆盖层：全部规则带 :root[data-theme="light"] 前缀，
-     注入点为 CSS 链最末位（候选锚不存在 → fallback </head>），
+     注入点为 CSS 链最末位（候选锚不存在时回退到 head 结束标记处），
      同特异性下按源序稳赢原浅色规则；深色主题零影响，摘除即回退。
    · 字体不引境外资源（首屏性能铁律）：Plus Jakarta Sans / Manrope 用
      本地 Segoe UI Variable 系统栈模拟几何无衬线；等宽数字走
