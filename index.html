@@ -3431,7 +3431,290 @@
 </style>
 <!-- KAZUMI:CSS:END -->
 
-</style><!-- DOCK:CSS:BEGIN -->
+</style><!-- FD:CSS:BEGIN -->
+<!-- fluid-detail (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<style id="fluid-detail-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   fluid-detail · 模块详情视图（2026-10-13）
+   ───────────────────────────────────────────────────────────────────────────
+   需求（用户原话）：
+     「模块点击后原位放大为详情视图；其余模块缩为底部玻璃缩略条；
+       点击缩略图切换主视图；关闭时沿原路收回。」
+
+   ── 技术方案：手写 FLIP（First-Last-Invert-Play）─────────────────────────
+   F：点击时记录模块的 rect0（First）
+   L：把它搬进全屏详情容器（detailHost），记录 rect1（Last）
+   I：transform = translate(rect0-rect1) scale(rect0/rect1)（Invert，视觉上它还在原位）
+   P：过渡到 transform:none（Play，飞到全屏）
+
+   ⭐ 为什么手写不用 GSAP Flip：只有「一个矩形 → 另一个矩形」的变换，
+      60 行代码搞定，零依赖、不碰 vendor 路径（桌面版打包更稳）。
+
+   ⭐ 为什么搬真元素而不是截图/克隆：canvas 图表（分时图等）克隆后
+      需要重绘，搬真元素最保真；原位放 placeholder 保持布局不塌。
+
+   ── 四个交互 ────────────────────────────────────────────────────────────
+   ① 点击模块 → FLIP 放大为详情视图
+   ② 其余模块 → 底部玻璃缩略条（stagger 入场，skill: micro cascade）
+   ③ 点缩略图 → 当前主卡归位，目标卡从原位 FLIP 飞入
+   ④ 关闭 ×  → 主卡沿原路 FLIP 收回，缩略条下滑收场
+
+   ── 动效参数（motion-design skill Duration Table）────────────────────────
+     Card enter/exit 200-350ms → 距离系数 1.3x → 展开用 420ms
+     Micro cascade 20-40ms     → 缩略图 stagger 35ms（预算 <200ms）
+     收回略快于展开（Enter > Exit 原则反向：退出应更快）→ 360ms
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --fd-dur-in: 420ms;      /* 展开 */
+  --fd-dur-out: 360ms;     /* 收回 */
+  --fd-ease-in: cubic-bezier(.22, 1, .36, 1);     /* 展开：先快后慢落定 */
+  --fd-ease-out: cubic-bezier(.55, .06, .68, .19); /* 收回：先缓后快离场 */
+  --fd-stagger: 35ms;      /* 缩略图 stagger（skill: micro cascade）*/
+  --fd-bar-h: 58px;
+}
+
+/* ═══ 1. 详情容器（全屏覆盖内容区）═════════════════════════════════════ */
+
+.fd-host {
+  position: fixed;
+  /* 覆盖 .content 的可视区（顶栏 live-bar 之下、dock 之上）*/
+  left: 0; right: 0;
+  top: 0; bottom: 0;
+  padding: 70px 26px calc(var(--dock-icon) + 66px);
+  z-index: 8000;
+  pointer-events: none;   /* 容器不挡，卡片自己接事件 */
+}
+
+/* 遮罩：点击空白处也可关闭 */
+.fd-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 8, 14, .55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease;
+}
+.fd-open .fd-scrim {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ═══ 2. 详情态的模块卡 ════════════════════════════════════════════════ */
+
+.fd-host .module {
+  pointer-events: auto;
+  position: relative;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 auto;
+  max-width: 1500px;
+
+  /* 玻璃底（比页面里的卡更实一档：详情要读）*/
+  background: rgba(17, 21, 34, .92);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 16px;
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, .5),
+    inset 0 1px 0 rgba(255, 255, 255, .12);
+
+  will-change: transform;
+}
+
+/* 详情卡头部右侧的关闭按钮 */
+.fd-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  background: rgba(255, 255, 255, .07);
+  color: #cdd3de;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 3;
+  transition: background .15s ease, color .15s ease, transform .15s ease;
+}
+.fd-close:hover { background: rgba(255, 90, 90, .18); color: #fff; transform: scale(1.06); }
+.fd-close:active { transform: scale(.94); }
+
+/* 详情态提示：模块头下的 m-link 在详情里无意义，藏掉 */
+.fd-host .module .m-link { display: none; }
+
+/* ═══ 3. FLIP 飞行中：取消内部 transition 干扰 ═════════════════════════ */
+
+.fd-flying, .fd-flying * {
+  transition: none !important;
+  animation-play-state: running !important; /* 图表动画照常，不冻结 */
+}
+
+/* ═══ 4. 底部玻璃缩略条 ════════════════════════════════════════════════ */
+
+.fd-bar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(max(18px, env(safe-area-inset-bottom)) + var(--dock-icon) + 16px);
+  transform: translateX(-50%);
+  z-index: 8500;
+
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  max-width: min(92vw, 900px);
+  padding: 7px 9px;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+
+  background: rgba(24, 28, 40, .58);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 15px;
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, .4),
+    inset 0 1px 0 rgba(255, 255, 255, .12);
+
+  /* 入场：从 dock 后方浮起 */
+  opacity: 0;
+  transform: translateX(-50%) translateY(18px) scale(.96);
+  transition: opacity 240ms ease, transform 300ms cubic-bezier(.22, 1, .36, 1);
+  pointer-events: none;
+}
+.fd-bar::-webkit-scrollbar { display: none; }
+
+.fd-open .fd-bar {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* 缩略图按钮 */
+.fd-thumb {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, .05);
+  color: #aeb6c8;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+
+  /* stagger 入场由 JS 逐个设置 transition-delay 后移除 */
+  opacity: 0;
+  transform: translateY(8px);
+}
+.fd-open .fd-thumb {
+  opacity: 1;
+  transform: translateY(0);
+}
+.fd-thumb:hover {
+  background: rgba(255, 255, 255, .1);
+  color: #fff;
+}
+/* 当前正在主视图展示的缩略图：橙色描边（与 dock active 同源）*/
+.fd-thumb.fd-cur {
+  border-color: rgba(255, 175, 145, .45);
+  background: linear-gradient(135deg,
+    rgba(255, 150, 110, .22), rgba(232, 106, 96, .30));
+  color: #ffd9c4;
+}
+
+/* 缩略图里的序号徽标 */
+.fd-thumb i {
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 700;
+  width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, .09);
+  color: #cdd3de;
+}
+.fd-thumb.fd-cur i {
+  background: rgba(255, 175, 145, .28);
+  color: #ffd9c4;
+}
+
+/* ═══ 5. 页面里被收纳的原模块：占位保持布局 ═══════════════════════════ */
+
+/* 被搬走后原位留下的占位（JS 同步高度）*/
+.fd-placeholder {
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, .14);
+  background:
+    repeating-linear-gradient(45deg,
+      rgba(255, 255, 255, .025), rgba(255, 255, 255, .025) 10px,
+      transparent 10px, transparent 20px);
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, .3);
+  font-size: 12.5px;
+  letter-spacing: .1em;
+}
+
+/* 详情模式里，页面上的其余模块淡出收缩（不 display:none，保布局）*/
+.fd-open .page.active .module:not(.fd-in-host):not(.fd-placeholder-module) {
+  opacity: 0;
+  transform: scale(.97);
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 260ms ease;
+}
+
+/* ═══ 6. 手机适配 ═════════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+  .fd-host { padding: 64px 12px calc(var(--dock-icon) + 76px); }
+  .fd-bar { max-width: 94vw; bottom: calc(max(18px, env(safe-area-inset-bottom)) + var(--dock-icon) + 12px); }
+  .fd-thumb { padding: 7px 10px; font-size: 11.5px; }
+}
+
+/* ═══ 7. 降级（fps / reduce）═══════════════════════════════════════════
+   ⭐ reduce（用户 Windows 曾关闭动画）：不做 FLIP 飞行（大位移），
+      但状态切换必须完成——直接出现/消失 + 快速淡入。
+      「减动效」≠「功能不可用」。 */
+
+@media (prefers-reduced-motion: reduce) {
+  .fd-host .module,
+  .fd-bar,
+  .fd-thumb,
+  .fd-scrim,
+  .fd-open .page.active .module {
+    transition-duration: 1ms !important;
+  }
+  .fd-thumb { transition-delay: 0ms !important; }
+}
+
+html[data-fps-q] .fd-host .module,
+html[data-fps-q] .fd-bar,
+html[data-fps-q] .fd-thumb,
+html[data-fps-q] .fd-scrim,
+html[data-fps-q] .fd-open .page.active .module {
+  transition: none !important;
+  animation: none !important;
+}
+
+</style><!-- FD:CSS:END -->
+<!-- DOCK:CSS:BEGIN -->
 <!-- mac-dock (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
 <style id="mac-dock-style">
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -13479,6 +13762,376 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   update();
 })();
 </script>
+<!-- FD:JS:BEGIN -->
+<!-- fluid-detail (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<script id="fluid-detail-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   fluid-detail · 运行时（2026-10-13）
+   ───────────────────────────────────────────────────────────────────────────
+   状态机：
+     IDLE ──点击模块──▶ OPEN(该卡在主视图)
+     OPEN ──点缩略图──▶ OPEN(换卡：旧卡瞬移归位，新卡 FLIP 飞入)
+     OPEN ──点 × /遮罩──▶ IDLE(主卡 FLIP 沿原路收回，缩略条收场)
+
+   核心不变量：
+     · 模块元素永远只有一份（在页面原位 或 在 detailHost 里），
+       原位用 placeholder 占位保持布局。
+     · 任何时刻 transform/opacity 之外的属性都不参与动画（铁律）。
+     · reduce/fps 降档：跳过 FLIP 飞行，状态直达终值（不冻结）。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+(function () {
+  'use strict';
+
+  if (window.__fluidDetailInstalled) return;
+  window.__fluidDetailInstalled = true;
+
+  var REDUCED = !!(window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  /* ⭐ 2026-10-13 教训：reduce ≠ 零反馈。这里 reduce 只跳过 FLIP 飞行
+     （大位移），状态切换照常 + 快速淡入。 */
+
+  var state = {
+    installed: true,
+    reduced: REDUCED,
+    ready: false,
+    open: false,          // 详情模式是否激活
+    current: null,        // 正在主视图展示的 .module
+    origin: null,         // 它在页面里的原位 placeholder
+    modules: [],          // 参与集合（当前页的 .module 列表）
+    clicks: 0,
+    flips: 0,
+    switches: 0,
+    closes: 0,
+    degraded: false
+  };
+
+  var DUR_IN = 420, DUR_OUT = 360, STAGGER = 35;
+
+  function qs(s, r) { return (r || document).querySelector(s); }
+  function qsa(s, r) {
+    return Array.prototype.slice.call((r || document).querySelectorAll(s));
+  }
+  function rect(el) { return el.getBoundingClientRect(); }
+  function title(m) {
+    var t = qs('.m-title', m);
+    return t ? t.textContent.trim().replace(/\s+/g, ' ').slice(0, 14) : '模块';
+  }
+
+  /* ═══ DOM 骨架（惰性创建一次）═════════════════════════════════════════ */
+
+  var host = null, scrim = null, bar = null;
+
+  function ensureSkeleton() {
+    if (host) return true;
+    var page = qs('.page.active') || qs('.content');
+    if (!page) return false;
+
+    host = document.createElement('div');
+    host.className = 'fd-host';
+    host.setAttribute('aria-label', '模块详情视图');
+
+    scrim = document.createElement('div');
+    scrim.className = 'fd-scrim';
+    scrim.addEventListener('click', function () { close(); });
+    host.appendChild(scrim);
+
+    document.body.appendChild(host);
+
+    bar = document.createElement('div');
+    bar.className = 'fd-bar';
+    bar.setAttribute('role', 'tablist');
+    bar.setAttribute('aria-label', '模块缩略条');
+    document.body.appendChild(bar);
+    return true;
+  }
+
+  /* ═══ 参与集合：当前页的 .module ══════════════════════════════════════ */
+
+  function collectModules() {
+    var page = qs('.page.active');
+    if (!page) return [];
+    return qsa('.module', page).filter(function (m) {
+      return m.offsetHeight > 60;          // 太矮的没有详情价值
+    });
+  }
+
+  /* ═══ FLIP 核心 ═══════════════════════════════════════════════════════ */
+
+  /* 把 el 从当前位置飞到「即将所在的容器」。
+     先搬 → 记录 Last → Invert → Play。返回飞行时长。 */
+  function flyTo(el, container, dur, ease) {
+    if (state.degraded || REDUCED) {
+      container.appendChild(el);           // 状态直达，不飞行
+      return 0;
+    }
+    var first = rect(el);
+    container.appendChild(el);
+    el.classList.add('fd-in-host');
+    var last = rect(el);
+
+    return playFlip(el, first, last, dur, ease);
+  }
+
+  /* 沿原路收回：先记录主视图位置，精确插回原槽位，再反向播放。
+     ⭐ 不能用 flyTo —— appendChild 会把卡片插到父容器末尾，
+        Last 矩形就错了；必须 insertBefore 到原槽位再取 Last。 */
+  function flyBack(el, slotRef, dur, ease) {
+    var parent = slotRef.parentNode;
+    if (!parent) { el.remove(); return 0; }
+    if (state.degraded || REDUCED) {
+      parent.insertBefore(el, slotRef);    // 状态直达
+      el.classList.remove('fd-in-host');
+      return 0;
+    }
+    var first = rect(el);
+    el.classList.remove('fd-in-host');
+    parent.insertBefore(el, slotRef);
+    var last = rect(el);
+    return playFlip(el, first, last, dur, ease);
+  }
+
+  /* Invert + Play：两矩形之间的 FLIP 飞行 */
+  function playFlip(el, first, last, dur, ease) {
+    var dx = first.left - last.left;
+    var dy = first.top - last.top;
+    var sx = first.width / (last.width || 1);
+    var sy = first.height / (last.height || 1);
+
+    /* 内容多的卡片被放大后内部重排会闪，飞行期间锁内部过渡 */
+    el.classList.add('fd-flying');
+    el.style.transformOrigin = 'top left';
+    el.style.transform =
+      'translate(' + dx + 'px,' + dy + 'px) scale(' + sx + ',' + sy + ')';
+    void el.offsetWidth;                    // 强制 reflow（铁律：重播必 reflow）
+
+    el.style.transition =
+      'transform ' + dur + 'ms ' + ease;
+    el.style.transform = 'none';
+
+    clearTimeout(el.__fdTid);
+    el.__fdTid = setTimeout(function () {
+      el.classList.remove('fd-flying');
+      el.style.transition = '';
+      el.style.transform = '';
+      el.style.transformOrigin = '';
+    }, dur + 40);
+    state.flips++;
+    return dur;
+  }
+
+  /* ═══ 打开详情 ════════════════════════════════════════════════════════ */
+
+  function open(module) {
+    if (state.open || !module) return false;
+    if (!ensureSkeleton()) return false;
+
+    state.modules = collectModules();
+    if (state.modules.indexOf(module) < 0) return false;
+
+    /* 原位占位（保持布局）*/
+    var ph = document.createElement('div');
+    ph.className = 'fd-placeholder fd-placeholder-module';
+    var r = rect(module);
+    ph.style.height = r.height + 'px';
+    ph.style.width = '100%';
+    ph.textContent = '· ' + title(module) + ' ·';
+    module.parentNode.insertBefore(ph, module);
+    state.origin = ph;
+
+    /* FLIP 飞入主视图 */
+    flyTo(module, host, DUR_IN, 'cubic-bezier(.22,1,.36,1)');
+
+    /* 关闭按钮 */
+    var closeBtn = document.createElement('span');
+    closeBtn.className = 'fd-close';
+    closeBtn.setAttribute('role', 'button');
+    closeBtn.setAttribute('tabindex', '0');
+    closeBtn.setAttribute('aria-label', '关闭详情');
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      close();
+    });
+    closeBtn.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); }
+    });
+    module.appendChild(closeBtn);
+    state.closeBtn = closeBtn;
+
+    /* 缩略条：其余模块（skill: micro cascade，35ms stagger）*/
+    buildBar(module);
+
+    state.current = module;
+    state.open = true;
+    document.body.classList.add('fd-open');
+    state.clicks++;
+    return true;
+  }
+
+  /* ═══ 缩略条 ══════════════════════════════════════════════════════════ */
+
+  function buildBar(currentModule) {
+    bar.innerHTML = '';
+    var n = 0;
+    state.modules.forEach(function (m, i) {
+      var isCur = (m === currentModule);
+      var t = document.createElement('div');
+      t.className = 'fd-thumb' + (isCur ? ' fd-cur' : '');
+      t.setAttribute('role', 'tab');
+      t.setAttribute('aria-selected', isCur ? 'true' : 'false');
+      t.innerHTML = '<i>' + (i + 1) + '</i>' + title(m);
+
+      /* stagger 入场：先给 transition-delay，入场后摘掉 */
+      if (!REDUCED && !state.degraded) {
+        t.style.transitionDelay = (i * STAGGER) + 'ms';
+        setTimeout(function () { t.style.transitionDelay = ''; },
+                   i * STAGGER + 340);
+      }
+
+      t.addEventListener('click', function () {
+        if (isCur) return;                 // 点自己不切换
+        switchTo(m);
+      });
+      bar.appendChild(t);
+      n++;
+    });
+    bar.__count = n;
+    return n;
+  }
+
+  /* ═══ 切换主视图 ══════════════════════════════════════════════════════ */
+
+  function switchTo(target) {
+    if (!state.open || target === state.current) return false;
+
+    /* 旧卡：瞬移回原位（无动画——注意力在新卡上）*/
+    var old = state.current;
+    var oldBtn = qs('.fd-close', old);
+    if (oldBtn) oldBtn.remove();
+    old.classList.remove('fd-in-host');
+    old.style.transform = ''; old.style.transition = '';
+    state.origin.parentNode.insertBefore(old, state.origin);
+
+    /* 新占位给旧位？不 —— 旧卡回原位后，placeholder 移交给新卡的原位 */
+    var r = rect(target);
+    var ph = document.createElement('div');
+    ph.className = 'fd-placeholder fd-placeholder-module';
+    ph.style.height = r.height + 'px';
+    ph.style.width = '100%';
+    ph.textContent = '· ' + title(target) + ' ·';
+    target.parentNode.insertBefore(ph, target);
+
+    /* 旧 placeholder 删除（旧卡已归位）*/
+    if (state.origin && state.origin.parentNode) state.origin.remove();
+
+    /* 新卡 FLIP 飞入（从它的原位飞到主视图）*/
+    flyTo(target, host, DUR_IN, 'cubic-bezier(.22,1,.36,1)');
+
+    var closeBtn = document.createElement('span');
+    closeBtn.className = 'fd-close';
+    closeBtn.setAttribute('role', 'button');
+    closeBtn.setAttribute('tabindex', '0');
+    closeBtn.setAttribute('aria-label', '关闭详情');
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', function (e) {
+      e.stopPropagation(); close();
+    });
+    target.appendChild(closeBtn);
+    state.closeBtn = closeBtn;
+
+    state.origin = ph;
+    state.current = target;
+    state.switches++;
+
+    /* 缩略条高亮同步（不重建，只换 class —— 避免入场动画重播）*/
+    qsa('.fd-thumb', bar).forEach(function (t, i) {
+      var isCur = (state.modules[i] === target);
+      t.classList.toggle('fd-cur', isCur);
+      t.setAttribute('aria-selected', isCur ? 'true' : 'false');
+    });
+    return true;
+  }
+
+  /* ═══ 关闭：沿原路收回 ════════════════════════════════════════════════ */
+
+  function close() {
+    if (!state.open) return false;
+    var m = state.current;
+
+    var btn = qs('.fd-close', m);
+    if (btn) btn.remove();
+
+    /* FLIP 收回原位（沿原路：同一对矩形，反向播放）*/
+    flyBack(m, state.origin, DUR_OUT, 'cubic-bezier(.55,.06,.68,.19)');
+    if (state.origin && state.origin.parentNode) state.origin.remove();
+
+    state.current = null;
+    state.origin = null;
+    state.open = false;
+    document.body.classList.remove('fd-open');
+    state.closes++;
+    return true;
+  }
+
+  /* ═══ 绑定：点击模块头打开 ════════════════════════════════════════════ */
+
+  function bind() {
+    document.addEventListener('click', function (e) {
+      if (state.open) return;               // 详情模式里不重复触发
+      var m = e.target && e.target.closest ? e.target.closest('.module') : null;
+      if (!m) return;
+      var page = qs('.page.active');
+      if (!page || !page.contains(m)) return;
+      /* 点 header 或模块空白处触发；点内部按钮/链接/表格不触发 */
+      var onHead = e.target.closest('.module-header');
+      var interactive = e.target.closest('a,button,.tab,input,select,.btn,[data-wip]');
+      if (!onHead || interactive) return;
+      open(m);
+    });
+    /* Esc 关闭 */
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && state.open) close();
+    });
+    /* 切页时退出详情模式 */
+    document.addEventListener('click', function (e) {
+      var n = e.target && e.target.closest
+        ? e.target.closest('.nav-item') : null;
+      if (n && state.open) setTimeout(close, 30);
+    });
+  }
+
+  /* ═══ 启动 ════════════════════════════════════════════════════════════ */
+
+  function init() { bind(); state.ready = true; }
+
+  /* ═══ API ═════════════════════════════════════════════════════════════ */
+
+    window.__fluidDetail = {
+    state: function () {
+      return {
+        ready: state.ready, reduced: state.reduced,
+        degraded: state.degraded, open: state.open,
+        current: state.current ? title(state.current) : null,
+        modules: state.modules.length,
+        barCount: bar ? bar.__count : 0,
+        clicks: state.clicks, flips: state.flips,
+        switches: state.switches, closes: state.closes
+      };
+    },
+    open: open, close: close, switchTo: switchTo,
+    flyTo: flyTo, flyBack: flyBack, playFlip: playFlip,
+    collectModules: collectModules,
+    title: title,
+    setDegraded: function (v) { state.degraded = !!v; }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else { init(); }
+})();
+
+</script><!-- FD:JS:END -->
 <!-- DOCK:JS:BEGIN -->
 <!-- mac-dock (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
 <script id="mac-dock-js">
