@@ -9572,15 +9572,19 @@ body, input, button, .num {
 .pos-val,
 .px-val,
 .idx-val,
-.lad-num {
+.lad-num,
+.st-score,
+.senti-card .sc-vals,
+.sec-cell .scp {
   font-family: var(--tr-font-num);
   font-weight: var(--tr-w-num);
   /* 大数字收紧字距：视觉更紧实，避免"数字散开"的廉价感 */
   letter-spacing: -.028em;
   font-variant-numeric: tabular-nums lining-nums;
-  /* 'zero' = 斜杠零（金融数字的辨识度 + 专业感）；
-     'tnum' = 等宽数字（刷新不跳列宽）*/
-  font-feature-settings: 'tnum' 1, 'zero' 1;
+  /* 'tnum' = 等宽数字（刷新不跳列宽）。
+     ⚠️ 不用 'zero' 斜杠零 —— 那是交易终端的硬核感，
+     A 股数字里 0 太多，加了反而显"技术"不显"高级"。 */
+  font-feature-settings: 'tnum' 1;
   font-optical-sizing: auto;
 }
 
