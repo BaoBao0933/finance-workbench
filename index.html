@@ -90,6 +90,80 @@
     display: inline-block;
     text-wrap: balance;
   }
+  /* ⭐⭐ 问候语情绪图标（2026-10-18）：线条 SVG + 极缓微动。
+     · 太阳光芒每 26s 转一圈（慢到不会分心，只是"活着"）
+     · 咖啡三缕热气依次升起、淡出
+     · 夕阳整体极缓上下浮动（呼吸感）
+     · 月亮旁一颗星缓慢明灭
+     ⚠️ 所有动画都作用于「本来就可见」的图形，不是靠动画点亮 —— 铁律 D。
+     ⚠️ 图标颜色跟随主标题（currentColor），浅色主题下自动变成暖深棕。 */
+  .header .title .greet-ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: .86em;
+    height: .86em;
+    margin-right: .34em;
+    vertical-align: -0.06em;   /* 视觉基线微调，和文字坐平 */
+    color: var(--accent);
+    opacity: .95;
+  }
+  .header .title .greet-ico svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+  }
+  .header .title .gi-rays {
+    transform-origin: 12px 12px;
+    animation: greetRays 26s linear infinite;
+  }
+  @keyframes greetRays { to { transform: rotate(360deg); } }
+
+  .header .title .gi-steam {
+    animation: greetSteam 3.4s ease-in-out infinite;
+    transform-origin: center bottom;
+  }
+  .header .title .gi-s2 { animation-delay: .5s; }
+  .header .title .gi-s3 { animation-delay: 1s; }
+  @keyframes greetSteam {
+    0%   { opacity: 0; transform: translateY(2px) scaleY(.6); }
+    35%  { opacity: .85; }
+    100% { opacity: 0; transform: translateY(-2.4px) scaleY(1.12); }
+  }
+
+  .header .title .gi-set { animation: greetFloat 7s ease-in-out infinite; }
+  @keyframes greetFloat {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-1.3px); }
+  }
+
+  .header .title .gi-star {
+    animation: greetTwinkle 3.8s ease-in-out infinite;
+    transform-origin: 17.2px 5.7px;
+  }
+  @keyframes greetTwinkle {
+    0%, 100% { opacity: .45; transform: scale(.86); }
+    50%      { opacity: 1;   transform: scale(1.08); }
+  }
+
+  /* 降级：reduce / 低帧档位 —— 图标静态可见，只是不动 */
+  @media (prefers-reduced-motion: reduce) {
+    .header .title .gi-rays,
+    .header .title .gi-steam,
+    .header .title .gi-set,
+    .header .title .gi-star { animation: none !important; }
+    .header .title .gi-steam { opacity: .6; }
+    .header .title .gi-star { opacity: .85; }
+  }
+  html[data-fps-q] .header .title .gi-rays,
+  html[data-fps-q] .header .title .gi-steam,
+  html[data-fps-q] .header .title .gi-set,
+  html[data-fps-q] .header .title .gi-star {
+    animation: none !important;
+  }
+  html[data-fps-q] .header .title .gi-steam { opacity: .6; }
+
   /* ⭐ 2026-10-18：首页问候语 —— 主句大、尾句小而淡。
      这是「刊头 + 眉标」的排版关系：主句负责情绪，尾句负责信息。
      尾句用 .42em 而不是固定 px，这样跟着主标题在手机断点自动缩放。 */
@@ -9866,7 +9940,7 @@ html[data-fps-q] :root[data-theme="light"] body::after {
         <div>
           <!-- ⭐ 静态兜底：JS 未执行/报错时也有内容（铁律 D：内容默认可见）。
                JS 首次运行时会被 paintGreeting() 整体替换为当前时段的问候。 -->
-          <div class="title" id="home-greet"><span class="greet-main">你好</span><span class="greet-tail">包包爸，今天也要冷静</span></div>
+          <div class="title" id="home-greet"><span class="greet-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="4.1"/><g class="gi-rays"><path d="M12 2.8v2.1M12 19.1v2.1M2.8 12h2.1M19.1 12h2.1M5.5 5.5l1.5 1.5M17 17l1.5 1.5M18.5 5.5L17 7M7 17l-1.5 1.5"/></g></svg></span><span class="greet-main">你好</span><span class="greet-tail">包包爸，今天也要冷静</span></div>
           <div class="time-row">
             <span id="header-time">--</span>
             <span class="market-tag closed" id="market-tag">休市</span>
@@ -10581,14 +10655,23 @@ window.__pbOnVisible = function () {
    设计：主句给情绪（4 字以内），尾句给信息 + 称呼，尾句小一号淡一档。
    ⚠️ 只有「时段变了」才重建 DOM —— 每 60s 都重写 innerHTML 是浪费，
       且会让潜在动画反复重播。 */
+/* ⭐ 2026-10-18 加情绪图标：每个时段配一个**线条 SVG 小动效**，
+   比 emoji 高级一档（emoji 是图形字体，不同系统渲染不一致，且显廉价）。
+   图标都是「静态可见 + 极缓微动」，不是靠动画点亮 —— 铁律 D。 */
+const GREET_ICON = {
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="4.1"/><g class="gi-rays"><path d="M12 2.8v2.1M12 19.1v2.1M2.8 12h2.1M19.1 12h2.1M5.5 5.5l1.5 1.5M17 17l1.5 1.5M18.5 5.5L17 7M7 17l-1.5 1.5"/></g></svg>',
+  coffee: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9.5h11v5.5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5V9.5z"/><path d="M15.5 10.5h1.6a2.4 2.4 0 0 1 0 4.8h-1.6"/><path class="gi-steam gi-s1" d="M8.4 6.4c0-1 .8-1.3.8-2.3"/><path class="gi-steam gi-s2" d="M11.9 6.4c0-1 .8-1.3.8-2.3"/><path class="gi-steam gi-s3" d="M15.4 6.4c0-1 .8-1.3.8-2.3"/></svg>',
+  sunset: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2.8 18.5h18.4"/><g class="gi-set"><circle cx="12" cy="11.6" r="4"/><path d="M12 4.2v1.9M5.4 6.6l1.4 1.4M18.6 6.6l-1.4 1.4"/></g></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 13.3A8.6 8.6 0 1 1 10.7 3.6a7 7 0 0 0 9.7 9.7z"/><path class="gi-star" d="M17.2 4.2l.62 1.5 1.5.62-1.5.62-.62 1.5-.62-1.5-1.5-.62 1.5-.62z"/></svg>'
+};
 const GREET_PLAN = [
-  [0,  4,  '夜深了',  '包包爸，钱是赚不完的，早点睡'],
-  [5,  8,  '早上好',  '包包爸，开盘前先看一眼'],
-  [9,  11, '上午好',  '包包爸，盯住你的那几只'],
-  [12, 13, '中午好',  '包包爸，吃口饭，行情不急这两分钟'],
-  [14, 17, '下午好',  '包包爸，尾盘见真章'],
-  [18, 22, '晚上好',  '包包爸，复盘一下，明天再战'],
-  [23, 23, '夜深了',  '包包爸，今天收工了']
+  [0,  4,  '夜深了',  '包包爸，钱是赚不完的，早点睡',  'moon'],
+  [5,  8,  '早上好',  '包包爸，开盘前先看一眼',        'sun'],
+  [9,  11, '上午好',  '包包爸，盯住你的那几只',        'sun'],
+  [12, 13, '中午好',  '包包爸，吃口饭，行情不急这两分钟', 'coffee'],
+  [14, 17, '下午好',  '包包爸，尾盘见真章',            'sunset'],
+  [18, 22, '晚上好',  '包包爸，复盘一下，明天再战',    'moon'],
+  [23, 23, '夜深了',  '包包爸，今天收工了',            'moon']
 ];
 let greetSeg = null;
 function paintGreeting() {
@@ -10598,7 +10681,9 @@ function paintGreeting() {
   let seg = GREET_PLAN.find(p => h >= p[0] && h <= p[1]) || GREET_PLAN[1];
   if (seg === greetSeg) return;                 // 时段没变 → 零操作
   greetSeg = seg;
-  el.innerHTML = '<span class="greet-main">' + seg[2] + '</span>' +
+  el.innerHTML = '<span class="greet-ico" aria-hidden="true">' +
+                   (GREET_ICON[seg[4]] || '') + '</span>' +
+                 '<span class="greet-main">' + seg[2] + '</span>' +
                  '<span class="greet-tail">' + seg[3] + '</span>';
 }
 
