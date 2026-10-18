@@ -719,18 +719,41 @@
   .btn-primary:hover { background: var(--accent-hover); }
 
   /* 实时行情状态条 */
-  .live-bar {
-    margin-top: 18px;
-    background: rgba(255,255,255,.66);
-    border: 1px solid var(--card-border);
-    border-radius: 12px;
-    padding: 12px 18px;
+  /* ⭐⭐ 2026-10-18 用户要求：实时行情不要框了，就小字显示。
+     原来它是「玻璃卡」（背景 + 边框 + 圆角 + 12px 内边距 + ::before/::after 光效），
+     和下方真实的卡片抢视觉权重 —— 但它只是状态提示，不该长得像内容。
+     现在降级为一行小字：无背景、无边框、无圆角，字号 11.5，靠 opacity 退到背景层。
+     ⚠️ 用 !important 是因为它同时被多组「玻璃卡」组合选择器（含浅色主题）
+        和媒体查询命中，普通声明压不住。 */
+  .live-bar,
+  :root[data-theme="light"] .live-bar,
+  :root[data-theme="dark"] .live-bar {
+    margin-top: 10px;
+    background: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    font-size: 13.5px;
+    /* 小字形态下不该用 space-between 把三项撑到两端 ——
+       信息要挨着读，只有时间靠右。 */
+    justify-content: flex-start;
+    gap: 10px;
+    font-size: 11.5px;
+    letter-spacing: .01em;
     color: var(--text-sub);
+    opacity: .78;
   }
+  .live-bar > #live-time { margin-left: auto; }
+  /* 卡片化时给它加的两层光效，全部关掉 */
+  .live-bar::before,
+  .live-bar::after { display: none !important; content: none !important; }
+  /* 内部元素跟着小一号 */
+  .live-bar .left { display: flex; align-items: center; gap: 7px; }
   .live-bar .left { display: flex; align-items: center; gap: 9px; }
   /* 行情直连加载动效：地球旋转（Uiverse Novaxlo，缩放适配行内，随行情着色） */
   .earth-loader-wrap {
