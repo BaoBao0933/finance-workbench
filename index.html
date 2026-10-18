@@ -4184,23 +4184,33 @@ html[data-fps-q] .fd-open .page.active .module {
 
   position: absolute;
   left: 50%;
-  bottom: calc(100% + 13px);
-  transform: translateX(-50%) translateY(5px) scale(.94);
+  /* ⭐ 2026-10-18：13px → 6px。原来气泡飘在图标头顶很高处，
+     视觉上"断开"了；贴到 6px 才有「从图标里长出来」的连续感。 */
+  bottom: calc(100% + 6px);
+  /* 入场位移 5 → 3px：小控件位移越大越"重"，3px 才轻快 */
+  transform: translateX(-50%) translateY(3px) scale(.94);
 
-  padding: 5px 11px;
-  border-radius: 8px;
+  /* 配合小字号收紧内边距：5/11 → 4/9 */
+  padding: 4px 9px;
+  border-radius: 7px;
   white-space: nowrap;
 
-  font-size: 12.5px;
-  font-weight: 500;
-  line-height: 1.5;
+  /* ⭐ 字号 12.5 → 11.5：小标签要小巧，大了就"笨"。
+     小字必须补一点字距与字重，否则会糊 —— 这是排版的补偿法则。 */
+  font-family: var(--tr-font-sans, 'Segoe UI Variable Text', sans-serif);
+  font-size: 11.5px;
+  font-weight: 580;          /* Variable 字体真字重；静态字体吸附到 600 */
+  letter-spacing: .02em;     /* 中文小字要更松一点才清晰（.015 偏挤）*/
+  line-height: 1.35;         /* 小气泡不需要 1.5 的行高，那是正文的 */
   color: #f2f4f8;
 
   background: rgba(20, 24, 34, .92);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, .12);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, .34);
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, .30),
+    inset 0 1px 0 rgba(255, 255, 255, .10);   /* 顶部内高光：有材质，不是纯色块 */
 
   /* ⭐ 默认隐藏，但不影响布局、不影响功能 */
   opacity: 0;
@@ -4218,10 +4228,11 @@ html[data-fps-q] .fd-open .page.active .module {
   content: '';
   position: absolute;
   left: 50%;
-  bottom: calc(100% + 8px);
-  transform: translateX(-50%) translateY(5px);
-  width: 6px;
-  height: 6px;
+  /* 跟随气泡下移（气泡 +13→+6，三角 +8→+1，保持 5px 咬合） */
+  bottom: calc(100% + 1px);
+  transform: translateX(-50%) translateY(3px);
+  width: 5.5px;
+  height: 5.5px;
   background: rgba(20, 24, 34, .92);
   border-right: 1px solid rgba(255, 255, 255, .12);
   border-bottom: 1px solid rgba(255, 255, 255, .12);
@@ -4240,6 +4251,22 @@ html[data-fps-q] .fd-open .page.active .module {
   visibility: visible;
   transform: translateX(-50%) translateY(0) scale(1);
 }
+:root[data-theme="light"] .mac-dock .md-item::after {
+  /* ⭐ 浅色界面是暖米色系，纯冷黑（rgba(20,24,34)）会显得突兀。
+     换成暖黑（带一点棕），既保持对比又融入整体色调。 */
+  background: rgba(42, 35, 30, .94);
+  border-color: rgba(255, 246, 238, .14);
+  box-shadow:
+    0 4px 14px rgba(80, 50, 30, .28),
+    inset 0 1px 0 rgba(255, 255, 255, .12);
+  color: #FFF7F0;
+}
+:root[data-theme="light"] .mac-dock .md-item::before {
+  background: rgba(42, 35, 30, .94);
+  border-right-color: rgba(255, 246, 238, .14);
+  border-bottom-color: rgba(255, 246, 238, .14);
+}
+
 .mac-dock .md-item:hover::before,
 .mac-dock .md-item:focus-visible::before {
   opacity: 1;
