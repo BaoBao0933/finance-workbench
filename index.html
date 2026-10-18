@@ -254,6 +254,27 @@
     0%, 100% { opacity: .5;  transform: scale(.84); }
     50%      { opacity: 1;   transform: scale(1.18); }
   }
+
+  /* ⭐ Like button 粒子层：点头像时 8 个粒子沿圆周迸出（铜橙 + 行情绿交替）。
+     只在点击瞬间出现（.62s 后自毁），不增加任何常驻动画数量。
+     角度带 ±24° 随机扰动 —— 每一次迸发都不一样，这才"活"。 */
+  .gu-burst {
+    position: absolute;
+    left: 50%; top: 50%;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .gu-burst i {
+    position: absolute;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--bd, var(--accent));
+    animation: guBurst .62s cubic-bezier(.2, .7, .3, 1) forwards;
+  }
+  @keyframes guBurst {
+    0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--bx, 0px)), calc(-50% + var(--by, -26px))) scale(.35); }
+  }
   /* ⭐⭐ 2026-10-19 字体升级：原来 11.5px / 500 / 正文族，小字密排显得糊而廉价。
      改法：**放大 + 换光学轴 + 用真字重** ——
        · Display 光学轴（比 Text 版更瘦长、字形更"设计"）
@@ -307,6 +328,15 @@
   }
   html[data-fps-q] .greet-user .gu-avatar::after,
   html[data-fps-q] .greet-user .gu-live { animation: none !important; }
+  @media (prefers-reduced-motion: reduce) {
+    #home-greet .greet-ico,
+    #home-greet .greet-main,
+    #home-greet .greet-tail { animation: none !important; }
+    .gu-burst { display: none !important; }
+  }
+  html[data-fps-q] #home-greet .greet-ico,
+  html[data-fps-q] #home-greet .greet-main,
+  html[data-fps-q] #home-greet .greet-tail { animation: none !important; }
   html[data-fps-q] .greet-user .gu-avatar::after { opacity: .34; }
   html[data-fps-q] .greet-user .gu-live { opacity: .9; transform: scale(1); }
 
@@ -324,6 +354,23 @@
     outline: none;
   }
   :root[data-theme="dark"] .greet-user .gu-input { background: rgba(255, 255, 255, .08); }
+
+  /* ⭐ 2026-10-19 Texts reveal（ui-design-languages·transitions.dev）：
+     时段切换重建 DOM 时，图标→主句→尾句**错开上升 + blur 溶解**。
+     错峰 60ms（规范：micro cascade 20-40ms 的放宽，总预算 <500ms ✓）。
+     进 420ms / 无出场（元素常驻）—— 符合「进慢出快」。
+     ⚠️ paintGreeting 有缓存比对，只有时段真变了才重建 → 不会每分钟重播。 */
+  #home-greet .greet-ico,
+  #home-greet .greet-main,
+  #home-greet .greet-tail {
+    animation: greetReveal .42s cubic-bezier(.22, 1, .36, 1) both;
+  }
+  #home-greet .greet-main { animation-delay: .06s; display: inline-block; }
+  #home-greet .greet-tail { animation-delay: .12s; }
+  @keyframes greetReveal {
+    from { opacity: 0; transform: translateY(10px); filter: blur(4px); }
+    to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
+  }
 
   .header .title .greet-tail {
     display: inline-block;
@@ -11073,9 +11120,27 @@ function beginEditUserName() {
    ⭐ 用 animationend 移除 class，保证能连续点；同时给 pop 加时长兜底，
       防止动画被打断时 class 残留（元素就再也弹不起来了）。 */
 let guPopTimer = 0;
+function burstAt(anchor) {
+  if (!anchor) return;
+  const host = document.createElement('span');
+  host.className = 'gu-burst';
+  for (let i = 0; i < 8; i++) {
+    const p = document.createElement('i');
+    const ang = (i / 8) * 360 + (Math.random() * 24 - 12);   // 均匀 + 随机扰动
+    const dist = 24 + Math.random() * 8;                     // 距离 24~32px
+    p.style.setProperty('--bx', (Math.cos(ang * Math.PI / 180) * dist).toFixed(1) + 'px');
+    p.style.setProperty('--by', (Math.sin(ang * Math.PI / 180) * dist).toFixed(1) + 'px');
+    p.style.setProperty('--bd', i % 2 ? '#3dcf8c' : 'var(--accent)');
+    host.appendChild(p);
+  }
+  anchor.appendChild(host);
+  setTimeout(() => host.remove(), 720);
+}
+
 function popAvatar() {
   const av = document.querySelector('.gu-avatar');
   if (!av) return;
+  burstAt(av);
   av.classList.remove('pop');
   void av.offsetWidth;                      // 强制回流，重启动画
   av.classList.add('pop');
