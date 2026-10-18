@@ -9635,6 +9635,20 @@ body, input, button, .num {
   letter-spacing: .01em;
 }
 
+/* ═══ 4a-0. 接管 PB 层的字体变量（横幅字体被它锁死）═══════════════════════
+   ⭐⭐ 2026-10-18 实测发现：perf-boost 层用
+      `.fun-banner, .fun-banner .fb-title { font-family: var(--pb-font-sans) !important }`
+      把横幅字体锁死了 —— 普通声明压不过 !important。
+      而 `--pb-font-sans` 的栈是 `-apple-system, ..., 'Microsoft YaHei'`
+      **不含思源黑体**，所以横幅中文一直是雅黑。
+   正解：不从选择器打架，直接**接管变量**。
+      PB 层「用系统字体保性能」的语义与 TR 完全一致，只是它没带思源黑体。 */
+
+:root {
+  --pb-font-sans: var(--tr-font-display);
+  --pb-font-mono: var(--tr-font-sans);   /* 横幅署名改无衬线眉标 */
+}
+
 /* ═══ 4a. 每日标语横幅：编辑排版风格（2026-10-18 用户反馈「横幅字体不够高级」）
    ───────────────────────────────────────────────────────────────────────────
    原状：署名用 Space Mono（等宽，技术感）；标语 500 字重 + .01em 字距。
