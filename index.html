@@ -9218,6 +9218,188 @@ html[data-fps-q="low"] .hc-dog {
 }
 
 </style><!-- PG:CSS:END -->
+<!-- LF:CSS:BEGIN -->
+<!-- list-flow (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<style id="list-flow-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   list-flow · 样式（2026-10-18）
+   ───────────────────────────────────────────────────────────────────────────
+   ① 新鲜度徽章：贴在 live-bar 的时间旁
+   ② 长按菜单：底部 sheet（手机上拇指可达）
+   两套主题都要适配（用户系统是浅色，但深色也常用）。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ═══ ① 数据新鲜度徽章 ═══════════════════════════════════════════════════ */
+
+.lf-fresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.6;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  transition: color .25s ease, background .25s ease, border-color .25s ease;
+}
+
+/* 小圆点：颜色即状态（配合文字，不只靠颜色）*/
+.lf-fresh::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+/* 刚刚更新 / 几秒前：绿色（沿用 --down 的语义色，成功/在线）*/
+.lf-fresh.is-fresh {
+  color: #3ddc84;
+  background: rgba(61, 220, 132, .10);
+  border-color: rgba(61, 220, 132, .28);
+}
+
+/* 超过 60 秒：琥珀，提醒「可能延迟」*/
+.lf-fresh.is-stale {
+  color: #e0a15b;
+  background: rgba(224, 161, 91, .12);
+  border-color: rgba(224, 161, 91, .32);
+}
+
+/* 超过 3 分钟：红，明确警告*/
+.lf-fresh.is-old {
+  color: #ff7a5c;
+  background: rgba(255, 122, 92, .13);
+  border-color: rgba(255, 122, 92, .34);
+}
+
+/* 收盘：中性灰，不制造焦虑*/
+.lf-fresh.is-closed {
+  color: #9aa1a9;
+  background: rgba(154, 161, 169, .10);
+  border-color: rgba(154, 161, 169, .22);
+}
+
+/* 浅色主题：提高对比度（浅底上绿色要压深）*/
+:root[data-theme="light"] .lf-fresh.is-fresh { color: #0b9e63; }
+:root[data-theme="light"] .lf-fresh.is-stale { color: #a8712a; }
+:root[data-theme="light"] .lf-fresh.is-old { color: #c4502f; }
+:root[data-theme="light"] .lf-fresh.is-closed { color: #6a7384; }
+
+/* ═══ ② 长按 / 右键操作菜单 ═════════════════════════════════════════════ */
+
+.lf-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 9600;          /* 高于 dock(9000)，低于桌面标题栏 */
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.lf-sheet-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 10, 16, .42);
+  opacity: 0;
+  transition: opacity .2s ease;
+  pointer-events: auto;
+}
+
+.lf-sheet-panel {
+  position: relative;
+  width: min(100%, 420px);
+  margin: 0 10px max(14px, env(safe-area-inset-bottom));
+  padding: 8px;
+  border-radius: 20px;
+  background: rgba(30, 33, 42, .92);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, .12);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, .48),
+    inset 0 1px 0 rgba(255, 255, 255, .10);
+  pointer-events: auto;
+
+  /* 入场：从底部浮起（内容默认可见，只播一次）*/
+  opacity: 0;
+  transform: translateY(22px) scale(.97);
+  transition: opacity .2s ease, transform .26s cubic-bezier(.22, 1, .36, 1);
+}
+
+.lf-sheet.lf-on .lf-sheet-scrim { opacity: 1; }
+.lf-sheet.lf-on .lf-sheet-panel { opacity: 1; transform: translateY(0) scale(1); }
+
+.lf-sheet-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+.lf-sheet-head b {
+  font-size: 15px;
+  color: #eef0f2;
+  font-weight: 600;
+}
+.lf-sheet-head span {
+  font-size: 12px;
+  color: #9aa1a9;
+  font-variant-numeric: tabular-nums;
+}
+
+.lf-act {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 13px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #dfe3e9;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background .14s ease, transform .14s ease;
+}
+.lf-act:hover { background: rgba(255, 255, 255, .07); }
+.lf-act:active { transform: scale(.985); background: rgba(255, 255, 255, .11); }
+.lf-act.lf-cancel {
+  margin-top: 8px;
+  text-align: center;
+  color: #9aa1a9;
+  background: rgba(255, 255, 255, .04);
+}
+
+/* 浅色主题：白玻璃面板 */
+:root[data-theme="light"] .lf-sheet-panel {
+  background: rgba(255, 252, 248, .94);
+  border-color: rgba(255, 255, 255, .8);
+  box-shadow: 0 24px 64px rgba(120, 96, 80, .22);
+}
+:root[data-theme="light"] .lf-sheet-head { border-bottom-color: rgba(0, 0, 0, .07); }
+:root[data-theme="light"] .lf-sheet-head b { color: #3a2f26; }
+:root[data-theme="light"] .lf-sheet-head span { color: #8a7c70; }
+:root[data-theme="light"] .lf-act { color: #3a2f26; }
+:root[data-theme="light"] .lf-act:hover { background: rgba(0, 0, 0, .05); }
+:root[data-theme="light"] .lf-act:active { background: rgba(0, 0, 0, .08); }
+:root[data-theme="light"] .lf-act.lf-cancel { color: #8a7c70; background: rgba(0, 0, 0, .035); }
+
+/* ═══ 降级：reduce 下菜单不做位移，只淡入（功能保留）═══════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-sheet-panel { transform: none !important; transition: opacity .15s ease !important; }
+  .lf-sheet-scrim { transition-duration: .15s; }
+}
+
+html[data-fps-q] .lf-sheet-panel { transform: none !important; }
+
+</style><!-- LF:CSS:END -->
 </head>
 <body>
 
@@ -21460,5 +21642,383 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- PG:JS:END -->
+<!-- LF:JS:BEGIN -->
+<!-- list-flow (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<script id="list-flow-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   list-flow · 列表流动 / 数据新鲜度 / 长按操作（2026-10-18）
+   ───────────────────────────────────────────────────────────────────────────
+   用户：「按你推荐的来」——GitHub 调研后落地三件低风险高价值的事。
+   ⚠️ 调研结论修正：auto-animate 与 lenis 都不引，原因见下。
+
+   ── 为什么不用 auto-animate（13.9k★，本来看中的）──────────────────────
+   它靠 MutationObserver + 「仍在 DOM 中的旧节点」做 FLIP。
+   但本项目 renderWatchlist() 是 `list.innerHTML = rows` 整表重建 ——
+   旧节点全被移除，auto-animate 只能做淡入淡出，**不会平滑位移**。
+   所以改用手写 FLIP（WAAPI，15 行）：重建前记 rect、重建后按 key 匹配差值。
+   更精确、零依赖、不增加 vendor 负担。
+
+   ── 为什么不用 lenis（16.7k★，本来想加的）──────────────────────────────
+   本项目主滚动是内层容器 `.content { overflow-y:auto }`，且其下是多个
+   `.page` 兄弟节点（display:none 切换）。lenis 的 wrapper 模式要求
+   「wrapper 下只有一个 content 元素」，需要往主文件里包一层 DOM ——
+   侵入结构、且与切页/详情视图的滚动复位逻辑存在冲突风险。
+   收益（滚动手感）< 风险，本轮跳过；要做得单独一轮 + 真机回归。
+
+   ── 本层做三件事 ──────────────────────────────────────────────────────
+   ① 列表重排 FLIP：自选 / 板块卡 重建时，行平滑滑动到新位置
+      （置顶、增删、排序变化时不再瞬移）
+   ② 数据新鲜度：页头显示「N 秒前」，超时变黄/变红；非交易时段显示「收盘」
+   ③ 长按/右键菜单：长按股票行 → 复制代码 / 置顶切换
+
+   ⭐ 铁律：reduce / fps 降档时 FLIP 直接跳过（状态直达），
+      但新鲜度与菜单照常可用 —— 降动效 ≠ 砍功能。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+(function () {
+  'use strict';
+
+  if (window.__listFlowInstalled) return;
+  window.__listFlowInstalled = true;
+
+  var REDUCED = !!(window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  var state = {
+    ready: false,
+    reduced: REDUCED,
+    flips: 0,          // 实际播放的 FLIP 次数
+    wraps: 0,          // 成功包装的渲染函数数
+    lastDataAt: 0,     // 最近一次数据渲染时间（ms epoch）
+    freshTier: 'idle', // idle | fresh | stale | old | closed
+    menuOpens: 0,
+    copies: 0
+  };
+
+  var FLIP_DUR = 260;
+  var FLIP_EASE = 'cubic-bezier(.22,1,.36,1)';
+
+  function qs(s, r) { return (r || document).querySelector(s); }
+  function degraded() {
+    return document.documentElement.hasAttribute('data-fps-q');
+  }
+
+  /* ═══ ① 列表重排 FLIP ═════════════════════════════════════════════════
+     ⭐ 为什么必须用「重建前记录 + 重建后比对」：
+        innerHTML 整表重建 = 旧节点全灭，任何基于 MutationObserver 的
+        库（auto-animate）都只能识别为「删除+新增」，做不出位移。
+     关键：按业务 key（data-secid / data-code）匹配，而不是 DOM 身份。 */
+
+  function wrapFlip(fnName, containerSel, itemSel, keyAttr) {
+    var orig = window[fnName];
+    if (typeof orig !== 'function' || orig.__lfWrapped) return false;
+
+    var wrapped = function () {
+      var c = qs(containerSel);
+      var before = null;
+
+      /* 只在默认档录位置：降档/reduce 时跳过，避免无谓的布局读取 */
+      if (c && !REDUCED && !degraded()) {
+        before = {};
+        var items = c.querySelectorAll(itemSel);
+        for (var i = 0; i < items.length; i++) {
+          var k = items[i].getAttribute(keyAttr);
+          if (k) before[k] = items[i].getBoundingClientRect().top;
+        }
+        if (!Object.keys(before).length) before = null;
+      }
+
+      var ret = orig.apply(this, arguments);
+
+      if (before) {
+        requestAnimationFrame(function () {
+          var after = c.querySelectorAll(itemSel);
+          var moved = 0;
+          for (var j = 0; j < after.length; j++) {
+            var el = after[j];
+            var key = el.getAttribute(keyAttr);
+            if (key == null || before[key] == null) continue;
+            var dy = before[key] - el.getBoundingClientRect().top;
+            if (Math.abs(dy) < 2) continue;      // 亚像素抖动不算移动
+
+            /* WAAPI：transform only，走合成层，不触发重排 */
+            el.animate(
+              [{ transform: 'translateY(' + dy + 'px)' }, { transform: 'translateY(0)' }],
+              { duration: FLIP_DUR, easing: FLIP_EASE }
+            );
+            moved++;
+          }
+          if (moved) state.flips++;
+        });
+      }
+      return ret;
+    };
+
+    wrapped.__lfWrapped = true;
+    wrapped.__lfOrig = orig;
+    window[fnName] = wrapped;
+    state.wraps++;
+    return true;
+  }
+
+  /* ═══ ② 数据新鲜度 ═════════════════════════════════════════════════════
+     数据渲染完成 → 打时间戳；1s ticker 刷新徽章。
+     ⚠️ 非交易时段不能显示「已过 3 小时」吓得用户以为坏了 —— 显示「收盘」。 */
+
+  var badge = null;
+  var TRADE = [[9 * 60 + 15, 11 * 60 + 30], [13 * 60, 15 * 60]];
+
+  function isTradingNow() {
+    var d = new Date();
+    var wd = d.getDay();
+    if (wd === 0 || wd === 6) return false;
+    var m = d.getHours() * 60 + d.getMinutes();
+    for (var i = 0; i < TRADE.length; i++) {
+      if (m >= TRADE[i][0] && m <= TRADE[i][1]) return true;
+    }
+    return false;
+  }
+
+  function ensureBadge() {
+    if (badge) return badge;
+    var bar = qs('.live-bar');
+    if (!bar) return null;
+    badge = document.createElement('span');
+    badge.className = 'lf-fresh';
+    badge.id = 'lf-fresh';
+    badge.setAttribute('role', 'status');
+    badge.setAttribute('aria-live', 'polite');
+    var t = qs('#live-time', bar);
+    if (t && t.parentNode) t.parentNode.insertBefore(badge, t);
+    else bar.appendChild(badge);
+    return badge;
+  }
+
+  function paintFresh() {
+    if (!ensureBadge()) return;
+    if (!state.lastDataAt) { badge.textContent = ''; badge.className = 'lf-fresh'; return; }
+
+    var sec = Math.round((Date.now() - state.lastDataAt) / 1000);
+    var tier, txt;
+
+    if (!isTradingNow()) {
+      tier = 'closed';
+      txt = '已收盘';
+    } else if (sec <= 8) {
+      tier = 'fresh';
+      txt = '刚刚更新';
+    } else if (sec <= 60) {
+      tier = 'fresh';
+      txt = sec + ' 秒前';
+    } else if (sec <= 180) {
+      tier = 'stale';
+      txt = Math.round(sec / 60) + ' 分钟前';
+    } else {
+      tier = 'old';
+      txt = Math.round(sec / 60) + ' 分钟前';
+    }
+
+    if (tier !== state.freshTier || badge.textContent !== txt) {
+      state.freshTier = tier;
+      badge.className = 'lf-fresh is-' + tier;
+      badge.textContent = txt;
+    }
+  }
+
+  function markData() {
+    state.lastDataAt = Date.now();
+    paintFresh();
+  }
+
+  /* 包装所有「数据已渲染」的函数：任一被调用即视为数据新鲜 */
+  function wrapStamp(fnName) {
+    var orig = window[fnName];
+    if (typeof orig !== 'function' || orig.__lfStamped) return false;
+    var w = function () {
+      var r = orig.apply(this, arguments);
+      markData();
+      return r;
+    };
+    w.__lfStamped = true;
+    w.__lfOrig = orig;
+    window[fnName] = w;
+    return true;
+  }
+
+  /* ═══ ③ 长按 / 右键菜单 ═══════════════════════════════════════════════ */
+
+  var sheet = null;
+  var LONG_MS = 480;
+  var timer = null;
+  var startXY = null;
+  var targetRow = null;
+
+  function closeSheet() {
+    if (!sheet) return;
+    sheet.classList.remove('lf-on');
+    var s = sheet;
+    setTimeout(function () {
+      if (s && s.parentNode) s.parentNode.removeChild(s);
+    }, 220);
+    sheet = null;
+  }
+
+  function openSheet(row) {
+    closeSheet();
+    var secid = row.getAttribute('data-secid');
+    if (!secid) return;
+    var nameEl = qs('.w-name', row);
+    var codeEl = qs('.w-code', row);
+    var name = nameEl ? nameEl.textContent.trim().replace(/\s+/g, ' ') : '';
+    var code = codeEl ? codeEl.textContent.trim() : secid.split('.').pop();
+
+    sheet = document.createElement('div');
+    sheet.className = 'lf-sheet';
+    sheet.innerHTML =
+      '<div class="lf-sheet-scrim"></div>' +
+      '<div class="lf-sheet-panel" role="menu" aria-label="' + name + ' 操作">' +
+      '  <div class="lf-sheet-head"><b>' + name + '</b><span>' + code + '</span></div>' +
+      '  <button class="lf-act" data-act="copy" role="menuitem">复制代码</button>' +
+      '  <button class="lf-act" data-act="pin" role="menuitem">' +
+      (row.classList.contains('pinned') ? '取消置顶' : '置顶') + '</button>' +
+      '  <button class="lf-act lf-cancel" data-act="cancel" role="menuitem">取消</button>' +
+      '</div>';
+
+    sheet.addEventListener('click', function (e) {
+      var act = e.target.closest ? e.target.closest('[data-act]') : null;
+      if (!act) { closeSheet(); return; }
+      var kind = act.getAttribute('data-act');
+      if (kind === 'copy') {
+        copyText(code);
+        state.copies++;
+      } else if (kind === 'pin') {
+        var btn = qs('.w-pin', row);
+        if (btn) btn.click();
+      }
+      closeSheet();
+    });
+
+    document.body.appendChild(sheet);
+    /* 下一帧加上 .lf-on，让入场过渡生效（铁律：内容默认可见，只播一次） */
+    requestAnimationFrame(function () {
+      if (sheet) sheet.classList.add('lf-on');
+    });
+    state.menuOpens++;
+  }
+
+  function copyText(txt) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).catch(function () { fallbackCopy(txt); });
+    } else { fallbackCopy(txt); }
+  }
+
+  function fallbackCopy(txt) {
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    ta.remove();
+  }
+
+  function bindLongPress() {
+    document.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      var row = e.target.closest ? e.target.closest('#watch-list .watch-row') : null;
+      if (!row) return;
+      if (e.target.closest('button, a, input')) return;   // 点按钮不触发
+      startXY = { x: e.clientX, y: e.clientY };
+      targetRow = row;
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        if (targetRow) openSheet(targetRow);
+        targetRow = null;
+        startXY = null;
+      }, LONG_MS);
+    }, { passive: true });
+
+    function cancel() {
+      clearTimeout(timer);
+      timer = null;
+      targetRow = null;
+      startXY = null;
+    }
+    document.addEventListener('pointerup', cancel, { passive: true });
+    document.addEventListener('pointercancel', cancel, { passive: true });
+
+    /* 手指一移动就取消（滚动列表时不该弹菜单） */
+    document.addEventListener('pointermove', function (e) {
+      if (!startXY) return;
+      var dx = e.clientX - startXY.x, dy = e.clientY - startXY.y;
+      if (dx * dx + dy * dy > 100) cancel();     // 10px
+    }, { passive: true });
+
+    /* 桌面右键也支持 */
+    document.addEventListener('contextmenu', function (e) {
+      var row = e.target.closest ? e.target.closest('#watch-list .watch-row') : null;
+      if (!row) return;
+      e.preventDefault();
+      openSheet(row);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && sheet) closeSheet();
+    });
+  }
+
+  /* ═══ 启动 ═════════════════════════════════════════════════════════════ */
+
+  function init() {
+    /* ① FLIP：只挂有稳定业务 key 的列表 */
+    wrapFlip('renderWatchlist', '#watch-list', '.watch-row', 'data-secid');
+    wrapFlip('renderSectors', '#sector-strip', '.sector-chip', 'data-code');
+    wrapFlip('renderSecStocks', '#sec-list', '.sec-cell', 'data-code');
+
+    /* ② 新鲜度：任一数据渲染完成即打时间戳 */
+    ['renderAll', 'updateWatchPrices', 'renderWatchlist', 'renderSectors',
+     'loadQuotes', 'renderSecList', 'renderLhbList'].forEach(wrapStamp);
+
+    ensureBadge();
+    paintFresh();
+    setInterval(paintFresh, 1000);
+
+    /* ③ 长按菜单 */
+    bindLongPress();
+
+    state.ready = true;
+  }
+
+  /* ═══ API ══════════════════════════════════════════════════════════════ */
+
+  window.__listFlow = {
+    state: function () {
+      return {
+        ready: state.ready, reduced: state.reduced,
+        wraps: state.wraps, flips: state.flips,
+        freshTier: state.freshTier,
+        lastDataAt: state.lastDataAt,
+        menuOpens: state.menuOpens, copies: state.copies,
+        degraded: degraded()
+      };
+    },
+    markData: markData,
+    openSheet: function (secid) {
+      var row = document.querySelector('#watch-list .watch-row[data-secid="' + secid + '"]');
+      if (row) openSheet(row);
+      return !!row;
+    },
+    closeSheet: closeSheet,
+    isTradingNow: isTradingNow
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
+</script><!-- LF:JS:END -->
 </body>
 </html>
