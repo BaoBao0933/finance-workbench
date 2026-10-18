@@ -90,6 +90,18 @@
     display: inline-block;
     text-wrap: balance;
   }
+  /* ⭐ 2026-10-18：首页问候语 —— 主句大、尾句小而淡。
+     这是「刊头 + 眉标」的排版关系：主句负责情绪，尾句负责信息。
+     尾句用 .42em 而不是固定 px，这样跟着主标题在手机断点自动缩放。 */
+  .header .title .greet-tail {
+    display: inline-block;
+    margin-left: .42em;
+    font-size: .42em;
+    font-weight: 450;          /* 不继承标题的 680，否则尾句会抢主句 */
+    letter-spacing: 0;
+    color: var(--text-sub);
+    opacity: .82;
+  }
 
   /* 侧边栏 logo 动效 */
   .logo-icon { animation: glowPulse 3.5s ease-in-out infinite; }
@@ -9852,7 +9864,9 @@ html[data-fps-q] :root[data-theme="light"] body::after {
     <div id="page-home">
       <div class="header">
         <div>
-          <div class="title">工作台首页</div>
+          <!-- ⭐ 静态兜底：JS 未执行/报错时也有内容（铁律 D：内容默认可见）。
+               JS 首次运行时会被 paintGreeting() 整体替换为当前时段的问候。 -->
+          <div class="title" id="home-greet"><span class="greet-main">你好</span><span class="greet-tail">包包爸，今天也要冷静</span></div>
           <div class="time-row">
             <span id="header-time">--</span>
             <span class="market-tag closed" id="market-tag">休市</span>
@@ -10561,6 +10575,33 @@ window.__pbOnVisible = function () {
     try { __pbPollers[i].kick(); } catch (e) {}
   }
 };
+/* ⭐ 2026-10-18 首页问候语：按小时切换，每 60s 检查一次
+   ─────────────────────────────────────────────────────────────────────
+   用户要求把「工作台首页」换成会变的问候语。
+   设计：主句给情绪（4 字以内），尾句给信息 + 称呼，尾句小一号淡一档。
+   ⚠️ 只有「时段变了」才重建 DOM —— 每 60s 都重写 innerHTML 是浪费，
+      且会让潜在动画反复重播。 */
+const GREET_PLAN = [
+  [0,  4,  '夜深了',  '包包爸，钱是赚不完的，早点睡'],
+  [5,  8,  '早上好',  '包包爸，开盘前先看一眼'],
+  [9,  11, '上午好',  '包包爸，盯住你的那几只'],
+  [12, 13, '中午好',  '包包爸，吃口饭，行情不急这两分钟'],
+  [14, 17, '下午好',  '包包爸，尾盘见真章'],
+  [18, 22, '晚上好',  '包包爸，复盘一下，明天再战'],
+  [23, 23, '夜深了',  '包包爸，今天收工了']
+];
+let greetSeg = null;
+function paintGreeting() {
+  const el = document.getElementById('home-greet');
+  if (!el) return;
+  const h = new Date().getHours();
+  let seg = GREET_PLAN.find(p => h >= p[0] && h <= p[1]) || GREET_PLAN[1];
+  if (seg === greetSeg) return;                 // 时段没变 → 零操作
+  greetSeg = seg;
+  el.innerHTML = '<span class="greet-main">' + seg[2] + '</span>' +
+                 '<span class="greet-tail">' + seg[3] + '</span>';
+}
+
 function tickClock() {
   const now = new Date();
   const p = n => String(n).padStart(2, '0');
@@ -10573,6 +10614,12 @@ function tickClock() {
 }
 setInterval(tickClock, 1000);
 tickClock();
+
+/* ⭐ 问候语：立刻画一次 + 每分钟检查（跨整点自动换，
+   不用 setInterval(60000) 精确对齐整点 —— 每分钟检查足够，
+   且只有时段变化时才真正动 DOM） */
+paintGreeting();
+setInterval(paintGreeting, 60000);
 
 /* ================= 核心指数渲染 ================= */
 function renderIndexCard(cfg, q) {
