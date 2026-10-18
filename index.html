@@ -179,24 +179,81 @@
     gap: 10px;
     margin-bottom: 7px;
   }
-  /* ⭐ 2026-10-19：26 → 32px（用户要求"放大一点点"）*/
+  /* ⭐ 2026-10-19：26 → 32px；并加 filter 压曝光。
+     侧栏 logo 用的是 brightness(.78) —— 但头像只有 32px，压到 .78 会糊，
+     所以按尺寸放开到 .85，保留细节的同时不再"白得发光"。 */
   .greet-user .gu-avatar {
+    position: relative;          /* 供光环/在线点定位 */
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    overflow: hidden;
+    overflow: visible;           /* 光环要溢出到框外 */
     flex: none;
     background: rgba(0, 0, 0, .06);
     box-shadow: 0 0 0 1px rgba(255, 255, 255, .5), 0 2px 6px rgba(0, 0, 0, .12);
   }
+  /* 内层裁切：只有图片裁剪成圆，光环不受影响 */
   .greet-user .gu-avatar img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
-    transition: transform .35s cubic-bezier(.22, 1, .36, 1);
+    border-radius: 50%;
+    filter: brightness(.85) contrast(1.08) saturate(.92);
+    transition: transform .28s cubic-bezier(.34, 1.45, .64, 1), filter .28s ease;
   }
-  .greet-user:hover .gu-avatar img { transform: scale(1.1) rotate(-3deg); }
+  /* ⭐ Primary 层：hover 时"弹一下 + 歪头"
+     规范说 Playful（插画类）可用 10~20% 过冲 —— 头像正是插画性质。 */
+  .greet-user:hover .gu-avatar img {
+    transform: scale(1.14) rotate(-5deg);
+    filter: brightness(.92) contrast(1.06) saturate(.98);
+  }
+  /* 点一下会晃头（趣味彩蛋，见 guPop） */
+  .greet-user .gu-avatar.pop img { animation: guPop .6s cubic-bezier(.34, 1.45, .64, 1); }
+  @keyframes guPop {
+    0%   { transform: scale(1.14) rotate(-5deg); }
+    30%  { transform: scale(1.2) rotate(6deg); }
+    55%  { transform: scale(1.12) rotate(-8deg); }
+    78%  { transform: scale(1.16) rotate(3deg); }
+    100% { transform: scale(1.14) rotate(-5deg); }
+  }
+
+  /* ⭐ Ambient 层 1：呼吸光环 —— 让头像"有呼吸"，不再是一张死图。
+     规范：looping ambient 用 sine 系缓动；这里 3.6s，与项目里
+           dock 的 floaty(3s) 同族，不会显得节奏突兀。 */
+  .greet-user .gu-avatar::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px solid var(--accent);
+    pointer-events: none;
+    animation: guRing 3.6s ease-in-out infinite;
+  }
+  @keyframes guRing {
+    0%, 100% { opacity: .18; transform: scale(1); }
+    50%      { opacity: .52; transform: scale(1.09); }
+  }
+  /* hover 时光环更亮（Secondary 层：陪衬主交互） */
+  .greet-user:hover .gu-avatar::after { animation-duration: 1.8s; }
+
+  /* ⭐ Ambient 层 2：右下角"在线"小点 —— 社交感 + 状态提示 */
+  .greet-user .gu-live {
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--down);
+    /* 描边用半透明黑：深浅两套主题下都自然，不会出现"白圈套绿点" */
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, .18), 0 0 6px rgba(61, 220, 132, .55);
+    animation: guDot 2.6s ease-in-out infinite;
+  }
+  @keyframes guDot {
+    0%, 100% { opacity: .5;  transform: scale(.84); }
+    50%      { opacity: 1;   transform: scale(1.18); }
+  }
   /* ⭐⭐ 2026-10-19 字体升级：原来 11.5px / 500 / 正文族，小字密排显得糊而廉价。
      改法：**放大 + 换光学轴 + 用真字重** ——
        · Display 光学轴（比 Text 版更瘦长、字形更"设计"）
@@ -239,6 +296,20 @@
     outline-offset: 2px;
     opacity: 1;
   }
+  /* 降级：所有装饰动画停掉，但**保持可见**
+     （光环停在中亮度、在线点停在可见状态 —— 不能让元素消失）。 */
+  @media (prefers-reduced-motion: reduce) {
+    .greet-user .gu-avatar::after,
+    .greet-user .gu-live { animation: none !important; }
+    .greet-user .gu-avatar::after { opacity: .38; }
+    .greet-user .gu-live { opacity: .9; transform: scale(1); }
+    .greet-user .gu-avatar.pop img { animation: none !important; }
+  }
+  html[data-fps-q] .greet-user .gu-avatar::after,
+  html[data-fps-q] .greet-user .gu-live { animation: none !important; }
+  html[data-fps-q] .greet-user .gu-avatar::after { opacity: .34; }
+  html[data-fps-q] .greet-user .gu-live { opacity: .9; transform: scale(1); }
+
   /* 改名时的内联输入框：就地编辑，不用弹窗（更轻、不打断） */
   .greet-user .gu-input {
     font-family: var(--tr-font-display, 'Segoe UI Variable Display', sans-serif);
@@ -10180,7 +10251,10 @@ button {
           <!-- ⭐ 2026-10-19 用户名行：头像 + 名字 + 改名按钮（不再写「用户名：」）。
                静态兜底（JS 挂了也能看到默认名），JS 再按 localStorage 覆盖。 -->
           <div class="greet-user" id="greet-user">
-            <span class="gu-avatar"><img id="greet-avatar" alt="" aria-hidden="true"></span>
+            <span class="gu-avatar">
+              <img id="greet-avatar" alt="" aria-hidden="true">
+              <i class="gu-live" title="行情在线" aria-hidden="true"></i>
+            </span>
             <b class="gu-name" id="gu-name-txt">包包爸</b>
             <button class="gu-edit" id="gu-edit" type="button" title="修改用户名" aria-label="修改用户名">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -10995,11 +11069,33 @@ function beginEditUserName() {
   input.addEventListener('blur', () => finish(true));
 }
 
+/* 点头像 → 晃一下头（趣味彩蛋）
+   ⭐ 用 animationend 移除 class，保证能连续点；同时给 pop 加时长兜底，
+      防止动画被打断时 class 残留（元素就再也弹不起来了）。 */
+let guPopTimer = 0;
+function popAvatar() {
+  const av = document.querySelector('.gu-avatar');
+  if (!av) return;
+  av.classList.remove('pop');
+  void av.offsetWidth;                      // 强制回流，重启动画
+  av.classList.add('pop');
+  clearTimeout(guPopTimer);
+  guPopTimer = setTimeout(() => av.classList.remove('pop'), 700);
+}
+
 function initUserNameUI() {
   paintAvatar();
   paintUserName();
   const btn = document.getElementById('gu-edit');
   if (btn) btn.addEventListener('click', beginEditUserName);
+  const av = document.querySelector('.gu-avatar');
+  if (av) {
+    av.style.cursor = 'pointer';
+    av.addEventListener('click', popAvatar);
+    av.addEventListener('animationend', e => {
+      if (e.animationName === 'guPop') av.classList.remove('pop');
+    });
+  }
 }
 
 function paintGreeting() {
