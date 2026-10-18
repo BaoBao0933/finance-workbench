@@ -9334,262 +9334,6 @@ html[data-fps-q="low"] .hc-dog {
 html[data-fps-q] .lf-sheet-panel { transform: none !important; }
 
 </style><!-- LF:CSS:END -->
-<!-- TR:CSS:BEGIN -->
-<!-- type-refine (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
-<style id="type-refine-style">
-/* ═══════════════════════════════════════════════════════════════════════════
-   type-refine · 排版精修层（2026-10-18）
-   ───────────────────────────────────────────────────────────────────────────
-   用户：「里面显示的字体不够高级」。
-   按 ui-design-system skill 的排版审查维度体检出四个硬伤：
-
-   ① **字重没有层次**：全站 39 处 `font-weight:700`，0 处中间字重。
-      skill 明训「字重搭配有对比」——全是 bold = 全部都重要 = 全都不重要。
-   ② **中文回落到微软雅黑**：只有 400/700 两档，字面偏挤、骨架偏旧。
-      本机已装 `NotoSansSC-VF.ttf`（思源黑体可变字重，100-900 连续），
-      零网络、字面更均匀、骨架更现代 —— 这是「高级感」最直接的来源。
-   ③ **数字用 Cascadia Mono**：等宽终端字体，字形偏"代码感"，
-      放在行情数字上显得生硬。金融界面更该用 sans + tabular-nums。
-   ④ **字距无序**：大数字与正文同字距，小标签也没有拉开。
-
-   ── 本层做什么 ─────────────────────────────────────────────────────────
-   · 字体栈：西文 Segoe UI Variable → 中文 Noto Sans SC（本地）
-   · 字重阶梯：正文 400 / 数字 560 / 模块标题 650 / 页面标题 680
-   · 字距：大标题 -.02em / 数字 -.015em / 小标签 +.02em
-   · 数字：sans + tabular-nums + tnum 特性（不用 mono）
-   · font-synthesis:none —— 禁掉浏览器伪粗体（描边伪造会让字形发糊）
-   ⚠️ 一个字号都不改 —— 字号碎片（11 档）牵动布局，改字重/字族/字距
-      就能拿到大部分「高级感」，风险低得多。
-   ⚠️ 不引任何网络字体（首屏性能铁律），全走 local()。
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ═══ 1. 字体栈（本地优先，零网络）═══════════════════════════════════════ */
-
-:root {
-  /* 正文/界面：西文用可变字重的 Segoe，中文用思源黑体。
-     中文必须排在西文之后 —— 否则中文字形会吃掉前面的西文项。 */
-  --tr-font-sans: 'Segoe UI Variable Text', 'Segoe UI', 'Noto Sans SC',
-                  'Microsoft YaHei UI', 'PingFang SC', system-ui, sans-serif;
-
-  /* 标题/数字：Display 轴版本字面更大、间距更紧，更像"标题" */
-  --tr-font-display: 'Segoe UI Variable Display', 'Segoe UI', 'Noto Sans SC',
-                     'Microsoft YaHei UI', system-ui, sans-serif;
-
-  /* 数字：不用 mono。金融数字要的是「等宽对齐」而不是「终端字形」，
-     用 sans + tabular-nums 才能兼顾高级感与对齐。 */
-  /* ⭐⭐ 2026-10-18：数字改用 Display 光学轴 —— Variable 字体有 opsz 轴，
-     大字号时 Display 版本的字形更瘦长、比例更精确、细节更锐。
-     这是"同一个字体里能拿到的最高级形态"。 */
-  --tr-font-num: 'Segoe UI Variable Display', 'Segoe UI', 'Noto Sans SC',
-                 system-ui, sans-serif;
-
-  /* 字重阶梯（Noto/Segoe Variable 支持连续值；静态字体自动吸附） */
-  --tr-w-body: 400;
-  --tr-w-num: 500;
-  --tr-w-sub: 450;
-  --tr-w-title: 650;
-  --tr-w-display: 680;
-}
-
-/* ═══ 2. 全局渲染质量 ════════════════════════════════════════════════════ */
-
-body {
-  /* ⭐⭐ 2026-10-18 加 !important 的理由：这里是「全站字体基准」，
-     而 GL 浅色覆盖层也写了一条 body 字体规则。两个块都用 fallback 锚，
-     谁后重注入谁靠后 —— 不加 !important 时 GL 重注入会把字体栈盖回雅黑。
-     ⚠️ 只作用于 body 自身，不影响子元素自己的 font-family
-        （如 .w-code 仍可用 mono）。 */
-  font-family: var(--tr-font-sans) !important;
-  font-weight: var(--tr-w-body);
-  /* ⭐ 关键：禁止合成粗体。字体没有对应字重时浏览器会「描边伪造」，
-     笔画会糊、转折会脏 —— 这是廉价感的重要来源。 */
-  font-synthesis: none;
-  font-optical-sizing: auto;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* 所有数字统一 tnum：刷新时列宽不跳（等宽数字特性）*/
-body, input, button, .num {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum' 1;
-}
-
-/* ═══ 3. 字重阶梯：四个层次，替代原来的「全线 700」═══════════════════ */
-
-/* 页面大标题：最重，但收紧字距（大字距要紧，小字距要松）*/
-.header .title {
-  font-family: var(--tr-font-display);
-  font-weight: var(--tr-w-display);
-  letter-spacing: -.02em;
-}
-
-/* 模块标题：比页面标题轻一档，仍有存在感 */
-.module-header .m-title,
-.module-header .m-title b {
-  font-family: var(--tr-font-display);
-  font-weight: var(--tr-w-title);
-  letter-spacing: -.012em;
-}
-
-/* 模块副标题：接近正文，靠颜色退后而不是靠粗细 */
-.module-header .m-sub {
-  font-weight: var(--tr-w-sub);
-  letter-spacing: .015em;   /* 小字要松，才不糊 */
-  color: var(--text-sub);
-}
-
-/* 小标签 / 分类 chip：中等字重 + 拉开字距（读起来更"设计"）*/
-.tab.active,
-.fund-tab.active,
-.news-tag,
-.senti-card .sc-label,
-[class*="m-sub"] {
-  font-weight: 600;
-  letter-spacing: .02em;
-}
-
-/* ═══ 4. 行情数字：sans + 等宽数字 + 微收字距 ═══════════════════════════ */
-
-.ic-price,
-.mm-price,
-.sc-price,
-.sr-price,
-.w-val b,
-.pct-pill,
-.ov-num,
-.pos-val,
-.px-val,
-.idx-val,
-.lad-num,
-.st-score,
-.senti-card .sc-vals,
-.sec-cell .scp {
-  font-family: var(--tr-font-num);
-  font-weight: var(--tr-w-num);
-  /* 大数字收紧字距：视觉更紧实，避免"数字散开"的廉价感 */
-  letter-spacing: -.028em;
-  font-variant-numeric: tabular-nums lining-nums;
-  /* 'tnum' = 等宽数字（刷新不跳列宽）。
-     ⚠️ 不用 'zero' 斜杠零 —— 那是交易终端的硬核感，
-     A 股数字里 0 太多，加了反而显"技术"不显"高级"。 */
-  font-feature-settings: 'tnum' 1;
-  font-optical-sizing: auto;
-}
-
-/* 涨跌幅胶囊：数字本身已上色，字重再轻一点避免"糊成一团" */
-.pct-pill { font-weight: 480; letter-spacing: -.02em; }
-
-/* ⭐⭐ 超大数字（40px+）：原规则是 font-weight:800，且特异性更高
-   （如 .index-card.focus-card .ic-price = 0,3,0），必须同特异性覆盖。
-   排版原则：**字越大越不需要粗** —— 46px 用 800 会显笨重，
-   680 的力度足够，同时字形笔画更清晰。 */
-.index-card.focus-card .ic-price {
-  font-weight: 520;
-  letter-spacing: -.035em;
-}
-.st-score {
-  font-weight: 520;
-  letter-spacing: -.032em;
-}
-.senti-card .sc-vals {
-  font-weight: 520;
-  letter-spacing: -.025em;
-}
-.sec-cell .scp {
-  font-weight: 520;
-  letter-spacing: -.02em;
-}
-.ov-num,
-.pos-val,
-.px-val {
-  font-weight: 500;
-  letter-spacing: -.02em;
-}
-
-/* ⭐ 数字行高收紧：大数字不该把容器撑高，
-   同时让数字在行内垂直居中对齐（视觉更"整"）*/
-.ic-price,
-.st-score,
-.senti-card .sc-vals,
-.ov-num {
-  line-height: 1.05;
-}
-
-/* 股票代码 / 代码类小字：保持等宽的机械感（这里是代码，该用 mono）*/
-.w-code,
-.se-ap-code,
-.mm-src b {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: .01em;
-}
-
-/* ═══ 4a-0. 接管 PB 层的字体变量（横幅字体被它锁死）═══════════════════════
-   ⭐⭐ 2026-10-18 实测发现：perf-boost 层用
-      `.fun-banner, .fun-banner .fb-title { font-family: var(--pb-font-sans) !important }`
-      把横幅字体锁死了 —— 普通声明压不过 !important。
-      而 `--pb-font-sans` 的栈是 `-apple-system, ..., 'Microsoft YaHei'`
-      **不含思源黑体**，所以横幅中文一直是雅黑。
-   正解：不从选择器打架，直接**接管变量**。
-      PB 层「用系统字体保性能」的语义与 TR 完全一致，只是它没带思源黑体。 */
-
-:root {
-  --pb-font-sans: var(--tr-font-display);
-  --pb-font-mono: var(--tr-font-sans);   /* 横幅署名改无衬线眉标 */
-}
-
-/* ═══ 4a. 每日标语横幅：编辑排版风格（2026-10-18 用户反馈「横幅字体不够高级」）
-   ───────────────────────────────────────────────────────────────────────────
-   原状：署名用 Space Mono（等宽，技术感）；标语 500 字重 + .01em 字距。
-   ⭐ 中文标语**不能加字距** —— 中文字面本来就方正，加宽就散、就廉价；
-      相反小号全大写标签必须拉开字距才显精致（期刊眉标做法）。
-   ⚠️ 只改字族/字重/字距，不动字号（本层约束，也避免撑高横幅）。 */
-
-.fun-banner .fb-author {
-  /* 等宽 → 无衬线：全大写 + 大字距的眉标感，不是代码感 */
-  font-family: var(--tr-font-sans);
-  font-weight: 600;
-  letter-spacing: .14em;
-}
-
-.fun-banner .fb-title {
-  font-family: var(--tr-font-display);
-  /* 500 → 600：标语需要态度，但不到 700（700 会显笨） */
-  font-weight: 600;
-  /* 中文标语收紧一点，排面更"精工" */
-  letter-spacing: -.005em;
-  line-height: 1.5;
-}
-
-/* ═══ 5. 正文行高（中文密排需要比西文更松）═══════════════════════════ */
-
-body {
-  line-height: 1.55;
-}
-
-/* 新闻/文章类长文本：再松一点，长盯不累 */
-.news-item,
-.focus-col .news-item,
-.news-title,
-.news-desc {
-  line-height: 1.65;
-}
-
-/* ═══ 6. 表单控件继承字体（原生控件默认不走 body 字体）════════════════ */
-
-input,
-select,
-textarea,
-button {
-  font-family: var(--tr-font-sans);
-  font-weight: var(--tr-w-body);
-}
-
-/* ═══ 7. 降级：不涉及动效，无需 reduce 处理；但保留低配机器的清晰度 ════ */
-/* 关闭抗锯齿在极低 DPI 屏上会让细字发虚 —— 不降级，字体渲染是画质底线。 */
-
-</style><!-- TR:CSS:END -->
 <!-- GL:CSS:BEGIN -->
 <!-- glass-light (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
 <style id="glass-light-style">
@@ -9948,6 +9692,343 @@ html[data-fps-q] :root[data-theme="light"] body::after {
 }
 
 </style><!-- GL:CSS:END -->
+<!-- TR:CSS:BEGIN -->
+<!-- type-refine (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<style id="type-refine-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   type-refine · 排版精修层（2026-10-18）
+   ───────────────────────────────────────────────────────────────────────────
+   用户：「里面显示的字体不够高级」。
+   按 ui-design-system skill 的排版审查维度体检出四个硬伤：
+
+   ① **字重没有层次**：全站 39 处 `font-weight:700`，0 处中间字重。
+      skill 明训「字重搭配有对比」——全是 bold = 全部都重要 = 全都不重要。
+   ② **中文回落到微软雅黑**：只有 400/700 两档，字面偏挤、骨架偏旧。
+      本机已装 `NotoSansSC-VF.ttf`（思源黑体可变字重，100-900 连续），
+      零网络、字面更均匀、骨架更现代 —— 这是「高级感」最直接的来源。
+   ③ **数字用 Cascadia Mono**：等宽终端字体，字形偏"代码感"，
+      放在行情数字上显得生硬。金融界面更该用 sans + tabular-nums。
+   ④ **字距无序**：大数字与正文同字距，小标签也没有拉开。
+
+   ── 本层做什么 ─────────────────────────────────────────────────────────
+   · 字体栈：西文 Segoe UI Variable → 中文 Noto Sans SC（本地）
+   · 字重阶梯：正文 400 / 数字 560 / 模块标题 650 / 页面标题 680
+   · 字距：大标题 -.02em / 数字 -.015em / 小标签 +.02em
+   · 数字：sans + tabular-nums + tnum 特性（不用 mono）
+   · font-synthesis:none —— 禁掉浏览器伪粗体（描边伪造会让字形发糊）
+   ⚠️ 一个字号都不改 —— 字号碎片（11 档）牵动布局，改字重/字族/字距
+      就能拿到大部分「高级感」，风险低得多。
+   ⚠️ 不引任何网络字体（首屏性能铁律），全走 local()。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ═══ 1. 字体栈（本地优先，零网络）═══════════════════════════════════════ */
+
+:root {
+  /* 正文/界面：西文用可变字重的 Segoe，中文用思源黑体。
+     中文必须排在西文之后 —— 否则中文字形会吃掉前面的西文项。 */
+  --tr-font-sans: 'Segoe UI Variable Text', 'Segoe UI', 'Noto Sans SC',
+                  'Microsoft YaHei UI', 'PingFang SC', system-ui, sans-serif;
+
+  /* 标题/数字：Display 轴版本字面更大、间距更紧，更像"标题" */
+  --tr-font-display: 'Segoe UI Variable Display', 'Segoe UI', 'Noto Sans SC',
+                     'Microsoft YaHei UI', system-ui, sans-serif;
+
+  /* 数字：不用 mono。金融数字要的是「等宽对齐」而不是「终端字形」，
+     用 sans + tabular-nums 才能兼顾高级感与对齐。 */
+  /* ⭐⭐ 2026-10-18：数字改用 Display 光学轴 —— Variable 字体有 opsz 轴，
+     大字号时 Display 版本的字形更瘦长、比例更精确、细节更锐。
+     这是"同一个字体里能拿到的最高级形态"。 */
+  --tr-font-num: 'Segoe UI Variable Display', 'Segoe UI', 'Noto Sans SC',
+                 system-ui, sans-serif;
+
+  /* 字重阶梯（Noto/Segoe Variable 支持连续值；静态字体自动吸附） */
+  --tr-w-body: 400;
+  --tr-w-num: 500;
+  --tr-w-sub: 450;
+  --tr-w-title: 650;
+  --tr-w-display: 680;
+}
+
+/* ═══ 2. 全局渲染质量 ════════════════════════════════════════════════════ */
+
+body {
+  /* ⭐⭐ 2026-10-18 加 !important 的理由：这里是「全站字体基准」，
+     而 GL 浅色覆盖层也写了一条 body 字体规则。两个块都用 fallback 锚，
+     谁后重注入谁靠后 —— 不加 !important 时 GL 重注入会把字体栈盖回雅黑。
+     ⚠️ 只作用于 body 自身，不影响子元素自己的 font-family
+        （如 .w-code 仍可用 mono）。 */
+  font-family: var(--tr-font-sans) !important;
+  font-weight: var(--tr-w-body);
+  /* ⭐ 关键：禁止合成粗体。字体没有对应字重时浏览器会「描边伪造」，
+     笔画会糊、转折会脏 —— 这是廉价感的重要来源。 */
+  font-synthesis: none;
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 所有数字统一 tnum：刷新时列宽不跳（等宽数字特性）*/
+body, input, button, .num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* ═══ 3. 字重阶梯：四个层次，替代原来的「全线 700」═══════════════════ */
+
+/* 页面大标题：最重，但收紧字距（大字距要紧，小字距要松）*/
+.header .title {
+  font-family: var(--tr-font-display);
+  font-weight: var(--tr-w-display);
+  letter-spacing: -.02em;
+}
+
+/* 模块标题：比页面标题轻一档，仍有存在感 */
+.module-header .m-title,
+.module-header .m-title b {
+  font-family: var(--tr-font-display);
+  font-weight: var(--tr-w-title);
+  letter-spacing: -.012em;
+}
+
+/* 模块副标题：接近正文，靠颜色退后而不是靠粗细 */
+.module-header .m-sub {
+  font-weight: var(--tr-w-sub);
+  letter-spacing: .015em;   /* 小字要松，才不糊 */
+  color: var(--text-sub);
+}
+
+/* 小标签 / 分类 chip：中等字重 + 拉开字距（读起来更"设计"）*/
+.tab.active,
+.fund-tab.active,
+.news-tag,
+.senti-card .sc-label,
+[class*="m-sub"] {
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+/* ═══ 4. 行情数字：sans + 等宽数字 + 微收字距 ═══════════════════════════ */
+
+.ic-price,
+.mm-price,
+.sc-price,
+.sr-price,
+.w-val b,
+.pct-pill,
+.ov-num,
+.pos-val,
+.px-val,
+.idx-val,
+.lad-num,
+.st-score,
+.senti-card .sc-vals,
+.sec-cell .scp {
+  font-family: var(--tr-font-num);
+  font-weight: var(--tr-w-num);
+  /* 大数字收紧字距：视觉更紧实，避免"数字散开"的廉价感 */
+  letter-spacing: -.028em;
+  font-variant-numeric: tabular-nums lining-nums;
+  /* 'tnum' = 等宽数字（刷新不跳列宽）。
+     ⚠️ 不用 'zero' 斜杠零 —— 那是交易终端的硬核感，
+     A 股数字里 0 太多，加了反而显"技术"不显"高级"。 */
+  font-feature-settings: 'tnum' 1;
+  font-optical-sizing: auto;
+}
+
+/* 涨跌幅胶囊：数字本身已上色，字重再轻一点避免"糊成一团" */
+.pct-pill { font-weight: 480; letter-spacing: -.02em; }
+
+/* ⭐⭐ 超大数字（40px+）：原规则是 font-weight:800，且特异性更高
+   （如 .index-card.focus-card .ic-price = 0,3,0），必须同特异性覆盖。
+   排版原则：**字越大越不需要粗** —— 46px 用 800 会显笨重，
+   680 的力度足够，同时字形笔画更清晰。 */
+.index-card.focus-card .ic-price {
+  font-weight: 520;
+  letter-spacing: -.035em;
+}
+.st-score {
+  font-weight: 520;
+  letter-spacing: -.032em;
+}
+.senti-card .sc-vals {
+  font-weight: 520;
+  letter-spacing: -.025em;
+}
+.sec-cell .scp {
+  font-weight: 520;
+  letter-spacing: -.02em;
+}
+.ov-num,
+.pos-val,
+.px-val {
+  font-weight: 500;
+  letter-spacing: -.02em;
+}
+
+/* ⭐ 数字行高收紧：大数字不该把容器撑高，
+   同时让数字在行内垂直居中对齐（视觉更"整"）*/
+.ic-price,
+.st-score,
+.senti-card .sc-vals,
+.ov-num {
+  line-height: 1.05;
+}
+
+/* ⭐⭐⭐ 2026-10-18 补漏（用户反馈板块卡字体没改过来）
+   ─────────────────────────────────────────────────────────────────────
+   根因：type-glass 层有一组规则把这些「**名称类**」元素也绑到了
+        `var(--tg-font-num)`（等宽 Space Mono）——
+        `.ic-name / .sc-name / .sr-name / .w-name / .sd-name`。
+        Space Mono 没有中文字形 → 中文回落到雅黑，
+        结果「CPO」「旅游及景区」「自选股名」都是等宽壳 + 雅黑心，又窄又违和。
+
+   ⭐ 正确分工：
+        **名称 → 正文族（sans）**：名字是读的，要字形自然
+        **数值 → 数字族（Display）**：数字是对齐的，要等宽 + 紧凑
+   这组规则的特异性与 TG 相同（0,1,0），TR 在链尾 → 稳定获胜。
+   若以后 TG 重注入把块挪到后面，这里的名称/数值仍由 TR 的
+   更高优先级（.sector-chip .sc-name 等）兜底。 */
+
+/* 名称类：正文族，中等字重，零字距（中文名不要加字距）*/
+.ic-name,
+.sc-name,
+.sr-name,
+.w-name,
+.sd-name,
+.sector-chip .sc-name {
+  font-family: var(--tr-font-sans);
+  font-weight: 520;
+  letter-spacing: 0;
+  font-variant-numeric: normal;
+}
+
+/* 数值类：数字族（Display + 等宽数字 + 微收字距）*/
+.sc-val,
+.zt-close,
+.lg-vol,
+.sc-rank {
+  font-family: var(--tr-font-num);
+  font-weight: var(--tr-w-num);
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1;
+  font-optical-sizing: auto;
+}
+/* 板块卡涨跌幅是 18px 的强调数字，字重比常规数值高一点 */
+.sector-chip .sc-val { font-weight: 560; letter-spacing: -.025em; }
+/* 排名 #1 是 10.5px 的小字：小字要补字重才清晰 */
+.sector-chip .sc-rank { font-weight: 620; letter-spacing: .01em; }
+
+/* ⭐⭐⭐ 2026-10-18 全局补漏：扫描出 18 类仍在用等宽字体的元素
+   ─────────────────────────────────────────────────────────────────────
+   方法：遍历所有「直接含文本」的元素，看 computed font-family 是否以
+        Space Mono / Cascadia / Consolas / ui-monospace 开头。
+   结果全是指数卡片的「开/高/低/量/涨跌」、概览值、板块涨跌幅等**数值**，
+   以及一个纯中文标签「距压」。它们都从 TG 层继承了等宽族。
+   ⭐ 数值统一进数字族：Display 光学轴 + tabular-nums —— 既等宽对齐，
+      又不会像终端字体那样生硬；中文会自动回落到思源黑体。 */
+
+.v-open,
+.v-high,
+.v-low,
+.v-zpct,
+.v-vol,
+.ic-change,
+.ov-value,
+.val,
+.sec-d-pct,
+.mm-pct,
+.mm-zval {
+  font-family: var(--tr-font-num);
+  font-weight: 540;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1;
+  font-optical-sizing: auto;
+}
+
+/* 纯中文标签（"距压"）与界面符号（关闭 ×）：是词/符号，不是数 */
+.z-lab,
+.hc-close {
+  font-family: var(--tr-font-sans);
+  font-weight: 520;
+  letter-spacing: 0;
+}
+
+/* 股票代码 / 代码类小字：保持等宽的机械感（这里是代码，该用 mono）*/
+.w-code,
+.se-ap-code,
+.mm-src b {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+}
+
+/* ═══ 4a-0. 接管 PB 层的字体变量（横幅字体被它锁死）═══════════════════════
+   ⭐⭐ 2026-10-18 实测发现：perf-boost 层用
+      `.fun-banner, .fun-banner .fb-title { font-family: var(--pb-font-sans) !important }`
+      把横幅字体锁死了 —— 普通声明压不过 !important。
+      而 `--pb-font-sans` 的栈是 `-apple-system, ..., 'Microsoft YaHei'`
+      **不含思源黑体**，所以横幅中文一直是雅黑。
+   正解：不从选择器打架，直接**接管变量**。
+      PB 层「用系统字体保性能」的语义与 TR 完全一致，只是它没带思源黑体。 */
+
+:root {
+  --pb-font-sans: var(--tr-font-display);
+  --pb-font-mono: var(--tr-font-sans);   /* 横幅署名改无衬线眉标 */
+}
+
+/* ═══ 4a. 每日标语横幅：编辑排版风格（2026-10-18 用户反馈「横幅字体不够高级」）
+   ───────────────────────────────────────────────────────────────────────────
+   原状：署名用 Space Mono（等宽，技术感）；标语 500 字重 + .01em 字距。
+   ⭐ 中文标语**不能加字距** —— 中文字面本来就方正，加宽就散、就廉价；
+      相反小号全大写标签必须拉开字距才显精致（期刊眉标做法）。
+   ⚠️ 只改字族/字重/字距，不动字号（本层约束，也避免撑高横幅）。 */
+
+.fun-banner .fb-author {
+  /* 等宽 → 无衬线：全大写 + 大字距的眉标感，不是代码感 */
+  font-family: var(--tr-font-sans);
+  font-weight: 600;
+  letter-spacing: .14em;
+}
+
+.fun-banner .fb-title {
+  font-family: var(--tr-font-display);
+  /* 500 → 600：标语需要态度，但不到 700（700 会显笨） */
+  font-weight: 600;
+  /* 中文标语收紧一点，排面更"精工" */
+  letter-spacing: -.005em;
+  line-height: 1.5;
+}
+
+/* ═══ 5. 正文行高（中文密排需要比西文更松）═══════════════════════════ */
+
+body {
+  line-height: 1.55;
+}
+
+/* 新闻/文章类长文本：再松一点，长盯不累 */
+.news-item,
+.focus-col .news-item,
+.news-title,
+.news-desc {
+  line-height: 1.65;
+}
+
+/* ═══ 6. 表单控件继承字体（原生控件默认不走 body 字体）════════════════ */
+
+input,
+select,
+textarea,
+button {
+  font-family: var(--tr-font-sans);
+  font-weight: var(--tr-w-body);
+}
+
+/* ═══ 7. 降级：不涉及动效，无需 reduce 处理；但保留低配机器的清晰度 ════ */
+/* 关闭抗锯齿在极低 DPI 屏上会让细字发虚 —— 不降级，字体渲染是画质底线。 */
+
+</style><!-- TR:CSS:END -->
 </head>
 <body>
 
@@ -22622,6 +22703,23 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- LF:JS:END -->
+<!-- GL:JS:BEGIN -->
+<!-- glass-light (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<script id="glass-light-js">
+/* glass-light · 极小运行时：标记类 + 状态钩子（GL 主体是纯 CSS 覆盖层） */
+(function () {
+  'use strict';
+  if (window.__glassLightInstalled) return;
+  window.__glassLightInstalled = true;
+  document.body.classList.add('glass-light-on');
+  window.__glassLight = {
+    state: function () {
+      return { ready: true, theme: document.documentElement.getAttribute('data-theme') };
+    }
+  };
+})();
+
+</script><!-- GL:JS:END -->
 <!-- TR:JS:BEGIN -->
 <!-- type-refine (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
 <script id="type-refine-js">
@@ -22657,22 +22755,5 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- TR:JS:END -->
-<!-- GL:JS:BEGIN -->
-<!-- glass-light (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
-<script id="glass-light-js">
-/* glass-light · 极小运行时：标记类 + 状态钩子（GL 主体是纯 CSS 覆盖层） */
-(function () {
-  'use strict';
-  if (window.__glassLightInstalled) return;
-  window.__glassLightInstalled = true;
-  document.body.classList.add('glass-light-on');
-  window.__glassLight = {
-    state: function () {
-      return { ready: true, theme: document.documentElement.getAttribute('data-theme') };
-    }
-  };
-})();
-
-</script><!-- GL:JS:END -->
 </body>
 </html>
