@@ -167,6 +167,9 @@
   /* ⭐ 2026-10-18：首页问候语 —— 主句大、尾句小而淡。
      这是「刊头 + 眉标」的排版关系：主句负责情绪，尾句负责信息。
      尾句用 .42em 而不是固定 px，这样跟着主标题在手机断点自动缩放。 */
+  @media (max-width: 900px) { .header .title { font-size: 34px; } }
+  @media (max-width: 560px) { .header .title { font-size: 26px; } }
+
   .header .title .greet-tail {
     display: inline-block;
     margin-left: .42em;
@@ -174,7 +177,13 @@
     font-weight: 450;          /* 不继承标题的 680，否则尾句会抢主句 */
     letter-spacing: 0;
     color: var(--text-sub);
-    opacity: .82;
+    /* ⭐ 2026-10-18：原来 opacity .82，在浅色暖底上乘完接近 #8a91a0，
+       看字发白发虚。信息性文字要够读，透明度归 1。 */
+    opacity: 1;
+  }
+  :root[data-theme="light"] .header .title .greet-tail {
+    /* 暖深灰：比 --text-sub 的冷灰更融进暖米背景，同时对比足够（约 5.6:1）*/
+    color: #5F5347;
   }
 
   /* 侧边栏 logo 动效 */
@@ -640,8 +649,11 @@
   .header { display: flex; align-items: flex-start; justify-content: space-between; }
   .header .title {
     display: inline-block;
-    font-size: 25px;
-    font-weight: 700;
+    /* ⭐⭐ 2026-10-18 修复：原来只有 25px，而 GL 层给浅色写死 48px ——
+       切到深色主题时标题会突然"缩小一半"，用户误以为字体变了。
+       字号属于版式基准，必须**与主题无关**，提到这里统一控制。 */
+    font-size: 48px;
+    font-weight: 680;
     letter-spacing: .5px;
     text-wrap: balance;
     color: #eef0f2;
@@ -9657,7 +9669,8 @@ button {
   backdrop-filter: blur(20px) saturate(130%);
   -webkit-backdrop-filter: blur(20px) saturate(130%);
   border-radius: 26px;
-  border: 1px solid rgba(255, 255, 255, .42);
+  /* ⭐ 2026-10-18 用户要求：去掉最外层这条白色细边框。
+     去掉后仍靠「半透明面板 + 大柔阴影」界定层次，边界更干净。 */
   box-shadow: 0 20px 60px rgba(150, 108, 82, .12);
 }
 
@@ -9829,18 +9842,13 @@ button {
 
 /* 大标题 48px+（桌面端；窄屏回落）*/
 :root[data-theme="light"] .header .title {
-  font-size: 48px;
-  font-weight: 700;
-  letter-spacing: -.02em;
+  /* ⭐⭐ 2026-10-18：字号/字重/字距已移到主文件（**与主题无关**的版式基准），
+     浅色层只负责颜色与光晕 —— 否则切深色时标题会缩回 25px，
+     用户会误以为"字体变了"（实际是字号差了一倍）。 */
   color: #4A3428;
   text-shadow: 0 1px 0 rgba(255, 255, 255, .5);
 }
-@media (max-width: 900px) {
-  :root[data-theme="light"] .header .title { font-size: 34px; }
-}
-@media (max-width: 560px) {
-  :root[data-theme="light"] .header .title { font-size: 26px; }
-}
+/* 标题断点已提到主文件通用层（与主题无关），此处不再重复 */
 
 /* 模块标题与正文颜色：暖深棕（在暖背景上更协调）*/
 :root[data-theme="light"] .m-title { color: #4A3428; }
