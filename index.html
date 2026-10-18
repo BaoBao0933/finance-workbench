@@ -9444,6 +9444,179 @@ html[data-fps-q] :root[data-theme="light"] body::after {
 }
 
 </style><!-- GL:CSS:END -->
+<!-- TR:CSS:BEGIN -->
+<!-- type-refine (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<style id="type-refine-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   type-refine · 排版精修层（2026-10-18）
+   ───────────────────────────────────────────────────────────────────────────
+   用户：「里面显示的字体不够高级」。
+   按 ui-design-system skill 的排版审查维度体检出四个硬伤：
+
+   ① **字重没有层次**：全站 39 处 `font-weight:700`，0 处中间字重。
+      skill 明训「字重搭配有对比」——全是 bold = 全部都重要 = 全都不重要。
+   ② **中文回落到微软雅黑**：只有 400/700 两档，字面偏挤、骨架偏旧。
+      本机已装 `NotoSansSC-VF.ttf`（思源黑体可变字重，100-900 连续），
+      零网络、字面更均匀、骨架更现代 —— 这是「高级感」最直接的来源。
+   ③ **数字用 Cascadia Mono**：等宽终端字体，字形偏"代码感"，
+      放在行情数字上显得生硬。金融界面更该用 sans + tabular-nums。
+   ④ **字距无序**：大数字与正文同字距，小标签也没有拉开。
+
+   ── 本层做什么 ─────────────────────────────────────────────────────────
+   · 字体栈：西文 Segoe UI Variable → 中文 Noto Sans SC（本地）
+   · 字重阶梯：正文 400 / 数字 560 / 模块标题 650 / 页面标题 680
+   · 字距：大标题 -.02em / 数字 -.015em / 小标签 +.02em
+   · 数字：sans + tabular-nums + tnum 特性（不用 mono）
+   · font-synthesis:none —— 禁掉浏览器伪粗体（描边伪造会让字形发糊）
+   ⚠️ 一个字号都不改 —— 字号碎片（11 档）牵动布局，改字重/字族/字距
+      就能拿到大部分「高级感」，风险低得多。
+   ⚠️ 不引任何网络字体（首屏性能铁律），全走 local()。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ═══ 1. 字体栈（本地优先，零网络）═══════════════════════════════════════ */
+
+:root {
+  /* 正文/界面：西文用可变字重的 Segoe，中文用思源黑体。
+     中文必须排在西文之后 —— 否则中文字形会吃掉前面的西文项。 */
+  --tr-font-sans: 'Segoe UI Variable Text', 'Segoe UI', 'Noto Sans SC',
+                  'Microsoft YaHei UI', 'PingFang SC', system-ui, sans-serif;
+
+  /* 标题/数字：Display 轴版本字面更大、间距更紧，更像"标题" */
+  --tr-font-display: 'Segoe UI Variable Display', 'Segoe UI', 'Noto Sans SC',
+                     'Microsoft YaHei UI', system-ui, sans-serif;
+
+  /* 数字：不用 mono。金融数字要的是「等宽对齐」而不是「终端字形」，
+     用 sans + tabular-nums 才能兼顾高级感与对齐。 */
+  --tr-font-num: 'Segoe UI Variable Text', 'Segoe UI', 'Noto Sans SC',
+                 system-ui, sans-serif;
+
+  /* 字重阶梯（Noto/Segoe Variable 支持连续值；静态字体自动吸附） */
+  --tr-w-body: 400;
+  --tr-w-num: 560;
+  --tr-w-sub: 450;
+  --tr-w-title: 650;
+  --tr-w-display: 680;
+}
+
+/* ═══ 2. 全局渲染质量 ════════════════════════════════════════════════════ */
+
+body {
+  /* ⭐⭐ 2026-10-18 加 !important 的理由：这里是「全站字体基准」，
+     而 GL 浅色覆盖层也写了一条 body 字体规则。两个块都用 fallback 锚，
+     谁后重注入谁靠后 —— 不加 !important 时 GL 重注入会把字体栈盖回雅黑。
+     ⚠️ 只作用于 body 自身，不影响子元素自己的 font-family
+        （如 .w-code 仍可用 mono）。 */
+  font-family: var(--tr-font-sans) !important;
+  font-weight: var(--tr-w-body);
+  /* ⭐ 关键：禁止合成粗体。字体没有对应字重时浏览器会「描边伪造」，
+     笔画会糊、转折会脏 —— 这是廉价感的重要来源。 */
+  font-synthesis: none;
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 所有数字统一 tnum：刷新时列宽不跳（等宽数字特性）*/
+body, input, button, .num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* ═══ 3. 字重阶梯：四个层次，替代原来的「全线 700」═══════════════════ */
+
+/* 页面大标题：最重，但收紧字距（大字距要紧，小字距要松）*/
+.header .title {
+  font-family: var(--tr-font-display);
+  font-weight: var(--tr-w-display);
+  letter-spacing: -.02em;
+}
+
+/* 模块标题：比页面标题轻一档，仍有存在感 */
+.module-header .m-title,
+.module-header .m-title b {
+  font-family: var(--tr-font-display);
+  font-weight: var(--tr-w-title);
+  letter-spacing: -.012em;
+}
+
+/* 模块副标题：接近正文，靠颜色退后而不是靠粗细 */
+.module-header .m-sub {
+  font-weight: var(--tr-w-sub);
+  letter-spacing: .015em;   /* 小字要松，才不糊 */
+  color: var(--text-sub);
+}
+
+/* 小标签 / 分类 chip：中等字重 + 拉开字距（读起来更"设计"）*/
+.tab.active,
+.fund-tab.active,
+.news-tag,
+.senti-card .sc-label,
+[class*="m-sub"] {
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+/* ═══ 4. 行情数字：sans + 等宽数字 + 微收字距 ═══════════════════════════ */
+
+.ic-price,
+.mm-price,
+.sc-price,
+.sr-price,
+.w-val b,
+.pct-pill,
+.ov-num,
+.pos-val,
+.px-val,
+.idx-val,
+.lad-num {
+  font-family: var(--tr-font-num);
+  font-weight: var(--tr-w-num);
+  /* 大数字收紧字距：视觉更紧实，避免"数字散开"的廉价感 */
+  letter-spacing: -.015em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* 涨跌幅胶囊：数字本身已上色，字重再轻一点避免"糊成一团" */
+.pct-pill { font-weight: 540; letter-spacing: -.01em; }
+
+/* 股票代码 / 代码类小字：保持等宽的机械感（这里是代码，该用 mono）*/
+.w-code,
+.se-ap-code,
+.mm-src b {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+}
+
+/* ═══ 5. 正文行高（中文密排需要比西文更松）═══════════════════════════ */
+
+body {
+  line-height: 1.55;
+}
+
+/* 新闻/文章类长文本：再松一点，长盯不累 */
+.news-item,
+.focus-col .news-item,
+.news-title,
+.news-desc {
+  line-height: 1.65;
+}
+
+/* ═══ 6. 表单控件继承字体（原生控件默认不走 body 字体）════════════════ */
+
+input,
+select,
+textarea,
+button {
+  font-family: var(--tr-font-sans);
+  font-weight: var(--tr-w-body);
+}
+
+/* ═══ 7. 降级：不涉及动效，无需 reduce 处理；但保留低配机器的清晰度 ════ */
+/* 关闭抗锯齿在极低 DPI 屏上会让细字发虚 —— 不降级，字体渲染是画质底线。 */
+
+</style><!-- TR:CSS:END -->
 </head>
 <body>
 
@@ -22064,5 +22237,40 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- GL:JS:END -->
+<!-- TR:JS:BEGIN -->
+<!-- type-refine (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<script id="type-refine-js">
+/* type-refine · 极小运行时：状态钩子（排版主体是纯 CSS） */
+(function () {
+  'use strict';
+  if (window.__typeRefineInstalled) return;
+  window.__typeRefineInstalled = true;
+
+  window.__typeRefine = {
+    state: function () {
+      var b = getComputedStyle(document.body);
+      return {
+        ready: true,
+        family: (b.fontFamily || '').split(',')[0].replace(/["']/g, ''),
+        weight: b.fontWeight,
+        synthesis: b.fontSynthesis
+      };
+    },
+    /* 诊断：列出页面实际用到的字体族（排查「我以为用了其实没生效」）*/
+    probe: function () {
+      var el = document.querySelector('.ic-price') ||
+               document.querySelector('.w-val b') || document.body;
+      var cs = getComputedStyle(el);
+      return {
+        el: el.className,
+        family: cs.fontFamily,
+        weight: cs.fontWeight,
+        numeric: cs.fontVariantNumeric
+      };
+    }
+  };
+})();
+
+</script><!-- TR:JS:END -->
 </body>
 </html>
