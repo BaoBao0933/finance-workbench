@@ -9581,6 +9581,32 @@ body, input, button, .num {
 /* 涨跌幅胶囊：数字本身已上色，字重再轻一点避免"糊成一团" */
 .pct-pill { font-weight: 540; letter-spacing: -.01em; }
 
+/* ⭐⭐ 超大数字（40px+）：原规则是 font-weight:800，且特异性更高
+   （如 .index-card.focus-card .ic-price = 0,3,0），必须同特异性覆盖。
+   排版原则：**字越大越不需要粗** —— 46px 用 800 会显笨重，
+   680 的力度足够，同时字形笔画更清晰。 */
+.index-card.focus-card .ic-price {
+  font-weight: 680;
+  letter-spacing: -.03em;
+}
+.st-score {
+  font-weight: 680;
+  letter-spacing: -.025em;
+}
+.senti-card .sc-vals {
+  font-weight: 660;
+  letter-spacing: -.015em;
+}
+.sec-cell .scp {
+  font-weight: 620;
+  letter-spacing: -.01em;
+}
+.ov-num,
+.pos-val,
+.px-val {
+  font-weight: 600;
+}
+
 /* 股票代码 / 代码类小字：保持等宽的机械感（这里是代码，该用 mono）*/
 .w-code,
 .se-ap-code,
