@@ -1577,12 +1577,53 @@
   .st-score-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
   .st-score { font-size: 44px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; transition: color .3s; }
   .st-label { font-size: 15px; font-weight: 700; padding: 3px 12px; border-radius: 14px; }
+
+  /* ⭐⭐⭐ 情绪分值配色（2026-10-18）
+     ─────────────────────────────────────────────────────────────────────
+     规则：**深色主题用亮色（在深底上像发光），浅色主题用深饱和色**
+     （在暖橙卡片上要有足够对比）。原来是 JS 写死亮色，浅色下 72 直接看不见。
+     数据只给语义（data-tone），配色完全交给这里 —— 切主题零 JS 重绘。 */
+  .st-score[data-tone="extreme-fear"], .st-label[data-tone="extreme-fear"] { color: #4ade80; }
+  :root[data-theme="light"] .st-score[data-tone="extreme-fear"] { color: #067A48; }
+  :root[data-theme="light"] .st-label[data-tone="extreme-fear"] { color: #fff; background: #0B8A52; }
+
+  .st-score[data-tone="fear"], .st-label[data-tone="fear"] { color: #5de0a3; }
+  :root[data-theme="light"] .st-score[data-tone="fear"] { color: #0A8253; }
+  :root[data-theme="light"] .st-label[data-tone="fear"] { color: #fff; background: #0F8E5B; }
+
+  .st-score[data-tone="cautious"], .st-label[data-tone="cautious"] { color: #8fcfae; }
+  :root[data-theme="light"] .st-score[data-tone="cautious"] { color: #2C6E52; }
+  :root[data-theme="light"] .st-label[data-tone="cautious"] { color: #fff; background: #347A5B; }
+
+  .st-score[data-tone="neutral"], .st-label[data-tone="neutral"] { color: #aab0b8; }
+  :root[data-theme="light"] .st-score[data-tone="neutral"] { color: #5A6470; }
+  :root[data-theme="light"] .st-label[data-tone="neutral"] { color: #fff; background: #6A7384; }
+
+  .st-score[data-tone="positive"], .st-label[data-tone="positive"] { color: #f0b26b; }
+  :root[data-theme="light"] .st-score[data-tone="positive"] { color: #9C6212; }
+  :root[data-theme="light"] .st-label[data-tone="positive"] { color: #fff; background: #AC6C16; }
+
+  .st-score[data-tone="active"], .st-label[data-tone="active"] { color: #ff9a8a; }
+  :root[data-theme="light"] .st-score[data-tone="active"] { color: #B8401F; }
+  :root[data-theme="light"] .st-label[data-tone="active"] { color: #fff; background: #C24A26; }
+
+  .st-score[data-tone="euphoric"], .st-label[data-tone="euphoric"] { color: #ff7a5c; }
+  :root[data-theme="light"] .st-score[data-tone="euphoric"] { color: #C13A22; }
+  :root[data-theme="light"] .st-label[data-tone="euphoric"] { color: #fff; background: #CC4429; }
   .st-desc { font-size: 12px; color: var(--text-sub); margin-left: auto; }
   .st-track {
     position: relative; height: 30px; border-radius: 15px; display: flex; overflow: visible;
     background: linear-gradient(90deg, #0aa869 0%, #7cc5a5 22%, #cabfa8 50%, #e88 78%, #e85d4e 100%);
   }
-  .st-zone { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.92); text-shadow: 0 1px 2px rgba(0,0,0,.25); }
+  /* ⭐ 2026-10-18：渐变条中段是浅灰绿（#cabfa8），11.5px 的白字压不住 ——
+     用户反馈"字看不见"。补三件事：字号 +0.5、字重 +50、阴影加深一倍。 */
+  .st-zone {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 650;
+    color: #fff;
+    letter-spacing: .02em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 0 6px rgba(0, 0, 0, .18);
+  }
   .st-cursor {
     position: absolute; top: -7px; width: 4px; height: 44px; border-radius: 3px;
     background: rgba(255,255,255,.66); box-shadow: 0 0 0 2px rgba(31,39,51,.35), 0 3px 8px rgba(0,0,0,.3);
@@ -13293,14 +13334,22 @@ function fetchSinaFeed(size = 30) {
 }
 
 // 情绪评分 → 标签
+/* ⭐⭐⭐ 2026-10-18 修复「72 看不见」：
+   原来这里直接返回十六进制颜色（#4ade80 / #f0b26b / #ff9a8a），
+   那些都是**为深色背景挑的浅亮色**。一旦切到浅色主题（暖橙卡片），
+   浅橙字压在橙底上 → 72 几乎消失（用户截图确认）。
+
+   ⭐ 正确做法：JS 只输出**语义**（data-tone），颜色交给 CSS 按主题定义。
+      好处：① 深浅两套各用各的色 ② 切换主题时无需 JS 重绘
+      ③ 设计调整颜色不用改 JS。 */
 function sentiLabel(score) {
-  if (score < 15) return { t: '极度恐慌', c: '#4ade80', bg: 'var(--down-bg)' };
-  if (score < 30) return { t: '恐慌', c: '#5de0a3', bg: 'rgba(61,220,132,.14)' };
-  if (score < 45) return { t: '偏谨慎', c: '#8fcfae', bg: 'rgba(61,220,132,.10)' };
-  if (score < 58) return { t: '中性', c: '#aab0b8', bg: '#3a3a40' };
-  if (score < 70) return { t: '偏积极', c: '#f0b26b', bg: 'rgba(224,160,80,.14)' };
-  if (score < 85) return { t: '活跃', c: '#ff9a8a', bg: 'rgba(255,122,92,.14)' };
-  return { t: '亢奋', c: '#ff7a5c', bg: 'var(--up-bg)' };
+  if (score < 15) return { t: '极度恐慌', key: 'extreme-fear' };
+  if (score < 30) return { t: '恐慌',     key: 'fear' };
+  if (score < 45) return { t: '偏谨慎',   key: 'cautious' };
+  if (score < 58) return { t: '中性',     key: 'neutral' };
+  if (score < 70) return { t: '偏积极',   key: 'positive' };
+  if (score < 85) return { t: '活跃',     key: 'active' };
+  return { t: '亢奋', key: 'euphoric' };
 }
 
 let sentiLoading = false;
@@ -13339,10 +13388,9 @@ async function loadSenti() {
     }
     const lbl = sentiLabel(score);
     setDigitAnim($('st-score'), score);
-    $('st-score').style.color = lbl.c;
+    $('st-score').dataset.tone = lbl.key;
+    $('st-label').dataset.tone = lbl.key;
     $('st-label').textContent = lbl.t;
-    $('st-label').style.color = lbl.c;
-    $('st-label').style.background = lbl.bg;
     $('st-cursor').style.left = `calc(${Math.min(Math.max(score, 0), 100)}% - 2px)`;
     $('st-desc').textContent = scoreParts.length
       ? `因子：${scoreParts.map(([n, v]) => `${n} ${Math.round(v)}`).join(' · ')}`
