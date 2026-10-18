@@ -9487,12 +9487,15 @@ html[data-fps-q] :root[data-theme="light"] body::after {
 
   /* 数字：不用 mono。金融数字要的是「等宽对齐」而不是「终端字形」，
      用 sans + tabular-nums 才能兼顾高级感与对齐。 */
-  --tr-font-num: 'Segoe UI Variable Text', 'Segoe UI', 'Noto Sans SC',
+  /* ⭐⭐ 2026-10-18：数字改用 Display 光学轴 —— Variable 字体有 opsz 轴，
+     大字号时 Display 版本的字形更瘦长、比例更精确、细节更锐。
+     这是"同一个字体里能拿到的最高级形态"。 */
+  --tr-font-num: 'Segoe UI Variable Display', 'Segoe UI', 'Noto Sans SC',
                  system-ui, sans-serif;
 
   /* 字重阶梯（Noto/Segoe Variable 支持连续值；静态字体自动吸附） */
   --tr-w-body: 400;
-  --tr-w-num: 560;
+  --tr-w-num: 500;
   --tr-w-sub: 450;
   --tr-w-title: 650;
   --tr-w-display: 680;
@@ -9573,38 +9576,51 @@ body, input, button, .num {
   font-family: var(--tr-font-num);
   font-weight: var(--tr-w-num);
   /* 大数字收紧字距：视觉更紧实，避免"数字散开"的廉价感 */
-  letter-spacing: -.015em;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum' 1;
+  letter-spacing: -.028em;
+  font-variant-numeric: tabular-nums lining-nums;
+  /* 'zero' = 斜杠零（金融数字的辨识度 + 专业感）；
+     'tnum' = 等宽数字（刷新不跳列宽）*/
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+  font-optical-sizing: auto;
 }
 
 /* 涨跌幅胶囊：数字本身已上色，字重再轻一点避免"糊成一团" */
-.pct-pill { font-weight: 540; letter-spacing: -.01em; }
+.pct-pill { font-weight: 480; letter-spacing: -.02em; }
 
 /* ⭐⭐ 超大数字（40px+）：原规则是 font-weight:800，且特异性更高
    （如 .index-card.focus-card .ic-price = 0,3,0），必须同特异性覆盖。
    排版原则：**字越大越不需要粗** —— 46px 用 800 会显笨重，
    680 的力度足够，同时字形笔画更清晰。 */
 .index-card.focus-card .ic-price {
-  font-weight: 680;
-  letter-spacing: -.03em;
+  font-weight: 520;
+  letter-spacing: -.035em;
 }
 .st-score {
-  font-weight: 680;
-  letter-spacing: -.025em;
+  font-weight: 520;
+  letter-spacing: -.032em;
 }
 .senti-card .sc-vals {
-  font-weight: 660;
-  letter-spacing: -.015em;
+  font-weight: 520;
+  letter-spacing: -.025em;
 }
 .sec-cell .scp {
-  font-weight: 620;
-  letter-spacing: -.01em;
+  font-weight: 520;
+  letter-spacing: -.02em;
 }
 .ov-num,
 .pos-val,
 .px-val {
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: -.02em;
+}
+
+/* ⭐ 数字行高收紧：大数字不该把容器撑高，
+   同时让数字在行内垂直居中对齐（视觉更"整"）*/
+.ic-price,
+.st-score,
+.senti-card .sc-vals,
+.ov-num {
+  line-height: 1.05;
 }
 
 /* 股票代码 / 代码类小字：保持等宽的机械感（这里是代码，该用 mono）*/
