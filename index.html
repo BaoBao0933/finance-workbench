@@ -2487,6 +2487,45 @@
     will-change: opacity;
   }
   :root[data-theme="dark"] .fb-spot:hover .sp-edge { opacity: 1; }
+
+  /* ⭐⭐⭐ 2026-10-18：浅色主题的材质响应（原来完全没有！）
+     ─────────────────────────────────────────────────────────────────────
+     问题：sp-glow / sp-edge 只写在 dark 主题下 —— 用户系统是浅色，
+           所以**浅色模式下所有卡片都没有光标跟随光泽**，只有深色有。
+           同一套设计语言在两种主题下的"质感厚度"不一致。
+
+     配色依据：浅色底是暖米/杏色，**冷蓝光斑在上面会发灰发脏**，
+     所以改用暖白（模拟天光）+ 香槟金边缘（模拟玻璃边缘折射）。
+     ⚠️ mix-blend-mode 必须用 normal —— screen 在浅色底上会整片发白糊掉。 */
+
+  :root[data-theme="light"] .sp-glow {
+    overflow: hidden;
+    background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%),
+        rgba(255, 250, 243, .92),
+        rgba(255, 240, 224, .38) 38%,
+        transparent 66%);
+    opacity: 0;
+    transition: opacity 240ms var(--badge-pop-ease, cubic-bezier(.34, 1.45, .64, 1));
+    mix-blend-mode: normal;
+    will-change: opacity;
+  }
+  :root[data-theme="light"] .fb-spot:hover .sp-glow { opacity: .85; }
+
+  :root[data-theme="light"] .sp-edge {
+    border: 1.2px solid transparent;
+    /* 香槟金边缘光：沿着玻璃边缘的折射 */
+    background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%),
+        rgba(206, 150, 105, .58), transparent 70%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 240ms ease-out;
+    will-change: opacity;
+  }
+  :root[data-theme="light"] .fb-spot:hover .sp-edge { opacity: 1; }
+
   @media (prefers-reduced-motion: reduce) {
     .fb-spot .sp-glow, .fb-spot .sp-edge { opacity: 0 !important; }
   }
@@ -11399,7 +11438,12 @@ if (themeInput) {
 }
 
 // 聚光灯卡片（深色版）：光标移动时冷调光斑 + 边缘高光跟随
-const FB_SPOT_SEL = '.index-card, .ov-card, .pos-sum-card, .pos-chart-card, .sector-chip';
+/* ⭐ 2026-10-18：原来只覆盖 5 类卡，.module / .fund-panel / .senti-card /
+   .news-item 等玻璃面没有材质响应 —— 同一页面里有的卡片有光泽、有的没有，
+   这是「半成品感」的来源。列表行（.watch-row/.lhb-row）刻意不加：
+   几十个行各插两个 DOM 节点，hover 时反而增加绘制负担。 */
+const FB_SPOT_SEL = '.index-card, .ov-card, .pos-sum-card, .pos-chart-card, .sector-chip, '
+  + '.module, .fund-panel, .senti-card, .news-item, .sec-cell, .sec-hot-card';
 const spotDone = new WeakSet();
 function ensureSpotlight(card) {
   if (spotDone.has(card)) return;
@@ -11409,13 +11453,26 @@ function ensureSpotlight(card) {
   const edge = document.createElement('i'); edge.className = 'sp-edge';
   card.prepend(edge); card.prepend(glow);
 }
+/* ⭐⭐ 2026-10-18：pointermove 原来**每个事件**都 getBoundingClientRect
+   （强制布局读取）+ 两次 setProperty（触发样式重算）。鼠标高频移动时
+   一秒钟白烧上百次布局读取。改成 rAF 合批：一帧最多算一次。
+   ⚠️ 用「最新事件槽位」而不是队列 —— 光斑只需要最新位置。 */
+let spotRaf = 0, spotEvt = null;
 document.addEventListener('pointermove', e => {
-  if (e.target.closest ? !e.target.closest(FB_SPOT_SEL) : true) return;
-  const card = e.target.closest(FB_SPOT_SEL);
-  ensureSpotlight(card);
-  const r = card.getBoundingClientRect();
-  card.style.setProperty('--mx', (e.clientX - r.left).toFixed(1) + 'px');
-  card.style.setProperty('--my', (e.clientY - r.top).toFixed(1) + 'px');
+  if (!e.target.closest || !e.target.closest(FB_SPOT_SEL)) return;
+  spotEvt = e;
+  if (spotRaf) return;
+  spotRaf = requestAnimationFrame(() => {
+    spotRaf = 0;
+    const ev = spotEvt; spotEvt = null;
+    if (!ev || !ev.target.closest) return;
+    const card = ev.target.closest(FB_SPOT_SEL);
+    if (!card) return;
+    ensureSpotlight(card);
+    const r = card.getBoundingClientRect();
+    card.style.setProperty('--mx', (ev.clientX - r.left).toFixed(1) + 'px');
+    card.style.setProperty('--my', (ev.clientY - r.top).toFixed(1) + 'px');
+  });
 }, { passive: true });
 $('btn-refresh').addEventListener('click', () => refresh(true));
 $('btn-gen-report').addEventListener('click', () => showToast('日报生成功能建设中，敬请期待'));
