@@ -729,6 +729,29 @@
   .module { margin-top: 26px; }
   .module-header { display: flex; align-items: baseline; gap: 13px; margin-bottom: 16px; }
   .module-header .m-title { font-size: 19px; font-weight: 700; }
+  /* ⭐ 2026-10-18 修复：标题内的动效 emoji / loader 与文字太挤。
+     m-title 原本是纯 inline 流，.idx-loader（28px 宽）和 .m-ico（22px 图）
+     直接贴着文字没有间距；改成 inline-flex + gap 给它们呼吸空间。
+     ⚠️ 不用 margin 而用 gap：给所有子项统一间距，加新图标不用再补 margin。 */
+  .module-header .m-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .module-header .m-title > .idx-loader,
+  .module-header .m-title > .m-ico,
+  .module-header .m-title > .title-ico {
+    flex: none;   /* 防止被 flex 压缩变形 */
+  }
+  /* ⭐ 页面大标题里的 emoji（.title-ico）同样需要呼吸空间。
+     用 :has() 精准命中「含图标的标题」，纯文字标题保持原有 inline-block
+     与 text-wrap: balance 不受影响。 */
+  .header .title:has(> .title-ico) {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .header .title > .title-ico { flex: none; }
   .module-header .m-sub { font-size: 14.5px; color: #c2c8d0; letter-spacing: .2px; }
   .module-header .m-link {
     margin-left: auto;
@@ -3512,6 +3535,10 @@
   overscroll-behavior: contain;
   margin: 0 auto;
   max-width: 1500px;
+  /* ⭐ 2026-10-18 修复：详情卡是玻璃卡（有背景/边框/圆角），
+     但 .module 原本没有内边距（只是语义分组），内容会压到边框上。
+     卡片化后必须自带内边距。 */
+  padding: 20px 22px 24px;
 
   /* 玻璃底（比页面里的卡更实一档：详情要读）*/
   background: rgba(17, 21, 34, .92);
@@ -8720,337 +8747,6 @@ html[data-fps-q="low"] .se-add-panel {
 }
 </style>
 <!-- IOS:CSS:END -->
-<!-- GL:CSS:BEGIN -->
-<!-- glass-light (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
-<style id="glass-light-style">
-/* ═══════════════════════════════════════════════════════════════════════════
-   glass-light · 浅色模式「液态玻璃风」覆盖层（2026-10-13）
-   ───────────────────────────────────────────────────────────────────────────
-   需求（用户给定规格，GLASS BASE PROMPT）：
-     · 背景：左上暖桃 #E4C0A6 → 中段灰粉 #D4B8AC → 底部浅杏 #EBD7CC，
-       叠一两道白色半透明光弧（隔着磨砂玻璃看晚霞）
-     · 卡片：白色 45-60% 磨砂玻璃，blur(28px) saturate(140%)，
-       1px 白描边，顶部内侧细高光，圆角 24px，大而柔阴影
-     · 层级：主面板一层玻璃、内部模块再叠一层；榜单类 #F3F1F1 实底卡；
-       一张 #1B1B19 深色卡压画面，顶部铜色光晕
-     · 强调色：铜橙 #B66D44（当前项/标签）；图表 #E7A471→#C5A0AB 竖向渐变，
-       未达成浅灰半透明
-     · 字体：几何无衬线，大标题 48px+，等宽数字
-
-   ── 实现策略 ────────────────────────────────────────────────────────────
-   · 纯 CSS 覆盖层：全部规则带 :root[data-theme="light"] 前缀，
-     注入点为 CSS 链最末位（候选锚不存在时回退到 head 结束标记处），
-     同特异性下按源序稳赢原浅色规则；深色主题零影响，摘除即回退。
-   · 字体不引境外资源（首屏性能铁律）：Plus Jakarta Sans / Manrope 用
-     本地 Segoe UI Variable 系统栈模拟几何无衬线；等宽数字走
-     font-variant-numeric: tabular-nums。
-   · 光弧：body 的 ::before/::after 两道白色半透明大圆环弧（border 圆环
-     旋转裁切），position: fixed + pointer-events:none，零 JS。
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ═══ 1. 晚霞渐变背景 + 白色光弧 ════════════════════════════════════════ */
-
-:root[data-theme="light"] body {
-  /* 三段式晚霞：左上暖桃 → 中段灰粉 → 底部浅杏 */
-  background:
-    radial-gradient(1100px 700px at 82% -6%, rgba(255, 236, 220, .55), transparent 60%),
-    radial-gradient(900px 640px at -6% 108%, rgba(250, 228, 210, .5), transparent 58%),
-    linear-gradient(168deg,
-      #E4C0A6 0%,      /* 暖桃 */
-      #DEC0B0 22%,
-      #D4B8AC 46%,     /* 灰粉 */
-      #E2C6B6 68%,
-      #EBD7CC 100%);   /* 浅杏 */
-  background-attachment: fixed !important;
-}
-
-/* 光弧一：右上大弧（白色半透明圆环，像玻璃反光）*/
-:root[data-theme="light"] body::before {
-  content: '';
-  position: fixed;
-  width: 1400px;
-  height: 1400px;
-  right: -420px;
-  top: -640px;
-  border-radius: 50%;
-  border: 130px solid rgba(255, 255, 255, .16);
-  border-bottom-color: rgba(255, 255, 255, .05);
-  border-left-color: rgba(255, 255, 255, .09);
-  filter: blur(2px);
-  transform: rotate(-18deg);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* 光弧二：左下小弧（更淡，补层次）*/
-:root[data-theme="light"] body::after {
-  content: '';
-  position: fixed;
-  width: 900px;
-  height: 900px;
-  left: -380px;
-  bottom: -460px;
-  border-radius: 50%;
-  border: 90px solid rgba(255, 255, 255, .11);
-  border-top-color: rgba(255, 255, 255, .04);
-  filter: blur(3px);
-  transform: rotate(12deg);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* ═══ 2. 玻璃卡：白色 45-60% + blur28 + r24 + 顶部内高光 ════════════════ */
-
-:root[data-theme="light"] .ov-card,
-:root[data-theme="light"] .index-card,
-:root[data-theme="light"] .live-bar,
-:root[data-theme="light"] .sector-chip,
-:root[data-theme="light"] .sec-hot-card,
-:root[data-theme="light"] .search-input,
-:root[data-theme="light"] .search-drop,
-:root[data-theme="light"] .watch-row,
-:root[data-theme="light"] .watch-empty,
-:root[data-theme="light"] .news-tag,
-:root[data-theme="light"] .fund-tab,
-:root[data-theme="light"] .senti-thermo,
-:root[data-theme="light"] .senti-card,
-:root[data-theme="light"] .senti-panel,
-:root[data-theme="light"] .lad-stock,
-:root[data-theme="light"] .sec-cell,
-:root[data-theme="light"] .sec-hot,
-:root[data-theme="light"] .news-item,
-:root[data-theme="light"] .focus-col .news-item,
-:root[data-theme="light"] .pos-sum-card,
-:root[data-theme="light"] .pos-chart-card,
-:root[data-theme="light"] .pos-row,
-:root[data-theme="light"] .lhb-row,
-:root[data-theme="light"] .fund-panel,
-:root[data-theme="light"] .ladder-row,
-:root[data-theme="light"] .sec-row {
-  background: linear-gradient(165deg,
-    rgba(255, 255, 255, .60) 0%,
-    rgba(255, 255, 255, .45) 52%,
-    rgba(255, 255, 255, .52) 100%);
-  backdrop-filter: blur(28px) saturate(140%);
-  -webkit-backdrop-filter: blur(28px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, .55);
-  border-radius: 24px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .75),          /* 顶部内侧细高光 */
-    0 18px 44px rgba(150, 108, 82, .14),             /* 大而柔的暖阴影 */
-    0 4px 14px rgba(150, 108, 82, .08);
-  transition: box-shadow .2s ease, border-color .2s ease;
-}
-
-:root[data-theme="light"] .ov-card:hover,
-:root[data-theme="light"] .index-card:hover,
-:root[data-theme="light"] .sector-chip:hover,
-:root[data-theme="light"] .sec-hot-card:hover {
-  background: linear-gradient(165deg,
-    rgba(255, 255, 255, .72), rgba(255, 255, 255, .55));
-  border-color: rgba(255, 255, 255, .8);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .85),
-    0 24px 56px rgba(150, 108, 82, .20);
-}
-
-/* ═══ 3. 层级：主面板一层、内部模块再叠一层 ════════════════════════════ */
-
-/* 页面主区：一层大玻璃面板托住内容 */
-:root[data-theme="light"] .content {
-  background: linear-gradient(170deg,
-    rgba(255, 255, 255, .38), rgba(255, 255, 255, .22));
-  backdrop-filter: blur(20px) saturate(130%);
-  -webkit-backdrop-filter: blur(20px) saturate(130%);
-  border-radius: 26px;
-  border: 1px solid rgba(255, 255, 255, .42);
-  box-shadow: 0 20px 60px rgba(150, 108, 82, .12);
-}
-
-/* 内部模块（.module）再叠一层玻璃 */
-:root[data-theme="light"] .module {
-  background: linear-gradient(170deg,
-    rgba(255, 255, 255, .5), rgba(255, 255, 255, .34));
-  backdrop-filter: blur(26px) saturate(140%);
-  -webkit-backdrop-filter: blur(26px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, .5);
-  border-radius: 24px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .7),
-    0 14px 36px rgba(150, 108, 82, .11);
-}
-
-/* ═══ 4. 榜单类：#F3F1F1 实底卡（不透明，读数清晰）══════════════════════ */
-
-:root[data-theme="light"] .lhb-row,
-:root[data-theme="light"] .watch-row,
-:root[data-theme="light"] .ladder-row,
-:root[data-theme="light"] .pos-row,
-:root[data-theme="light"] .lad-stock {
-  background: #F3F1F1;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 1px solid rgba(255, 255, 255, .9);
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(150, 108, 82, .07);
-}
-
-/* ═══ 5. 深色卡：#1B1B19 压画面 + 顶部铜色光晕 ══════════════════════════ */
-/* 首页第一个模块（核心指数）：全页的视觉锚点 */
-
-:root[data-theme="light"] #page-home .module:first-of-type {
-  background:
-    radial-gradient(520px 200px at 50% -40px,
-      rgba(182, 109, 68, .38), transparent 70%),   /* 顶部铜色光晕 */
-    linear-gradient(175deg, #26221F 0%, #1B1B19 46%, #171614 100%);
-  border: 1px solid rgba(210, 160, 120, .22);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 220, 190, .18),
-    0 26px 64px rgba(40, 24, 12, .36);
-}
-
-/* 深色卡内的文字反白 */
-:root[data-theme="light"] #page-home .module:first-of-type .m-title,
-:root[data-theme="light"] #page-home .module:first-of-type .m-sub {
-  color: #EDE4DC;
-}
-:root[data-theme="light"] #page-home .module:first-of-type .m-title {
-  text-shadow: 0 0 18px rgba(231, 164, 113, .35);
-}
-
-/* ═══ 6. 强调色：铜橙 #B66D44 ══════════════════════════════════════════ */
-
-:root[data-theme="light"] {
-  --accent: #B66D44;
-  --accent-hover: #A05C36;
-  --up: #C25B3F;                       /* 涨：偏铜红，仍是「涨=暖」语义 */
-  --up-bg: rgba(198, 91, 63, .12);
-  --gold: #B66D44;
-}
-
-/* 当前项/标签：铜橙实底或描边 */
-:root[data-theme="light"] .tab.active,
-:root[data-theme="light"] .fund-tab.active {
-  background: linear-gradient(135deg, #C97B4E, #B66D44);
-  color: #fff;
-  border-color: rgba(255, 220, 195, .55);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .3),
-    0 6px 16px rgba(182, 109, 68, .35);
-}
-
-/* dock 当前项：浅色下改白玻璃底 + 铜橙描边 */
-:root[data-theme="light"] .mac-dock {
-  background: rgba(255, 252, 248, .55);
-  backdrop-filter: blur(28px) saturate(140%);
-  -webkit-backdrop-filter: blur(28px) saturate(140%);
-  border-color: rgba(255, 255, 255, .6);
-  box-shadow:
-    0 12px 32px rgba(150, 108, 82, .22),
-    inset 0 1px 0 rgba(255, 255, 255, .8);
-}
-:root[data-theme="light"] .mac-dock .md-item.active {
-  background: linear-gradient(135deg,
-    rgba(201, 123, 78, .28), rgba(182, 109, 68, .38));
-  border: 1px solid rgba(182, 109, 68, .45);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .5),
-    0 4px 14px rgba(182, 109, 68, .3);
-}
-:root[data-theme="light"] .mac-dock .md-item.active > svg,
-:root[data-theme="light"] .mac-dock .md-item.active svg {
-  color: #8A4A28;
-}
-:root[data-theme="light"] .mac-dock .md-item > svg {
-  color: #6B5A4E;
-}
-:root[data-theme="light"] .mac-dock .md-item .md-dot {
-  background: #B66D44;
-  box-shadow: 0 0 6px rgba(182, 109, 68, .8);
-}
-
-/* 详情视图主卡 / 缩略条：浅色白玻璃 */
-:root[data-theme="light"] .fd-host .module {
-  background: rgba(255, 252, 248, .78);
-  border-color: rgba(255, 255, 255, .6);
-  box-shadow: 0 24px 64px rgba(150, 108, 82, .2);
-}
-:root[data-theme="light"] .fd-bar {
-  background: rgba(255, 252, 248, .6);
-  border-color: rgba(255, 255, 255, .55);
-}
-:root[data-theme="light"] .fd-thumb.fd-cur {
-  background: linear-gradient(135deg,
-    rgba(201, 123, 78, .24), rgba(182, 109, 68, .34));
-  border-color: rgba(182, 109, 68, .45);
-  color: #8A4A28;
-}
-
-/* ═══ 7. 图表：铜橙→灰粉竖向渐变 ═══════════════════════════════════════ */
-
-/* 情绪温度计：达成部分竖向渐变 */
-:root[data-theme="light"] .senti-thermo {
-  background: linear-gradient(180deg,
-    #E7A471 0%, #DDA88E 55%, #C5A0AB 100%) !important;
-  border: 1px solid rgba(255, 255, 255, .6);
-}
-/* 未达成部分（槽底）：浅灰半透明 */
-:root[data-theme="light"] .senti-thermo::before {
-  background: rgba(160, 150, 145, .22) !important;
-}
-
-/* ═══ 8. 字体与排版 ════════════════════════════════════════════════════ */
-/* ⚠️ Plus Jakarta Sans / Manrope 是境外字体（首屏性能铁律禁入），
-   用本地 Segoe UI Variable 系统栈模拟几何无衬线；数字走 tabular-nums。 */
-
-:root[data-theme="light"] body {
-  font-family: "Segoe UI Variable Text", "Segoe UI", "Manrope",
-    "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
-  font-variant-numeric: tabular-nums;
-}
-
-/* 大标题 48px+（桌面端；窄屏回落）*/
-:root[data-theme="light"] .header .title {
-  font-size: 48px;
-  font-weight: 700;
-  letter-spacing: -.02em;
-  color: #4A3428;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, .5);
-}
-@media (max-width: 900px) {
-  :root[data-theme="light"] .header .title { font-size: 34px; }
-}
-@media (max-width: 560px) {
-  :root[data-theme="light"] .header .title { font-size: 26px; }
-}
-
-/* 模块标题与正文颜色：暖深棕（在暖背景上更协调）*/
-:root[data-theme="light"] .m-title { color: #4A3428; }
-:root[data-theme="light"] .m-sub { color: #8A6F5E; }
-
-/* ═══ 9. 侧边栏：暖白玻璃 ══════════════════════════════════════════════ */
-
-:root[data-theme="light"] .sidebar { background: transparent; }
-:root[data-theme="light"] .nav-item.active {
-  background: linear-gradient(135deg,
-    rgba(201, 123, 78, .3), rgba(182, 109, 68, .4));
-  border: 1px solid rgba(182, 109, 68, .4);
-  box-shadow: 0 6px 18px rgba(182, 109, 68, .28);
-}
-
-/* ═══ 10. 光弧在 reduce 下去模糊（性能）═══════════════════════════════ */
-
-@media (prefers-reduced-motion: reduce) {
-  :root[data-theme="light"] body::before,
-  :root[data-theme="light"] body::after { filter: none; }
-}
-html[data-fps-q] :root[data-theme="light"] body::before,
-html[data-fps-q] :root[data-theme="light"] body::after {
-  filter: none;
-  border-width: 60px;
-}
-
-</style><!-- GL:CSS:END -->
 <!-- PG:CSS:BEGIN -->
 <!-- perf-glide (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
 <style id="perf-glide-style">
@@ -9400,6 +9096,354 @@ html[data-fps-q="low"] .hc-dog {
 html[data-fps-q] .lf-sheet-panel { transform: none !important; }
 
 </style><!-- LF:CSS:END -->
+<!-- GL:CSS:BEGIN -->
+<!-- glass-light (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<style id="glass-light-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   glass-light · 浅色模式「液态玻璃风」覆盖层（2026-10-13）
+   ───────────────────────────────────────────────────────────────────────────
+   需求（用户给定规格，GLASS BASE PROMPT）：
+     · 背景：左上暖桃 #E4C0A6 → 中段灰粉 #D4B8AC → 底部浅杏 #EBD7CC，
+       叠一两道白色半透明光弧（隔着磨砂玻璃看晚霞）
+     · 卡片：白色 45-60% 磨砂玻璃，blur(28px) saturate(140%)，
+       1px 白描边，顶部内侧细高光，圆角 24px，大而柔阴影
+     · 层级：主面板一层玻璃、内部模块再叠一层；榜单类 #F3F1F1 实底卡；
+       一张 #1B1B19 深色卡压画面，顶部铜色光晕
+     · 强调色：铜橙 #B66D44（当前项/标签）；图表 #E7A471→#C5A0AB 竖向渐变，
+       未达成浅灰半透明
+     · 字体：几何无衬线，大标题 48px+，等宽数字
+
+   ── 实现策略 ────────────────────────────────────────────────────────────
+   · 纯 CSS 覆盖层：全部规则带 :root[data-theme="light"] 前缀，
+     注入点为 CSS 链最末位（候选锚不存在时回退到 head 结束标记处），
+     同特异性下按源序稳赢原浅色规则；深色主题零影响，摘除即回退。
+   · 字体不引境外资源（首屏性能铁律）：Plus Jakarta Sans / Manrope 用
+     本地 Segoe UI Variable 系统栈模拟几何无衬线；等宽数字走
+     font-variant-numeric: tabular-nums。
+   · 光弧：body 的 ::before/::after 两道白色半透明大圆环弧（border 圆环
+     旋转裁切），position: fixed + pointer-events:none，零 JS。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ═══ 1. 晚霞渐变背景 + 白色光弧 ════════════════════════════════════════ */
+
+:root[data-theme="light"] body {
+  /* 三段式晚霞：左上暖桃 → 中段灰粉 → 底部浅杏 */
+  background:
+    radial-gradient(1100px 700px at 82% -6%, rgba(255, 236, 220, .55), transparent 60%),
+    radial-gradient(900px 640px at -6% 108%, rgba(250, 228, 210, .5), transparent 58%),
+    linear-gradient(168deg,
+      #E4C0A6 0%,      /* 暖桃 */
+      #DEC0B0 22%,
+      #D4B8AC 46%,     /* 灰粉 */
+      #E2C6B6 68%,
+      #EBD7CC 100%);   /* 浅杏 */
+  background-attachment: fixed !important;
+}
+
+/* 光弧一：右上大弧（白色半透明圆环，像玻璃反光）*/
+:root[data-theme="light"] body::before {
+  content: '';
+  position: fixed;
+  width: 1400px;
+  height: 1400px;
+  right: -420px;
+  top: -640px;
+  border-radius: 50%;
+  border: 130px solid rgba(255, 255, 255, .16);
+  border-bottom-color: rgba(255, 255, 255, .05);
+  border-left-color: rgba(255, 255, 255, .09);
+  filter: blur(2px);
+  transform: rotate(-18deg);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 光弧二：左下小弧（更淡，补层次）*/
+:root[data-theme="light"] body::after {
+  content: '';
+  position: fixed;
+  width: 900px;
+  height: 900px;
+  left: -380px;
+  bottom: -460px;
+  border-radius: 50%;
+  border: 90px solid rgba(255, 255, 255, .11);
+  border-top-color: rgba(255, 255, 255, .04);
+  filter: blur(3px);
+  transform: rotate(12deg);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ═══ 2. 玻璃卡：白色 45-60% + blur28 + r24 + 顶部内高光 ════════════════ */
+
+:root[data-theme="light"] .ov-card,
+:root[data-theme="light"] .index-card,
+:root[data-theme="light"] .live-bar,
+:root[data-theme="light"] .sector-chip,
+:root[data-theme="light"] .sec-hot-card,
+:root[data-theme="light"] .search-input,
+:root[data-theme="light"] .search-drop,
+:root[data-theme="light"] .watch-row,
+:root[data-theme="light"] .watch-empty,
+:root[data-theme="light"] .news-tag,
+:root[data-theme="light"] .fund-tab,
+:root[data-theme="light"] .senti-thermo,
+:root[data-theme="light"] .senti-card,
+:root[data-theme="light"] .senti-panel,
+:root[data-theme="light"] .lad-stock,
+:root[data-theme="light"] .sec-cell,
+:root[data-theme="light"] .sec-hot,
+:root[data-theme="light"] .news-item,
+:root[data-theme="light"] .focus-col .news-item,
+:root[data-theme="light"] .pos-sum-card,
+:root[data-theme="light"] .pos-chart-card,
+:root[data-theme="light"] .pos-row,
+:root[data-theme="light"] .lhb-row,
+:root[data-theme="light"] .fund-panel,
+:root[data-theme="light"] .ladder-row,
+:root[data-theme="light"] .sec-row {
+  background: linear-gradient(165deg,
+    rgba(255, 255, 255, .60) 0%,
+    rgba(255, 255, 255, .45) 52%,
+    rgba(255, 255, 255, .52) 100%);
+  backdrop-filter: blur(28px) saturate(140%);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, .55);
+  border-radius: 24px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .75),          /* 顶部内侧细高光 */
+    0 18px 44px rgba(150, 108, 82, .14),             /* 大而柔的暖阴影 */
+    0 4px 14px rgba(150, 108, 82, .08);
+  transition: box-shadow .2s ease, border-color .2s ease;
+}
+
+:root[data-theme="light"] .ov-card:hover,
+:root[data-theme="light"] .index-card:hover,
+:root[data-theme="light"] .sector-chip:hover,
+:root[data-theme="light"] .sec-hot-card:hover {
+  background: linear-gradient(165deg,
+    rgba(255, 255, 255, .72), rgba(255, 255, 255, .55));
+  border-color: rgba(255, 255, 255, .8);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .85),
+    0 24px 56px rgba(150, 108, 82, .20);
+}
+
+/* ═══ 3. 层级：主面板一层、内部模块再叠一层 ════════════════════════════ */
+
+/* 页面主区：一层大玻璃面板托住内容 */
+:root[data-theme="light"] .content {
+  background: linear-gradient(170deg,
+    rgba(255, 255, 255, .38), rgba(255, 255, 255, .22));
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, .42);
+  box-shadow: 0 20px 60px rgba(150, 108, 82, .12);
+}
+
+/* 内部模块（.module）再叠一层玻璃 */
+:root[data-theme="light"] .module {
+  background: linear-gradient(170deg,
+    rgba(255, 255, 255, .5), rgba(255, 255, 255, .34));
+  backdrop-filter: blur(26px) saturate(140%);
+  -webkit-backdrop-filter: blur(26px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, .5);
+  border-radius: 24px;
+  /* ⭐⭐ 2026-10-18 修复：.module 原本只是语义分组（无背景、无 padding，
+     靠外层 .content 的 26px 30px 边距），GL 把它变成玻璃卡片后
+     内容就压到圆角边框上了 —— 用户截图里 loader 贴左边缘就是这个。
+     卡片化后必须自带内边距。 */
+  padding: 18px 20px 20px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .7),
+    0 14px 36px rgba(150, 108, 82, .11);
+}
+
+/* 详情视图里的模块卡同样要内边距（同一原因）*/
+:root[data-theme="light"] .fd-host .module {
+  padding: 20px 22px 22px;
+}
+
+/* ═══ 4. 榜单类：#F3F1F1 实底卡（不透明，读数清晰）══════════════════════ */
+
+:root[data-theme="light"] .lhb-row,
+:root[data-theme="light"] .watch-row,
+:root[data-theme="light"] .ladder-row,
+:root[data-theme="light"] .pos-row,
+:root[data-theme="light"] .lad-stock {
+  background: #F3F1F1;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid rgba(255, 255, 255, .9);
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(150, 108, 82, .07);
+}
+
+/* ═══ 5. 深色卡：#1B1B19 压画面 + 顶部铜色光晕 ══════════════════════════ */
+/* 首页第一个模块（核心指数）：全页的视觉锚点 */
+
+:root[data-theme="light"] #page-home .module:first-of-type {
+  background:
+    radial-gradient(520px 200px at 50% -40px,
+      rgba(182, 109, 68, .38), transparent 70%),   /* 顶部铜色光晕 */
+    linear-gradient(175deg, #26221F 0%, #1B1B19 46%, #171614 100%);
+  border: 1px solid rgba(210, 160, 120, .22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 190, .18),
+    0 26px 64px rgba(40, 24, 12, .36);
+}
+
+/* 深色卡内的文字反白 */
+:root[data-theme="light"] #page-home .module:first-of-type .m-title,
+:root[data-theme="light"] #page-home .module:first-of-type .m-sub {
+  color: #EDE4DC;
+}
+:root[data-theme="light"] #page-home .module:first-of-type .m-title {
+  text-shadow: 0 0 18px rgba(231, 164, 113, .35);
+}
+
+/* ═══ 6. 强调色：铜橙 #B66D44 ══════════════════════════════════════════ */
+
+:root[data-theme="light"] {
+  --accent: #B66D44;
+  --accent-hover: #A05C36;
+  --up: #C25B3F;                       /* 涨：偏铜红，仍是「涨=暖」语义 */
+  --up-bg: rgba(198, 91, 63, .12);
+  --gold: #B66D44;
+}
+
+/* 当前项/标签：铜橙实底或描边 */
+:root[data-theme="light"] .tab.active,
+:root[data-theme="light"] .fund-tab.active {
+  background: linear-gradient(135deg, #C97B4E, #B66D44);
+  color: #fff;
+  border-color: rgba(255, 220, 195, .55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .3),
+    0 6px 16px rgba(182, 109, 68, .35);
+}
+
+/* dock 当前项：浅色下改白玻璃底 + 铜橙描边 */
+:root[data-theme="light"] .mac-dock {
+  background: rgba(255, 252, 248, .55);
+  backdrop-filter: blur(28px) saturate(140%);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  border-color: rgba(255, 255, 255, .6);
+  box-shadow:
+    0 12px 32px rgba(150, 108, 82, .22),
+    inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+:root[data-theme="light"] .mac-dock .md-item.active {
+  background: linear-gradient(135deg,
+    rgba(201, 123, 78, .28), rgba(182, 109, 68, .38));
+  border: 1px solid rgba(182, 109, 68, .45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .5),
+    0 4px 14px rgba(182, 109, 68, .3);
+}
+:root[data-theme="light"] .mac-dock .md-item.active > svg,
+:root[data-theme="light"] .mac-dock .md-item.active svg {
+  color: #8A4A28;
+}
+:root[data-theme="light"] .mac-dock .md-item > svg {
+  color: #6B5A4E;
+}
+:root[data-theme="light"] .mac-dock .md-item .md-dot {
+  background: #B66D44;
+  box-shadow: 0 0 6px rgba(182, 109, 68, .8);
+}
+
+/* 详情视图主卡 / 缩略条：浅色白玻璃 */
+:root[data-theme="light"] .fd-host .module {
+  background: rgba(255, 252, 248, .78);
+  border-color: rgba(255, 255, 255, .6);
+  box-shadow: 0 24px 64px rgba(150, 108, 82, .2);
+}
+:root[data-theme="light"] .fd-bar {
+  background: rgba(255, 252, 248, .6);
+  border-color: rgba(255, 255, 255, .55);
+}
+:root[data-theme="light"] .fd-thumb.fd-cur {
+  background: linear-gradient(135deg,
+    rgba(201, 123, 78, .24), rgba(182, 109, 68, .34));
+  border-color: rgba(182, 109, 68, .45);
+  color: #8A4A28;
+}
+
+/* ═══ 7. 图表：铜橙→灰粉竖向渐变 ═══════════════════════════════════════ */
+
+/* 情绪温度计：达成部分竖向渐变 */
+:root[data-theme="light"] .senti-thermo {
+  background: linear-gradient(180deg,
+    #E7A471 0%, #DDA88E 55%, #C5A0AB 100%) !important;
+  border: 1px solid rgba(255, 255, 255, .6);
+}
+/* 未达成部分（槽底）：浅灰半透明 */
+:root[data-theme="light"] .senti-thermo::before {
+  background: rgba(160, 150, 145, .22) !important;
+}
+
+/* ═══ 8. 字体与排版 ════════════════════════════════════════════════════ */
+/* ⚠️ Plus Jakarta Sans / Manrope 是境外字体（首屏性能铁律禁入），
+   用本地 Segoe UI Variable 系统栈模拟几何无衬线；数字走 tabular-nums。 */
+
+:root[data-theme="light"] body {
+  font-family: "Segoe UI Variable Text", "Segoe UI", "Manrope",
+    "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 大标题 48px+（桌面端；窄屏回落）*/
+:root[data-theme="light"] .header .title {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  color: #4A3428;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .5);
+}
+@media (max-width: 900px) {
+  :root[data-theme="light"] .header .title { font-size: 34px; }
+}
+@media (max-width: 560px) {
+  :root[data-theme="light"] .header .title { font-size: 26px; }
+}
+
+/* 模块标题与正文颜色：暖深棕（在暖背景上更协调）*/
+:root[data-theme="light"] .m-title { color: #4A3428; }
+:root[data-theme="light"] .m-sub { color: #8A6F5E; }
+
+/* ═══ 9. 侧边栏：暖白玻璃 ══════════════════════════════════════════════ */
+
+:root[data-theme="light"] .sidebar { background: transparent; }
+:root[data-theme="light"] .nav-item.active {
+  background: linear-gradient(135deg,
+    rgba(201, 123, 78, .3), rgba(182, 109, 68, .4));
+  border: 1px solid rgba(182, 109, 68, .4);
+  box-shadow: 0 6px 18px rgba(182, 109, 68, .28);
+}
+
+/* ═══ 10. 光弧在 reduce 下去模糊（性能）═══════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="light"] body::before,
+  :root[data-theme="light"] body::after { filter: none; }
+}
+html[data-fps-q] :root[data-theme="light"] body::before,
+html[data-fps-q] :root[data-theme="light"] body::after {
+  filter: none;
+  border-width: 60px;
+}
+/* ═══ 11. 窄屏内边距收窄（2026-10-18）══════════════════════════════════
+   卡片化后的 .module 在手机上 18px 内边距会挤压内容区宽度，
+   收到 14px；详情卡同步收窄。 */
+@media (max-width: 640px) {
+  :root[data-theme="light"] .module { padding: 14px 14px 16px; }
+  :root[data-theme="light"] .fd-host .module { padding: 16px 14px 18px; }
+}
+
+</style><!-- GL:CSS:END -->
 </head>
 <body>
 
@@ -21606,23 +21650,6 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 </script>
 <!-- KAZUMI:JS:END -->
 
-<!-- GL:JS:BEGIN -->
-<!-- glass-light (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
-<script id="glass-light-js">
-/* glass-light · 极小运行时：标记类 + 状态钩子（GL 主体是纯 CSS 覆盖层） */
-(function () {
-  'use strict';
-  if (window.__glassLightInstalled) return;
-  window.__glassLightInstalled = true;
-  document.body.classList.add('glass-light-on');
-  window.__glassLight = {
-    state: function () {
-      return { ready: true, theme: document.documentElement.getAttribute('data-theme') };
-    }
-  };
-})();
-
-</script><!-- GL:JS:END -->
 <!-- PG:JS:BEGIN -->
 <!-- perf-glide (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
 <script id="perf-glide-js">
@@ -22020,5 +22047,22 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- LF:JS:END -->
+<!-- GL:JS:BEGIN -->
+<!-- glass-light (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<script id="glass-light-js">
+/* glass-light · 极小运行时：标记类 + 状态钩子（GL 主体是纯 CSS 覆盖层） */
+(function () {
+  'use strict';
+  if (window.__glassLightInstalled) return;
+  window.__glassLightInstalled = true;
+  document.body.classList.add('glass-light-on');
+  window.__glassLight = {
+    state: function () {
+      return { ready: true, theme: document.documentElement.getAttribute('data-theme') };
+    }
+  };
+})();
+
+</script><!-- GL:JS:END -->
 </body>
 </html>
