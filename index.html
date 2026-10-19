@@ -14890,6 +14890,38 @@ async function loadLhb() {
 function renderLhb(data) {
   const box = $('lhb-list');
   box.querySelectorAll('.news-empty').forEach(el => el.remove());
+  /* ⭐⭐ 2026-10-19 修复「一只股票显示三行」：
+     东财龙虎榜的原始数据是「股票 × 上榜原因」为一条 —— 同一只股票可能因为
+     多个原因各返回一条（如"日涨幅偏离值达 7%"+"连续三日涨幅偏离值累计达 20%"），
+     原来的代码只按 TRADE_ID 去重，所以慈文传媒会冒出三条。
+
+     现在按**股票代码**合并：
+       · 每个代码合成一条（顺序按首次出现）
+       · 多个上榜原因用「；」拼在 reason 里（信息不丢）
+       · 若多条里净买额不同，取绝对值更大的那条做主体（代表主力动作最强的口径）
+     ⚠️ 用 SECURITY_CODE 优先；个别数据缺代码时退回 TRADE_ID，避免误合。 */
+  const byCode = new Map();
+  data.forEach(d => {
+    const code = String(d.SECURITY_CODE || '').trim() || ('tid:' + d.TRADE_ID);
+    const prev = byCode.get(code);
+    const reason = (d.EXPLANATION || '').trim();
+    if (!prev) {
+      byCode.set(code, Object.assign({}, d, { _reasons: reason ? [reason] : [] }));
+      return;
+    }
+    if (reason && prev._reasons.indexOf(reason) < 0) prev._reasons.push(reason);
+    if (Math.abs(d.BILLBOARD_NET_AMT || 0) > Math.abs(prev.BILLBOARD_NET_AMT || 0)) {
+      const rs = prev._reasons;
+      Object.assign(prev, d, { _reasons: rs });
+    }
+  });
+  data = Array.from(byCode.values()).map(d => {
+    const rs = d._reasons || [];
+    return Object.assign({}, d, {
+      EXPLANATION: rs.length ? rs.join('；') : (d.EXPLANATION || '')
+    });
+  });
+
   const cache = lhbRowCache[lhbSort + '_' + lhbDate] = lhbRowCache[lhbSort + '_' + lhbDate] || {};
   const seen = new Set();
   data.forEach((d, i) => {
