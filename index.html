@@ -4043,6 +4043,44 @@
     transform: none !important;
   }
 }
+
+/* ⭐⭐⭐ 2026-10-19 dock 图标颜色「硬绑定」——修复换图标后偏色
+   ─────────────────────────────────────────────────────────────────────
+   症状：换过的图标和未换的图标颜色不一样（一个浅蓝灰、一个深棕），像两个系统。
+   根因：dock 图标色靠**继承链**传递，而两拨 svg 的 DOM 层级并不完全相同
+        （原图标有的直接挂在 .md-item 下、没有 .icon 包裹）。
+        只写 `.md-item .icon > svg` 会漏掉没包裹的那批，于是同一排出现两种色。
+   ⭐ 正解：**用 `.md-item svg` 匹配全部**，不假设中间有没有 .icon；
+      并把颜色显式绑在主题上，不再靠继承。
+   ⚠️ 放主样式表末尾，压过 dock.css / glass-light 的同名规则。 */
+/* 用 CSS 变量 + !important 落到最高层：
+   实测同特异性的浅色规则会被后面某条（glass-light 体系）压掉，
+   所以改成「变量在 .mac-dock 上定义、颜色带 !important 取用」——
+   主题切换只改变量，不再和别人比特异性。 */
+.mac-dock {
+  --dock-ico: #dbe2ea;
+  --dock-ico-hi: #ffffff;
+}
+:root[data-theme="light"] .mac-dock {
+  --dock-ico: #4f3a2a;
+  --dock-ico-hi: #b4511e;
+}
+.mac-dock .md-item svg {
+  color: var(--dock-ico) !important;
+  stroke: currentColor;
+}
+/* active / hover 提亮 —— 覆盖所有 svg，与基础规则同层级 */
+.mac-dock .md-item:hover svg,
+.mac-dock .md-item.active svg,
+.mac-dock .md-item.kz-down svg,
+.mac-dock .md-item.kz-flash svg {
+  color: var(--dock-ico-hi) !important;
+}
+/* 触屏：没有 hover，避免点亮后不复位 */
+@media (hover: none), (pointer: coarse) {
+  .mac-dock .md-item:hover svg { color: var(--dock-ico) !important; }
+  .mac-dock .md-item.active:hover svg { color: var(--dock-ico-hi) !important; }
+}
 </style>
 <!-- KAZUMI:CSS:END -->
 
@@ -12402,6 +12440,7 @@ const PAGE_IDS = { home: 'page-home', '自选股票': 'page-watch', '财经要�
     '.is-revisit .lhb-row',
     '.is-revisit .ladder-row',
     '.is-revisit .sec-cell',
+    '.is-revisit .sec-row',
     '.is-revisit .sec-hot-card',
     '.is-revisit .sector-chip',
     '.is-revisit .index-card',
@@ -12625,8 +12664,17 @@ function switchPage(page) {
          叠加容器自身过渡，就成了"整页重新加载"的错觉。
          解法：访问过的页面打 is-revisit，样式里关掉一次性入场 ——
          **只有第一次进入某页才播入场**。 */
-      const revisit = !!el.dataset.visited;
-      el.classList.toggle('is-revisit', revisit);
+      /* ⭐⭐ 2026-10-19 统一所有页面的入场（用户反馈「切到资金流向/走势分析
+         感觉入场动画都不一样，很割裂」）。
+
+         原来只有"重访"才加 is-revisit，所以：
+           · 第一次进某页 → 页内几十个卡片各播各自的 fadeIn
+           · 再进同一页   → 只有容器淡入
+         两个体验并存，来回切就觉得"每一次都不一样"。
+
+         现在**无条件**加 is-revisit：所有页面都是"容器 220ms 淡入 + 内部静止"，
+         切页从此只有一种节奏。切页一天几十次，本来就该极简（skill 频率门控）。 */
+      el.classList.add('is-revisit');
       el.dataset.visited = '1';
 
       if ('animate' in el) {
