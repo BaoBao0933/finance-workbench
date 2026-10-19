@@ -5122,14 +5122,17 @@ html:not([data-fps-q]) .sec-hot-grid {
    留白随宽度缓增，观感更舒展 —— 这是「填满」不等于「顶到边」。
    ═════════════════════════════════════════════════════════════════════════ */
 
+/* ⭐ 2026-10-19：三条宽屏留白规则原来带 `html:not([data-fps-q])` 前缀 ——
+   帧率一降档就失效，主内容区左右留白从 76px 突然缩回 30px（比侧边栏跳变更明显）。
+   宽屏留白是**版式**，与性能无关，去掉前缀。 */
 @media (min-width: 1500px) {
-  html:not([data-fps-q]) .content { padding-left: 40px; padding-right: 40px; }
+  .content { padding-left: 40px; padding-right: 40px; }
 }
 @media (min-width: 1900px) {
-  html:not([data-fps-q]) .content { padding-left: 56px; padding-right: 56px; }
+  .content { padding-left: 56px; padding-right: 56px; }
 }
 @media (min-width: 2300px) {
-  html:not([data-fps-q]) .content { padding-left: 76px; padding-right: 76px; }
+  .content { padding-left: 76px; padding-right: 76px; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
