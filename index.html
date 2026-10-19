@@ -3937,9 +3937,38 @@
   padding: 9px 4px 7px; border-radius: 11px; cursor: pointer;
   border: 1px solid transparent; transition: background .15s, border-color .15s, transform .15s;
 }
+/* ⭐⭐ 2026-10-19 趣味/高级感升级（图标库面板）
+   · 入场：前 24 个图标错峰淡入（16ms 间隔，总预算 ≈380ms < 500ms 规范）
+   · hover：图标放大 + 描边微光（是"图标本人"亮起来，不是整个格子变色）
+   · 选中：铜橙描边 + 极缓脉搏，一眼看出当前用的是哪个 */
+.ip-cell {
+  animation: ipCellIn .28s cubic-bezier(.22, 1, .36, 1) both;
+  animation-delay: calc(var(--i, 0) * 16ms);
+}
+@keyframes ipCellIn {
+  from { opacity: 0; transform: translateY(6px) scale(.94); }
+  to   { opacity: 1; transform: none; }
+}
 .ip-cell:hover { background: rgba(182, 109, 68, .1); border-color: rgba(182, 109, 68, .28); transform: translateY(-1px); }
-.ip-cell.on { background: rgba(182, 109, 68, .16); border-color: #B66D44; }
-.ip-cell svg { width: 21px; height: 21px; display: block; }
+.ip-cell svg {
+  width: 21px; height: 21px; display: block;
+  transition: transform .2s cubic-bezier(.34, 1.3, .64, 1), filter .2s ease;
+}
+.ip-cell:hover svg { transform: scale(1.16); filter: drop-shadow(0 0 5px rgba(182, 109, 68, .5)); }
+.ip-cell.on {
+  background: rgba(182, 109, 68, .16); border-color: #B66D44;
+  animation: ipCellIn .28s cubic-bezier(.22, 1, .36, 1) both,
+             ipPulse 2.8s ease-in-out .3s infinite;
+}
+@keyframes ipPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(182, 109, 68, .32); }
+  50%      { box-shadow: 0 0 0 4px rgba(182, 109, 68, 0); }
+}
+.ip-cell.on svg { filter: drop-shadow(0 0 4px rgba(182, 109, 68, .45)); }
+@media (prefers-reduced-motion: reduce) {
+  .ip-cell, .ip-cell.on { animation: none !important; }
+  .ip-cell svg { transition: none; }
+}
 .ip-cell span { font-size: 9.5px; color: #8B7A6B; letter-spacing: .01em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 :root[data-theme="dark"] .ip-cell span { color: #8A9199; }
 .ip-empty { grid-column: 1 / -1; padding: 30px; text-align: center; font-size: 12.5px; color: #8B7A6B; }
@@ -12341,9 +12370,20 @@ var ICON_LIB = {"house":"<g fill=\"none\" stroke=\"currentColor\" stroke-linecap
   var currentPage = null;
   var originals = {};      // 页面名 → 原始 icon innerHTML（用于恢复默认）
 
+  /* ⭐⭐ 2026-10-19 修复「换完之后颜色不统一」：
+     根因不是颜色本身 —— 是**视觉重量**不一致。
+     lucide 里有一批图标内部带实心填充（circle fill="currentColor"、
+     dot、circle-dot 之类），换成它们之后同色同线宽却"看着更黑更重"，
+     排在一列纯线条图标里就像用了两套风格。
+
+     解法：生成时把 body 里**所有非 none 的 fill 强制改成 none**，
+     保证每个图标都是纯线条（stroke only）。
+     同时显式写 stroke="currentColor" —— 跟随所在容器的 color，
+     active / 非 active / 深浅主题都自动一致。 */
   function svgOf(name) {
     var body = ICON_LIB[name];
     if (!body) return '';
+    body = body.replace(/fill="(?!none)[^"]*"/g, 'fill="none"');
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
       + 'stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>';
   }
@@ -12369,7 +12409,18 @@ var ICON_LIB = {"house":"<g fill=\"none\" stroke=\"currentColor\" stroke-linecap
       if (ic0) originals[page] = ic0.innerHTML;
     }
     var ic = nav.querySelector('.icon');
-    if (ic) ic.innerHTML = svg;
+    if (ic) {
+      ic.innerHTML = svg;
+      /* 换图标的一次性淡入：新图标"长出来"而不是硬切。
+         ⚠️ 只作用于本次新插入的 svg，不动容器动画。 */
+      var nsvg = ic.querySelector('svg');
+      if (nsvg && nsvg.animate) {
+        nsvg.animate(
+          [{ opacity: 0, transform: 'scale(.82)' }, { opacity: 1, transform: 'scale(1)' }],
+          { duration: 260, easing: 'cubic-bezier(.34, 1.3, .64, 1)' }
+        );
+      }
+    }
     nav.dataset.ico = name;
 
     // dock 是 cloneNode 出来的，按顺序对应同步
@@ -12416,8 +12467,10 @@ var ICON_LIB = {"house":"<g fill=\"none\" stroke=\"currentColor\" stroke-linecap
     var cur = currentPage ? prefs()[currentPage] : null;
     var html = '';
     if (!names.length) html = '<div class="ip-empty">没找到匹配的图标，换个关键词试试（用英文名，如 star / chart）</div>';
-    names.forEach(function (n) {
-      html += '<div class="ip-cell' + (n === cur ? ' on' : '') + '" data-ico="' + n + '" title="' + n + '">'
+    names.forEach(function (n, i) {
+      /* 只给前 24 个加错峰延迟 —— 244 个全加会让后面的等 4 秒才出现 */
+      var st = i < 24 ? ' style="--i:' + i + '"' : '';
+      html += '<div class="ip-cell' + (n === cur ? ' on' : '') + '" data-ico="' + n + '" title="' + n + '"' + st + '>'
         + svgOf(n) + '<span>' + n + '</span></div>';
     });
     grid.innerHTML = html;
