@@ -427,10 +427,13 @@
     position: absolute; right: 14px; top: 50%;
     width: 6px; height: 6px; border-radius: 50%;
     background: var(--accent);
-    transform: translateY(-50%) scale(0);
-    transition: transform .2s ease;
+    /* ⭐ 2026-10-19 scale(0) → .6：从"虚无"长出来会显得凭空出现，
+       从 .6 + 淡入才有"本来就该在这儿"的物理感（Emil 标准第 5 条）。 */
+    transform: translateY(-50%) scale(.6);
+    opacity: 0;
+    transition: transform .2s cubic-bezier(.22, 1, .36, 1), opacity .2s ease;
   }
-  .nav-item:hover::after { transform: translateY(-50%) scale(1); }
+  .nav-item:hover::after { transform: translateY(-50%) scale(1); opacity: 1; }
 
   /* 模块标题前的小图标点缀 */
   .module-header .m-title { display: inline-flex; align-items: center; gap: 7px; }
@@ -555,6 +558,13 @@
   .fun-banner .spark.s3 { left: 100px; top: 6px; animation-delay: .6s; }
   .fun-banner .spark.s4 { left: 130px; bottom: 6px; animation-delay: 1.4s; }
   .fun-banner .spark.s5 { right: 2px; top: 50%; animation-delay: .9s; }
+
+  /* ⭐ 2026-10-19 火星 5 颗 → 3 颗。
+     5 颗各自以 6.8s 周期漂移，同屏看是"视觉噪音"而不是氛围；
+     留 s1/s2/s3 三颗（左/中/右三个方位），透气但不吵。
+     同时少 2 个常驻无限动画。 */
+  .fun-banner .spark.s4,
+  .fun-banner .spark.s5 { display: none; }
   .fun-banner .spark.s2 img { width: 15px; height: 15px; }
   .fun-banner .spark.s4 img { width: 15px; height: 15px; }
   .fun-banner .spark.s5 img { width: 20px; height: 20px; }
@@ -1014,6 +1024,14 @@
   .earth-loader svg:nth-child(4) { position: absolute; bottom: -2.2em; width: 7em; height: auto; animation: earthRound2 5s infinite linear .75s; }
   /* 行情断连：水色转珊瑚橙警示色 */
   .earth-loader-wrap.err .earth-loader { --watercolor: #c14a3e; border-color: rgba(232, 93, 78, .7); }
+  /* ⭐ 2026-10-19 加载成功的状态：地球停转、边缘转绿。
+     之前只有 err 状态 —— 数据早就到位了，地球还在自转，
+     等于在说"还在加载"，既误导又是 4 个常驻无限动画。 */
+  .earth-loader-wrap.ok .earth-loader svg { animation-play-state: paused; }
+  .earth-loader-wrap.ok .earth-loader {
+    border-color: rgba(61, 220, 132, .55);
+    box-shadow: 0 0 0 1px rgba(61, 220, 132, .28);
+  }
   :root[data-theme="light"] .earth-loader { border-color: rgba(255, 255, 255, .95); }
   :root[data-theme="light"] .earth-loader-wrap.err .earth-loader { border-color: rgba(232, 93, 78, .7); }
   @keyframes earthStart {
@@ -3983,6 +4001,48 @@
 .ip-reset:hover { background: rgba(182, 109, 68, .12); border-color: rgba(182, 109, 68, .4); }
 .ip-hint { font-size: 11px; color: #8B7A6B; }
 :root[data-theme="dark"] .ip-hint { color: #8A9199; }
+
+/* ⭐⭐⭐ 2026-10-19 触屏 hover 门控（Emil 动效标准第 8 条）
+   ─────────────────────────────────────────────────────────────────────
+   现状：全站 188 条 :hover，只有 8 条做了设备门控。
+   后果：手机上手指点一下卡片，hover 的位移/缩放不会自动复位，
+        卡片就"粘"在浮起状态，看起来像卡住了。
+   处理：粗指针 / 无 hover 能力的设备上，把所有 hover 位移与缩放归零。
+        **不动 box-shadow / 颜色**（那些不会造成"粘住"的错位感），
+        也不动 .nav-item::after（它的 translateY(-50%) 是用来定位的）。 */
+@media (hover: none), (pointer: coarse) {
+  .greet-user:hover .gu-avatar img,
+  .greet-user .gu-edit:hover,
+  .logo:hover .logo-dog,
+  .nav-item:hover .icon,
+  .index-card:hover,
+  .ov-card:hover,
+  .zt-card .zt-close:hover,
+  .home-congrats .hc-close:hover,
+  .sector-chip:hover,
+  .btn-add:hover,
+  .watch-row:hover,
+  .sec-cell:hover,
+  .sec-hot-card:hover,
+  .focus-col .news-item:hover,
+  .pos-row:hover,
+  .news-item:hover,
+  .news-item.hot:hover,
+  .news-item .n-tag:hover,
+  .kz-nav-item:not(.active):hover .kz-icon-pop,
+  .ip-cell:hover,
+  .ip-cell:hover svg,
+  .fd-close:hover,
+  .se-edit-btn:hover,
+  .se-edit-btn:hover svg,
+  .sector-strip.se-editing .sector-chip:hover,
+  .sc-del:hover,
+  .sc-add-chip:hover .sc-add-ico,
+  .se-ap-row:hover svg,
+  .mm-close:hover {
+    transform: none !important;
+  }
+}
 </style>
 <!-- KAZUMI:CSS:END -->
 
@@ -8249,7 +8309,9 @@ html[data-theme="light"] .pb-boot__bar {
   display: flex; align-items: center; justify-content: center;
   animation: fmc-pop .25s cubic-bezier(.34,1.56,.64,1) both;
 }
-@keyframes fmc-pop { from { transform: scale(0); } to { transform: scale(1); } }
+/* ⭐ 2026-10-19 scale(0) → .85 + opacity：0.25s 里从 0 放大是"炸出来"，
+   从 .85 放大则是"轻轻落位"，配合原有的过冲曲线更贵。 */
+@keyframes fmc-pop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .fmc-add-cell {
   border: 1.5px dashed var(--glass-border);
   border-radius: 14px; min-height: 74px;
@@ -10528,7 +10590,7 @@ button {
       <!-- 核心指数 -->
       <div class="module">
         <div class="module-header">
-          <span class="m-title"><span class="idx-loader" aria-hidden="true"><i class="loader__bar"></i><i class="loader__bar"></i><i class="loader__bar"></i><i class="loader__bar"></i><i class="loader__bar"></i><i class="loader__ball"></i></span>核心指数</span>
+          <span class="m-title">核心指数</span>
           <span class="m-sub">重点 · 全球市场实时行情</span>
           <a class="m-link" id="link-all-index">自选股 →</a>
         </div>
@@ -11850,6 +11912,8 @@ function setLive(ok, suffix) {
   const p = n => String(n).padStart(2, '0');
   const ts = `${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
   $('live-dot').classList.toggle('err', !ok);
+  /* ⭐ 2026-10-19 成功时停转地球（原来只切 err，成功也一直在转） */
+  $('live-dot').classList.toggle('ok', !!ok);
   $('live-text').textContent = ok ? `实时行情（API直连${suffix || ''} · ${ts}）` : '行情源连不通，自动重试中…';
   $('live-time').textContent = ok ? ts : '--';
 }
