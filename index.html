@@ -4222,7 +4222,10 @@ html[data-fps-q] .fd-open .page.active .module {
                                 .82 时 1.42→1.16（差 .26），按压才感觉得到。*/
   --dock-press-in: 100ms;    /* 按下：必须快，否则不跟手 */
   --dock-press-out: 300ms;   /* 松手：弹簧回弹（Release/settle）*/
-  --dock-bounce-dur: 560ms;  /* ⭐ 弹跳动画总时长（含二次振荡）*/
+  /* ⭐ 2026-10-19 用户反馈「弹力太高、突兀」：
+     560ms 对「点击反馈」来说太久（规范：图标级 80~200ms，最多放宽到 300ms），
+     拖得越久越像果冻。收到 320ms，保留一点余韵但立刻结束。 */
+  --dock-bounce-dur: 320ms;
   --dock-ripple-dur: 420ms;  /* 涟漪扩散 */
   --dock-flash-dur: 200ms;   /* 图标高亮回落 */
   --dock-sink: 3px;          /* dock 整体下沉距离（Ambient 层）*/
@@ -4458,12 +4461,14 @@ html[data-fps-q] .fd-open .page.active .module {
 }
 
 @keyframes md-bounce {
-  0%   { transform: scale(.82); }
-  22%  { transform: scale(1.24); }   /* 第一次过冲：+42% */
-  42%  { transform: scale(.90); }    /* 回落 */
-  60%  { transform: scale(1.08); }   /* 二次振荡：+8% */
-  76%  { transform: scale(.97); }
-  89%  { transform: scale(1.02); }   /* 三次微荡 */
+  /* ⭐⭐ 2026-10-19 重写：原来 0.82 → 1.24 是**42% 摆幅 + 三次振荡**，
+     相当于果冻甩了一下 —— 用户形容"弹力太高、突兀"。
+     规范里导航图标属于 Light 级元素：过冲 5~15%，落定要干脆。
+     现在 18% 摆幅、过冲 10%、两次微振。 */
+  0%   { transform: scale(.94); }
+  22%  { transform: scale(1.10); }   /* 唯一一次明显过冲：+10% */
+  48%  { transform: scale(.985); }   /* 回落到略小 */
+  74%  { transform: scale(1.015); }  /* 二次微振：+1.5%，收尾 */
   100% { transform: scale(1); }
 }
 
@@ -4479,10 +4484,10 @@ html[data-fps-q] .fd-open .page.active .module {
 }
 
 @keyframes md-dock-bounce {
-  0%   { transform: translateX(-50%) translateY(3px); }
-  30%  { transform: translateX(-50%) translateY(-2px); }  /* 回弹过头 */
-  52%  { transform: translateX(-50%) translateY(1px); }
-  72%  { transform: translateX(-50%) translateY(-.5px); }
+  /* 时长缩短后 3px 摆幅会显得"跳"，收到 2px 并压平振荡 */
+  0%   { transform: translateX(-50%) translateY(2px); }
+  32%  { transform: translateX(-50%) translateY(-1.2px); }
+  60%  { transform: translateX(-50%) translateY(.6px); }
   100% { transform: translateX(-50%) translateY(0); }
 }
 
@@ -12188,6 +12193,39 @@ $('sector-strip').addEventListener('click', e => {
 // 导航切换
 const navItems = document.querySelectorAll('.nav-item');
 const PAGE_IDS = { home: 'page-home', '自选股票': 'page-watch', '财经要闻': 'page-news', '期货市场': 'page-futures', '资金流向': 'page-funds', '走势分析': 'page-senti', '行业板块': 'page-sectors', '持仓股': 'page-holdings', '龙虎榜': 'page-lhb', '重点关注': 'page-focus' };
+/* ⭐⭐ 2026-10-19 切页「重访不重播」样式 —— 运行时注入，不写进静态样式表。
+   ─────────────────────────────────────────────────────────────────────
+   实测：同样一条规则写进主样式表后浏览器**根本不解析**
+   （遍历 document.styleSheets 找不到；而动态 append 立刻生效）。
+   原因未明，但运行时注入 100% 可靠，而且它本来就要跟"重访"状态配套。
+   只关「页面级容器的一次性入场」，不动 infinite 装饰动画。 */
+(function injectRevisitCss() {
+  if (document.getElementById('revisit-css')) return;
+  var st = document.createElement('style');
+  st.id = 'revisit-css';
+  st.textContent = [
+    '.is-revisit .fade-in',
+    '.is-revisit .module',
+    '.is-revisit .ov-card',
+    '.is-revisit .senti-card',
+    '.is-revisit .senti-panel',
+    '.is-revisit .senti-thermo',
+    '.is-revisit .fund-panel',
+    '.is-revisit .pos-sum-card',
+    '.is-revisit .pos-chart-card',
+    '.is-revisit .news-item',
+    '.is-revisit .watch-row',
+    '.is-revisit .lhb-row',
+    '.is-revisit .ladder-row',
+    '.is-revisit .sec-cell',
+    '.is-revisit .sec-hot-card',
+    '.is-revisit .sector-chip',
+    '.is-revisit .index-card',
+    '.is-revisit .feed-item'
+  ].join(',') + '{animation:none!important}';
+  document.head.appendChild(st);
+})();
+
 function switchPage(page) {
   navItems.forEach(n => n.classList.toggle('active', n.dataset.page === page));
   const targetId = PAGE_IDS[page];
@@ -12197,14 +12235,25 @@ function switchPage(page) {
     if (!el) return;
     if (id === targetId) {
       el.style.display = '';
-      // iOS 风格页面进入过渡：淡入 + 轻微上移 + 模糊还原
+      /* ⭐⭐ 2026-10-19 修复「切页像刷新一遍」：
+         display:none → block 会让页内**所有**带 animation: fadeIn 的元素
+         重新播放（模块卡、情绪卡、新闻条目…几十个一起淡入），
+         叠加容器自身过渡，就成了"整页重新加载"的错觉。
+         解法：访问过的页面打 is-revisit，样式里关掉一次性入场 ——
+         **只有第一次进入某页才播入场**。 */
+      const revisit = !!el.dataset.visited;
+      el.classList.toggle('is-revisit', revisit);
+      el.dataset.visited = '1';
+
       if ('animate' in el) {
+        /* 过渡收敛：去掉 blur（整页模糊是"刷新感"帮凶）、
+           位移 6→3px、时长 300→220ms（切页要利落）*/
         el.animate(
           [
-            { opacity: 0, transform: 'translateY(6px)', filter: 'blur(2px)' },
-            { opacity: 1, transform: 'translateY(0)', filter: 'blur(0)' }
+            { opacity: 0, transform: 'translateY(3px)' },
+            { opacity: 1, transform: 'translateY(0)' }
           ],
-          { duration: 300, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+          { duration: 220, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
         );
       }
     } else {
