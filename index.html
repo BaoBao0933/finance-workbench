@@ -4700,7 +4700,20 @@ html:not([data-fps-q]) body {
   /* 侧边栏让位后，主区占满 */
 }
 
-html:not([data-fps-q]) .sidebar {
+/* ⭐⭐⭐ 2026-10-19 修复「侧边栏有时候消失有时候出现」
+   ─────────────────────────────────────────────────────────────────────
+   症状：侧边栏在两种状态间来回跳，还伴随主区忽宽忽窄、底部内容被 dock 遮。
+   根因：这三条**布局规则**被写在了 `html:not([data-fps-q])` 条件下 ——
+        本意是"dock 出现后侧边栏让位"，但绑到了**性能档位**上。
+        而 fps-boost（fps.js:115/126）会随帧率抖动**自动降档/升档**：
+          掉帧 → setAttribute('data-fps-q') → 这三条全部失效 → 侧边栏冒出来
+          回稳 → removeAttribute → 又缩回去
+        于是一次轻微卡顿就让侧边栏闪一下。
+
+   ⭐ 原则（与"主题层不该写死版式基准"同源）：
+      **性能档位只该控制"动效多少"，绝不该控制"布局长什么样"。**
+      布局是无条件事实：dock 是主导航，侧边栏就该一直让位。 */
+.sidebar {
   position: fixed !important;
   left: -240px;
   top: 0;
@@ -4708,19 +4721,20 @@ html:not([data-fps-q]) .sidebar {
   width: 216px !important;
   min-width: 216px;
   z-index: 1;
-  /* ⭐ 视觉隐藏但保留在 DOM 与可访问性树里 */
+  /* 视觉隐藏但保留在 DOM 与可访问性树里 */
   visibility: hidden;
   pointer-events: none;
-  transition: transform .3s cubic-bezier(.4, 0, .2, 1), visibility .3s;
+  /* 只过渡 transform —— visibility 不适合加过渡，会拖出一帧残影 */
+  transition: transform .3s cubic-bezier(.4, 0, .2, 1);
 }
 
-/* 侧边栏隐藏后主区拉满（原来是 flex 子项，flex:1 自适应即可）*/
-html:not([data-fps-q]) .main {
+/* 侧边栏让位后主区拉满（无条件，与帧率档位无关）*/
+.main {
   width: 100%;
 }
 
-/* Dock 出现后，内容底部留出空间，避免最后一行被 dock 遮住 */
-html:not([data-fps-q]) .content {
+/* Dock 出现后，内容底部留出空间，避免最后一行被 dock 遮住（无条件）*/
+.content {
   padding-bottom: calc(var(--dock-icon) + 46px) !important;
 }
 
