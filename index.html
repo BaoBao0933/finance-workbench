@@ -14902,7 +14902,116 @@ function fuzzyMatchSina(rows, name) {
 
 /* 按板块名拉新浪成分股：概念(3)优先（腾讯板块多为概念），再行业(2)。
    返回 { diff(东财同形), nodeName } 或 null。 */
+/* ⭐⭐⭐ 2026-10-20 新浪板块清单（成分股精确匹配的基础）
+   ─────────────────────────────────────────────────────────────────────
+   背景：东财 clist 端点已**全线封死**（任何参数都 HTTP 000），
+        成分股的东财路线彻底不可用。原来只剩"按板块名模糊匹配新浪 node"，
+        匹配不上的板块（如「共封装光模块(CPO)」）就直接显示"暂不可用"。
+   解法：新浪有个完整清单接口 Market_Center.getHQNodes（91KB），
+        返回所有板块的 [名称, ?, node]。拉一次缓存 1 小时，
+        用它做**精确匹配**，比模糊匹配的命中率高一个量级。
+   注意：结构是深度嵌套数组，用递归捞所有长度为 3、第 3 项像 node 的三元组。 */
+var __sinaNodes = null, __sinaNodesAt = 0;
+async function sinaNodeCatalog() {
+  if (__sinaNodes && Date.now() - __sinaNodesAt < 3600e3) return __sinaNodes;
+  var raw;
+  try {
+    raw = await fetchJson('https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodes', 9000);
+  } catch (e) { return __sinaNodes || []; }
+  var out = [];
+  (function walk(x) {
+    if (!Array.isArray(x)) return;
+    if (x.length === 3 && typeof x[0] === 'string' && typeof x[2] === 'string'
+        && /^[A-Za-z][A-Za-z0-9_]{1,20}$/.test(x[2])) {
+      out.push({ name: x[0], node: x[2] });
+      return;
+    }
+    for (var i = 0; i < x.length; i++) walk(x[i]);
+  })(raw);
+  if (out.length) { __sinaNodes = out; __sinaNodesAt = Date.now(); }
+  return out;
+}
+
+/* 在清单里找最佳匹配 —— 按中文构词法分层：
+   ① 完全相等（去标点）
+   ② **前缀**匹配：复合词的主体在前半部分（算力租赁 = 算力的租赁业务），
+      所以「算力租赁」应该匹配「算力概念」，而不是被后半的「租赁」截胡。
+      从长到短试前缀（≥2 字），命中即返回 —— 这是命中率最高的一级。
+   ③ 互相包含（长度差 ≤2，避免「租赁」这种两字泛词抢走）
+   ④ 子串打分兜底：长度 × 位置权重（开头 1.0 / 中间 0.8 / 结尾 0.6）
+   ⚠️ 踩过的坑：②③ 顺序不能反。之前 ③ 在前，且长度差放宽到 4，
+      「算力租赁」直接被「租赁」（差 2）截胡，只出 3 只股票。 */
+function pickSinaNode(catalog, name) {
+  if (!catalog || !catalog.length || !name) return null;
+  var strip = function (x) { return String(x).replace(/[\s（）()【】\-—_·]/g, ''); };
+  var n = strip(name);
+  if (!n) return null;
+
+  // ① 精确
+  for (var i = 0; i < catalog.length; i++) {
+    if (strip(catalog[i].name) === n) return catalog[i];
+  }
+
+  // ② 前缀（从长到短，≥2 字）—— 主体在前，最可靠
+  for (var L = n.length; L >= 2; L--) {
+    var pfx = n.substr(0, L);
+    var hit = null;
+    for (var j = 0; j < catalog.length; j++) {
+      var cn2 = strip(catalog[j].name);
+      if (cn2.indexOf(pfx) === 0) { hit = catalog[j]; break; }
+      if (!hit && cn2.indexOf(pfx) >= 0) hit = catalog[j];
+    }
+    if (hit) return hit;
+  }
+
+  // ③ 互相包含（严格长度差）
+  for (var k = 0; k < catalog.length; k++) {
+    var c3 = strip(catalog[k].name);
+    if (c3.length < 2) continue;
+    if (c3.indexOf(n) >= 0 || n.indexOf(c3) >= 0) {
+      if (Math.abs(c3.length - n.length) <= 2) return catalog[k];
+    }
+  }
+
+  // ④ 子串打分兜底
+  var best = null, bestScore = 0;
+  for (var q = 0; q < catalog.length; q++) {
+    var nm = String(catalog[q].name);
+    for (var LL = Math.min(nm.length, 6); LL >= 2; LL--) {
+      for (var st = 0; st + LL <= nm.length; st++) {
+        var sub = nm.substr(st, LL);
+        var at = n.indexOf(sub);
+        if (at < 0) continue;
+        var pos = at === 0 ? 1.0 : (at + LL === n.length ? 0.6 : 0.8);
+        var score = LL * pos;
+        if (score > bestScore) { bestScore = score; best = catalog[q]; }
+      }
+    }
+  }
+  return best;
+}
+
 async function loadSinaNodeStocks(name) {
+  /* ⭐ 2026-10-20 优先走「完整清单精确匹配」——比模糊匹配命中率高得多。
+     清单拿不到（网络问题）才回退到原来的模糊匹配路线。 */
+  try {
+    const cat = await sinaNodeCatalog();
+    const pick = pickSinaNode(cat, name);
+    if (pick) {
+      const arr = await fetchJson('https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData?page=1&num=100&sort=amount&asc=0&node=' + encodeURIComponent(pick.node), 9000);
+      if (Array.isArray(arr) && arr.length) {
+        return {
+          diff: arr.map(x => ({
+            f12: String(x.code), f14: x.name,
+            f2: parseFloat(x.trade), f3: parseFloat(x.changepercent),
+            f4: parseFloat(x.pricechange), f6: parseFloat(x.amount),
+          })),
+          nodeName: pick.name,
+        };
+      }
+    }
+  } catch (e) { /* 清单路线失败，回退模糊匹配 */ }
+
   for (const type of [3, 2]) {
     let lst = null;
     try { lst = await sinaBoardList(type); } catch (e) { continue; }
@@ -14925,6 +15034,7 @@ async function loadSinaNodeStocks(name) {
   return null;
 }
 
+var secRetryTick = {};
 async function loadSectorStocks() {
   if (!curSector) return;
   /* 腾讯源板块（code 不以 BK 开头，如 pt02GN2190，由 quote-fallback 兜底路径添加）：
@@ -14947,21 +15057,16 @@ async function loadSectorStocks() {
     $('sec-d-pct').className = 'sec-d-pct ' + clsOf(curSector.pct);
     return;
   }
+  /* ⭐⭐⭐ 2026-10-20 不再先试东财 clist
+     ─────────────────────────────────────────────────────────────────────
+     东财 clist 端点已被**服务端整体封禁**（2026-10-20 实测：任何参数、
+     任何域名、带不带 UA/Referer 一律 HTTP 000）。
+     原来的写法会先打 2 个域名 × 6 秒超时 = **最长 12 秒**才落到新浪，
+     用户看到的就是"点进去一直转圈，最后说不出来"。
+     现在已经确认它 100% 不通，就不再浪费这 12 秒，直接走新浪。
+     （代码保留在注释里，若将来东财恢复可以快速接回。）
   const hosts = ['push2.eastmoney.com', 'push2delay.eastmoney.com'];
-  for (const host of hosts) {
-    try {
-      const res = await fetchJson(`https://${host}/api/qt/clist/get?pn=1&pz=300&po=${curSortPo}&np=1&fltt=2&invt=2&fid=f3&fs=b:${curSector.code}&fields=f2,f3,f4,f6,f12,f14`, 6000);
-      const diff = res && res.data && res.data.diff;
-      if (!diff || !diff.length) continue;
-      renderSecStocks(diff);
-      // 标题涨跌幅
-      const pctTxt = (curSector.pct > 0 ? '+' : '') + fmtNum(curSector.pct, 2) + '%';
-      $('sec-d-pct').textContent = pctTxt + ` · ${diff.length} 只成分股`;
-      $('sec-d-pct').className = 'sec-d-pct ' + clsOf(curSector.pct);
-      return;
-    } catch (e) { /* 换域名 */ }
-  }
-  // —— 备用：新浪成分股（按板块名模糊匹配 node；东财 clist 被限流时顶上） ——
+  ... */
   const sino = await loadSinaNodeStocks(curSector.name);
   if (sino) {
     renderSecStocks(sino.diff);
@@ -14970,12 +15075,28 @@ async function loadSectorStocks() {
     $('sec-d-pct').className = 'sec-d-pct ' + clsOf(curSector.pct);
     return;
   }
-  $('sec-stocks').innerHTML = '<div class="news-empty">成分股数据加载失败，稍后自动重试…</div>';
+
+  /* 确实拿不到：给出可点重的提示，并自动再试一次（避免一次网络抖动就永久空白） */
+  const _code = curSector.code;
+  $('sec-stocks').innerHTML = '<div class="news-empty">成分股没拉到，正在自动重试…<br><small>若持续失败，点右上角刷新</small></div>';
+  $('sec-d-pct').textContent = (curSector.pct > 0 ? '+' : '') + fmtNum(curSector.pct, 2) + '%';
+  $('sec-d-pct').className = 'sec-d-pct ' + clsOf(curSector.pct);
+  if (!secRetryTick[_code]) {
+    secRetryTick[_code] = 1;
+    setTimeout(function () {
+      secRetryTick[_code] = 0;
+      if (curSector && curSector.code === _code) loadSectorStocks();
+    }, 2500);
+  }
 }
 
 // 渲染成分股表格（局部刷新复用行节点）
 function renderSecStocks(diff) {
   const box = $('sec-stocks');
+  /* ⭐ 2026-10-20 清掉"加载中…/自动重试…"的占位提示 ——
+     原来渲染完数据后占位还在，会显示"成分股加载中…"配上 100 行数据，看着像卡住。 */
+  const stale = box.querySelector('.news-empty');
+  if (stale) stale.remove();
   const cache = secDetailCache[curSector.code] = secDetailCache[curSector.code] || {};
   const seen = new Set();
   diff.forEach((d, i) => {
