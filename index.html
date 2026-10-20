@@ -4152,6 +4152,27 @@
   .mascot-deco { display: none; }
 }
 
+/* ⭐⭐⭐ 2026-10-20 吉祥物「情绪联动」——让狗跟着大盘走
+   ─────────────────────────────────────────────────────────────────────
+   上证涨 > 0.3% → 探头更出、放大一点（有点得意）
+   上证跌 < -0.3% → 缩回角落、变淡（想躲起来）
+   中间震荡 → 保持原位（不折腾）
+   ⚠️ 阈值 ±0.3% 是为了防抖：指数在 0 附近来回时，姿态会疯狂切换。
+   ⚠️ 只在"情绪档位变化"时切类（data-mood 记忆），不是每次刷新都写。
+   ⚠️ 优先级：is-peek（鼠标靠近）> is-happy / is-shy > 默认
+      → 所以情绪样式放在 is-peek 规则之前。 */
+.mascot-deco.is-happy {
+  transform: translateX(-27px) translateY(2px) scale(1.055);
+  opacity: .5;
+}
+.mascot-deco.is-shy {
+  transform: translateX(-6px) translateY(9px) scale(.955);
+  opacity: .3;
+}
+@media (hover: none), (prefers-reduced-motion: reduce) {
+  .mascot-deco.is-happy, .mascot-deco.is-shy { transform: none; }
+}
+
 /* ⭐⭐ 2026-10-20 鼠标靠近右上角 → 探头
    ─────────────────────────────────────────────────────────────────────
    为什么用 JS 而不是 CSS :hover：装饰本身 pointer-events:none（绝不挡按钮），
@@ -8021,7 +8042,8 @@ html[data-fps-q] .mc-speed {
 
 <!-- PB: perf-boost 已移除 Google Fonts 渲染阻塞（国内不可达，原阻塞 20s+）— 字体改用本地系统栈，见 PB:CSS 块 -->
 <!-- anime.js 动画库（perf-boost：改为 defer 非阻塞加载；全站调用点均带 typeof 守卫，脚本未就绪时自动走 CSS 回退动效） -->
-<script defer src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
+<!-- ⭐ 2026-10-20 localize: anime.js 从 jsdelivr 改到 vendor（首屏铁律：不依赖境外域名） -->
+<script defer src="vendor/anime.min.js"></script>
 <script>
 try {
   var __t = localStorage.getItem('finance-theme');
@@ -11605,25 +11627,46 @@ function animeEntrance() {
 
 // 行情数值刷新：数字滚动 + 弹性放大（anime.js）
 const rollMaps = {};
+/* ⭐⭐⭐ 2026-10-20 数字滚动升级（财经场景的"高级感"核心）
+   ─────────────────────────────────────────────────────────────────────
+   原来：easeOutCubic + 560ms + 结束时弹性放大到 1.14 + 缩回。
+     · easeOutCubic 尾巴太"均匀"，滚动到后半段还在明显移动，像没刹住
+     · easeOutElastic(1,.5) 的过冲幅度 14%，财务数字"弹一下"很廉价，
+       而且会让读数在最后几十毫秒里越过目标值再退回来
+   现在：
+     ① 曲线换成**临界阻尼阶跃响应** 1 - e^(-ωt)(1+ωt)
+        —— 没有过冲，前段快、尾段极慢，像天平落定。这正是 cine 层
+        给"数字"用的 settling 语义（`--cine-settle` 的同一个物理模型）。
+     ② 滚动期间给 0.4px 速度模糊，落定瞬间归零 → "快速翻动后锐利定格"
+     ③ 结束时的放大从 1.14 收到 1.045，只留一点"跳数"提示，不做弹跳
+   ⚠️ complete 里强制写 toStr，保证最终值一定精确（插值只影响中间帧）。 */
+function easeSettle(t) {
+  var w = 8;                       /* ω=8 → t=1 时 99.7%，肉眼已是终点 */
+  return 1 - Math.exp(-w * t) * (1 + w * t);
+}
+
 function rollPrice(el, code, fromStr, toStr, cls) {
   const from = parseFloat(String(fromStr).replace(/,/g, ''));
   const to = parseFloat(String(toStr).replace(/,/g, ''));
   if (!isFinite(from) || !isFinite(to) || from === to) return;
   if (rollMaps[code]) rollMaps[code].pause(); // 防止连续报价时动画堆积
   const o = { v: from };
+  /* 滚动期轻微模糊 —— 只设一次，不在每帧改（filter 每帧变会重生成图层） */
+  el.style.filter = 'blur(.4px)';
   const anim = anime({
     targets: o, v: to, duration: 560,
-    easing: 'easeOutCubic', round: false,
+    easing: easeSettle, round: false,
     update: () => { el.textContent = fmtNum(o.v); },
     complete: () => {
       el.textContent = toStr;
+      el.style.filter = '';       /* 落定 → 锐利 */
       if (rollMaps[code] === anim) delete rollMaps[code];
     }
   });
   rollMaps[code] = anim;
-  // 数字随方向弹性放大，营造“跳数”提示（仅作用在数值本身，不影响卡片悬停动效）
-  anime({ targets: el, scale: [1, cls === 'down' ? 1.08 : 1.14, 1], duration: 440,
-    easing: 'easeOutElastic(1, .5)',
+  /* 极克制的跳数提示：只放大 4.5%，用 easeOutQuad 平滑回落，不做过冲 */
+  anime({ targets: el, scale: [1, cls === 'down' ? 1.035 : 1.045, 1], duration: 420,
+    easing: 'easeOutQuad',
     complete: () => { el.style.transform = ''; } });
 }
 
@@ -12041,6 +12084,24 @@ function setLive(ok, suffix) {
   $('live-dot').classList.toggle('ok', !!ok);
   $('live-text').textContent = ok ? `实时行情（API直连${suffix || ''} · ${ts}）` : '行情源连不通，自动重试中…';
   $('live-time').textContent = ok ? ts : '--';
+  updateMascotMood();
+}
+
+/* ⭐ 2026-10-20 吉祥物情绪：跟随上证涨跌切换姿态。
+   · 只在"档位"变化时写 DOM（data-mood 记忆），避免每 5 秒刷一次类
+   · 阈值 ±0.3% 防抖
+   · 数据没到 / 非交易时段 → 不动 */
+function updateMascotMood() {
+  var deco = document.getElementById('mascot-deco');
+  if (!deco) return;
+  var q = null;
+  try { q = lastQuotes['sh000001']; } catch (e) { return; }
+  var pct = q && typeof q.pct === 'number' ? q.pct : null;
+  var mood = pct == null ? '' : (pct > 0.3 ? 'happy' : (pct < -0.3 ? 'shy' : ''));
+  if (deco.dataset.mood === mood) return;
+  deco.dataset.mood = mood;
+  deco.classList.toggle('is-happy', mood === 'happy');
+  deco.classList.toggle('is-shy', mood === 'shy');
 }
 
 async function loadQuotes() {
