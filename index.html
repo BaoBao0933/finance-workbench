@@ -2450,7 +2450,11 @@
     box-shadow:
       0 8px 28px rgba(150, 112, 62, .12),
       0 2px 8px rgba(150, 112, 62, .06);
-    transform: translateY(-2px) scale(1.005);
+    /* ⚠️ 2026-10-20 去掉 scale(1.005)：
+       非整数缩放会让文字落在非整数像素上，光栅化后整段标题发虚（用户实测反馈）。
+       1.005 的放大肉眼几乎看不出来，代价却是"字看不清"，完全不值。
+       translateY(-2px) 是整数像素，不会有这个问题。 */
+    transform: translateY(-2px);
   }
   .news-item:active {
     transform: translateY(0) scale(.99);
