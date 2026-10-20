@@ -20488,12 +20488,8 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
       l.crossOrigin = 'anonymous';
       document.head.appendChild(l);
     }
-    // anime.js CDN：dns+建连即可，实际下载交给它自己的 defer script
-    var cdn = document.createElement('link');
-    cdn.rel = 'preconnect';
-    cdn.href = 'https://cdn.jsdelivr.net';
-    cdn.crossOrigin = 'anonymous';
-    document.head.appendChild(cdn);
+    /* ⭐ 2026-10-20 anime.js 已本地化到 vendor/，这里原来给 jsdelivr 做的
+       preconnect 预热反而变成"多一次境外 DNS 查询"，删掉。 */
   })();
 })();
 
