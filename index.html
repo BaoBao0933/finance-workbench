@@ -934,6 +934,16 @@
   }
   /* 图2经验：玻璃上的按钮用轻拟物（软棉花糖包裹感），而非单纯投影 */
   .btn-refresh {
+    /* ⭐ 2026-10-20 用户要求「刷新按钮短一点」：
+       基础 .btn 是 9px 18px，这里收到 6px 10px，间距 7→4，字号 14→13，图标 16→15。
+       只覆盖本按钮。
+       ⚠️ 必须 white-space:nowrap + flex:none —— 收窄后按钮被 flex 压缩，
+       "刷新"两字会换行，高度从 34px 撑到 58px（实测踩过）。 */
+    padding: 6px 10px;
+    gap: 4px;
+    font-size: 13px;
+    white-space: nowrap;
+    flex: none;
     background: linear-gradient(118deg, rgba(255,253,247,.34) 0%, rgba(255,252,244,.14) 30%, rgba(255,253,247,.22) 60%, rgba(255,254,250,.30) 100%);
     backdrop-filter: blur(30px) saturate(200%);
     -webkit-backdrop-filter: blur(30px) saturate(200%);
@@ -944,6 +954,8 @@
       0 2px 8px rgba(150,112,62,.10),
       0 8px 20px rgba(140,105,58,.12);
   }
+  .btn-refresh .icon { width: 15px; height: 15px; }
+  .btn-refresh .icon svg { width: 15px; height: 15px; }
   .btn-refresh:hover {
     background: linear-gradient(118deg, rgba(255,253,247,.50) 0%, rgba(255,252,244,.26) 30%, rgba(255,253,247,.36) 60%, rgba(255,254,250,.46) 100%);
     backdrop-filter: blur(32px) saturate(210%);
@@ -18435,7 +18447,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
   var SPINNER_SEL = [
     '.refresh-btn', '.reload-btn', '[data-act="refresh"]',
-    '.btn-refresh', '.load-more'
+    '.load-more'   /* ⭐ 2026-10-20 去掉 .btn-refresh：用户不需要按钮上的 spinner 圈 */
   ];
   var HEART_SEL = [
     '.watch-item .del', '.pos-item .del',
