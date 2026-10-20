@@ -1225,6 +1225,7 @@
   .index-card.focus-card .ic-ohl .col b { font-size: 17px; }
   .ic-price {
     font-size: 30px;
+    position: relative;
     font-weight: 700;
     margin-top: 13px;
     font-variant-numeric: tabular-nums;
@@ -1498,6 +1499,42 @@
   .flash-up { animation: flashUp .6s cubic-bezier(.2,.7,.3,1.25) both; }
   .flash-down { animation: flashDown .6s cubic-bezier(.2,.7,.3,1.25) both; }
   /* 行情刷新动效：iOS 弹簧上浮 + 玻璃光晕反射（字体保持中性色，涨用珊瑚橙光、跌用翠绿光） */
+  /* ⭐⭐ 2026-10-20 数字「跳数火花」—— 涨跌幅 ≥1% 时，数字旁炸开一圈光
+     ─────────────────────────────────────────────────────────────────────
+     完全触发式，不常驻：伪元素只播 520ms 就 opacity:0。
+     用 box-shadow 扩散而不是缩放一个圆：box-shadow 边缘干净，
+     在浅底上像"能量的环"，而不是"一个变大的脏点"。
+     放在右上角：不压数字基线，不遮挡读数。 */
+  .ic-price::after {
+    content: '';
+    position: absolute;
+    right: -2px;
+    top: 2px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .ic-price.burst-up::after {
+    background: var(--up, #c14a3e);
+    animation: numBurst .52s cubic-bezier(.2, .7, .3, 1) forwards;
+    box-shadow: 0 0 0 0 rgba(193, 74, 62, .55);
+  }
+  .ic-price.burst-down::after {
+    background: var(--down, #0a8f5c);
+    animation: numBurst .52s cubic-bezier(.2, .7, .3, 1) forwards;
+    box-shadow: 0 0 0 0 rgba(10, 143, 92, .55);
+  }
+  @keyframes numBurst {
+    0%   { transform: scale(.3); opacity: 1; }
+    35%  { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1); opacity: 0; box-shadow: 0 0 0 14px rgba(0, 0, 0, 0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ic-price.burst-up::after, .ic-price.burst-down::after { animation: none; opacity: 0; }
+  }
+
   @keyframes flashUp {
     0%   { transform: translateY(3px) scale(.99);  filter: blur(1.6px); text-shadow: 0 0 0 transparent; }
     42%  { transform: translateY(0)   scale(1.10); filter: blur(0);      text-shadow: 0 0 18px rgba(232,93,78,.62), 0 0 7px rgba(232,93,78,.40), 0 1px 2px rgba(0,0,0,.28); }
@@ -4166,8 +4203,10 @@
   opacity: .5;
 }
 .mascot-deco.is-shy {
-  transform: translateX(-6px) translateY(9px) scale(.955);
-  opacity: .3;
+  /* 跌的时候躲得更明显：往右缩回角落、往下沉、缩到 86%、淡到几乎只剩轮廓。
+     目标是"只露出半个耳朵"——一眼看出它在躲，而不是"好像变小了一点"。 */
+  transform: translateX(14px) translateY(20px) scale(.86);
+  opacity: .15;
 }
 @media (hover: none), (prefers-reduced-motion: reduce) {
   .mascot-deco.is-happy, .mascot-deco.is-shy { transform: none; }
@@ -11938,6 +11977,12 @@ function updateCard(cfg, q) {
     else if (cls === 'down') c.price.classList.add('flash-down');
   }
   c.price.textContent = priceStr;
+  /* ⭐ 2026-10-20 跳数火花：只有涨跌幅 ≥1% 才炸，避免每 5 秒满屏闪 */
+  if (priceChanged && Math.abs(q.pct) >= 1) {
+    c.price.classList.remove('burst-up', 'burst-down');
+    void c.price.offsetWidth;          /* 强制 reflow，让动画能重新触发 */
+    c.price.classList.add(q.pct > 0 ? 'burst-up' : 'burst-down');
+  }
   if (priceChanged && typeof anime !== 'undefined') rollPrice(c.price, cfg.code, prevText, priceStr, cls);
   c.badge.textContent = pctStr;
   c.badge.className = 'ic-badge ' + cls;
