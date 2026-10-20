@@ -1679,6 +1679,15 @@
   /* 涨跌幅：独立 pill 居中于列内，背景只包住数字（红涨绿跌、白色文字），不贴边、不占满整列 */
   .pct-col { display: flex; align-items: center; justify-content: center; }
   .pct-pill { border-radius: 7px; padding: 3px 12px; font-weight: 600; line-height: 1.15; white-space: nowrap; }
+  /* ⭐ 2026-10-20 浅浅一层的 pill —— 给"次要信息"用（如成分股的涨跌额）。
+     实心 pill 一屏 100 行会满屏红绿块，太重；浅底既能和主列（百分比）
+     形成同类感，又不会喧宾夺主。 */
+  .pct-pill.ghost { padding: 3px 9px; font-weight: 560; }
+  .pct-pill.ghost.up { background: rgba(193, 74, 62, .20); color: var(--up); }
+  .pct-pill.ghost.down { background: rgba(10, 143, 92, .20); color: var(--down); }
+  .pct-pill.ghost.flat { background: rgba(140, 132, 124, .12); color: var(--text-sub); }
+  :root[data-theme="light"] .pct-pill.ghost.up { background: rgba(193, 74, 62, .14); }
+  :root[data-theme="light"] .pct-pill.ghost.down { background: rgba(10, 143, 92, .14); }
   .pct-pill.up { background: var(--up); color: #fff; }
   .pct-pill.down { background: var(--down); color: #fff; }
   .pct-pill.flat { background: #3a3a40; color: #aab0b8; }
@@ -15124,8 +15133,11 @@ function renderSecStocks(diff) {
     row.name.innerHTML = `${d.f14}<small>${d.f12}</small>`;
     const cls = clsOf(d.f3);
     row.price.innerHTML = `<b>${fmtNum(d.f2)}</b>`;
-    row.pct.innerHTML = `<b class="${cls}">${(d.f3 > 0 ? '+' : '') + fmtNum(d.f3, 2)}%</b>`;
-    row.chg.innerHTML = `<span class="${cls}">${(d.f4 > 0 ? '+' : '') + fmtNum(d.f4, 2)}</span>`;
+    /* ⭐ 2026-10-20 和自选股/持仓保持一致：
+       百分比用实心 pill（主列），涨跌额用浅底 pill（次要列）。
+       原来两列都是纯文字变色，和别的表格放一起像两套系统。 */
+    row.pct.innerHTML = `<span class="pct-pill ${cls}">${(d.f3 > 0 ? '+' : '') + fmtNum(d.f3, 2)}%</span>`;
+    row.chg.innerHTML = `<span class="pct-pill ghost ${cls}">${(d.f4 > 0 ? '+' : '') + fmtNum(d.f4, 2)}</span>`;
     row.amt.innerHTML = `<span style="color:var(--text-sub)">${fmtFund(d.f6)}</span>`;
     box.appendChild(row.root);
     if (box.children[i] !== row.root) box.insertBefore(row.root, box.children[i] || null);
