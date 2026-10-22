@@ -7945,6 +7945,10 @@ html[data-fps-q] .mc-speed {
 .mb-p.up { color: var(--up); }
 .mb-p.down { color: var(--down); }
 .mb-p.flat { color: var(--text-main); }
+/* ⭐ 2026-10-22 五档盘口按买卖身份着色（写在 .up/.down 之后才能覆盖）：
+   买盘橙 = 接货，卖盘绿 = 出货。涨跌由档位标签与最新价表达。 */
+.mb-p.bid { color: var(--accent); }
+.mb-p.ask { color: var(--down); }
 .mb-mid {
   display: flex;
   align-items: baseline;
@@ -7956,8 +7960,11 @@ html[data-fps-q] .mc-speed {
 }
 .mb-mid .mb-p { font-size: 17px; }
 .mb-mid-t { font-size: 10px; color: var(--text-sub); }
-.mb-ask .mb-lb { color: var(--down); opacity: .8; }
-.mb-bid .mb-lb { color: var(--up); opacity: .8; }
+/* ⚠️ 选择器原来写的 .mb-ask / .mb-bid，但 DOM 上的 class 是
+   class="mb-row ask" —— 这条规则从来没生效过，档位标签一直是灰色。
+   改成 .mb-row.ask / .mb-row.bid 才真正命中。 */
+.mb-row.ask .mb-lb { color: var(--down); opacity: .92; }
+.mb-row.bid .mb-lb { color: var(--accent); opacity: .92; }
 .mb-empty {
   display: grid;
   place-items: center;
@@ -8002,7 +8009,10 @@ html[data-fps-q] .mc-speed {
 .mm-legend { display: inline-flex; align-items: center; gap: 6px; }
 .mm-legend i { width: 14px; height: 2px; border-radius: 2px; display: inline-block; }
 .mm-legend i.lg-line { background: var(--accent); }
-.mm-legend i.lg-avg { background: var(--gold); }
+/* ⭐ 2026-10-22 均价线改冷色（蓝灰）：原来金色 #e0a15b 与主色橙几乎同色，
+   橙线叠金线看不清。图例必须与画布同色。 */
+.mm-legend i.lg-avg { background: #7aa2f7; }
+:root[data-theme="light"] .mm-legend i.lg-avg { background: #4a6fa5; }
 .mm-legend i.lg-vol { background: linear-gradient(90deg, var(--up), var(--down)); }
 .mm-src { margin-left: auto; opacity: .8; }
 .mm-src b { color: var(--text-main); font-family: var(--font-mono); font-weight: 600; }
@@ -8056,14 +8066,49 @@ html[data-fps-q] .mc-speed {
 
 /* ---------- 中窄屏：盘口移到图表下方 ---------- */
 @media (max-width: 820px) {
-  .mm-body { flex-direction: column; }
+  .mm-body { flex-direction: column; min-height: 0; }
+  /* ⚠️ 修既有缺陷：窄屏（≤820 CSS，含 1440 物理 / DPR2 的大屏）下
+     canvas 高度写死 340px，父容器被 flex 压扁后 canvas 溢出，
+     直接压到下面的五档盘口上 —— 盘口文字和成交量柱叠在一起看不清。
+     这里把画布高度收紧 + 裁掉溢出，盘口才能稳在图下方。 */
+  .mm-chart-wrap { flex: 0 0 auto; overflow: hidden; }
+  /* 高度再收紧：面板总高固定，画布多占 1px 盘口就少 1px 可见行。
+     28vh 让 900 物理高（450 CSS）的窗口也能把 5 行盘口露全。 */
+  /* 画布最低要 124px（plotH ≥ 50 才画得下走势 + 成交量），
+     23vh 在 500 高的窗口只有 115px → 静默白屏。给 30vh 保底。 */
+  #mm-canvas { height: calc(180px * var(--mm-z, 1)); max-height: 30vh; min-height: 124px; }
   .mm-book {
-    flex: none;
+    flex: 1 1 auto;
     border-left: 0;
     border-top: 1px solid var(--card-border);
-    max-height: 156px;
+    max-height: 160px;
+    min-height: 0;
     overflow-y: auto;
   }
+  /* 窄屏盘口：买左 / 卖右 两列并排，5 行装下 10 档 */
+  .mb-head-duo, .mb-row.mb-duo {
+    display: grid;
+    grid-template-columns: 34px 1fr 1fr 34px;
+    align-items: center;
+  }
+  .mb-head-duo { padding: 0 2px 3px; font-size: 10px; }
+  .mb-head-duo span:nth-child(1) { text-align: left; }
+  .mb-head-duo span:nth-child(4) { text-align: right; }
+  .mb-row.mb-duo { padding: 0 2px; line-height: 17px; }
+  .mb-row.mb-duo .mb-p { font-size: 12.5px; line-height: 17px; }
+  .mb-row.mb-duo .mb-p.bid { text-align: left; }
+  .mb-row.mb-duo .mb-p.ask { text-align: right; }
+  .mb-row.mb-duo .mb-lb:last-child { text-align: right; }
+  .mb-duo-mid {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 6px;
+    padding: 5px 0 6px;
+    border-bottom: 1px dashed var(--card-border);
+    margin-bottom: 3px;
+  }
+  .mb-duo-mid .mb-p { font-size: 16px; }
 }
 
 /* ---------- 手机端：底部抽屉 ---------- */
@@ -8088,7 +8133,6 @@ html[data-fps-q] .mc-speed {
   #minute-panel { filter: none !important; }
   .mm-dot.up, .mm-dot.down, .mm-spin { animation: none !important; }
 }
-
 </style>
 <!-- MC:CSS:END -->
 
@@ -19576,6 +19620,13 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     TH = {
       up: g('--up', '#ff7a5c'),
       down: g('--down', '#3ddc84'),
+      /* ⭐ 2026-10-22 分时线「涨」改用主色橙（与图例 .lg-line 一致）。
+         原来用 --up（#ff7a5c 偏红），而图例写的是 --accent（橙），
+         线条和图例本来就不是一个颜色 —— 这才是"割裂感"的来源。 */
+      lineUp: g('--accent', '#ff8a6b'),
+      /* 均价线换冷色：橙线 + 金色均价（#e0a15b）几乎同色，压在一起看不清。
+         改成蓝灰，与橙色形成冷暖对比，一眼能分开两条线。 */
+      avgLine: light ? '#4a6fa5' : '#7aa2f7',
       gold: g('--gold', '#e0a15b'),
       sub: g('--text-sub', '#9aa1a9'),
       main: g('--text-main', '#eef0f2'),
@@ -19763,8 +19814,15 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     var totalH = H - PAD.t - PAD.b;
     var volH = Math.max(34, Math.round(totalH * 0.22));
     var plotH = totalH - volH - GAP;
+    /* ⚠️ 画布变矮时（窄屏断点、缩小窗口）原来会整块 return —— 静默白屏，
+       什么提示都没有，很容易被当成"数据没加载出来"。
+       现在先压缩成交量区，把高度让给走势区，实在放不下才放弃。 */
+    if (plotH < 50 && totalH > GAP + 60) {
+      volH = Math.max(14, totalH - GAP - 50);
+      plotH = totalH - volH - GAP;
+    }
     var plotW = W - PAD.l - PAD.r;
-    if (plotW < 60 || plotH < 50) return;
+    if (plotW < 60 || plotH < 24) return;
 
     /* ---- 纵轴：以昨收为中轴对称（券商软件画法） ---- */
     var dev = 0;
@@ -19785,7 +19843,14 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
     var last = pts[pts.length - 1];
     var rising = last.price >= pre;
-    var lineColor = rising ? th.up : th.down;
+    /* 涨 → 橙（主色）；跌 → 绿。用户 2026-10-22 明确要求。 */
+    var lineColor = rising ? th.lineUp : th.down;
+
+    /* ⭐ 图例必须跟着线走：原来 .lg-line 恒为橙色，跌的时候线是绿的、
+       图例却是橙的 —— 这本身就是"图例和线不是一个颜色"的割裂源。
+       每次都同步一次（只改一个 background，开销可忽略）。 */
+    var lg = document.querySelector('.mm-legend i.lg-line');
+    if (lg) lg.style.background = lineColor;
     var prog = S.progress > 0 ? S.progress : 1;
 
     /* ---- 网格 ---- */
@@ -19887,7 +19952,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     });
     if (started) {
       ctx.globalAlpha = 0.92;
-      ctx.strokeStyle = th.gold;
+      ctx.strokeStyle = th.avgLine;
       ctx.lineWidth = 1.1;
       ctx.stroke();
       ctx.globalAlpha = 1;
@@ -19905,7 +19970,8 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
       var barUp = p.price >= prevP;
       var h = (volBottom - vOf(p.vol)) * frac;
       if (h < 0.7) continue;
-      ctx.fillStyle = withAlpha(barUp ? th.up : th.down, barUp ? 0.72 : 0.60);
+      /* 成交量和分时线同色系：涨橙 / 跌绿，避免上方橙线配下方红柱 */
+      ctx.fillStyle = withAlpha(barUp ? th.lineUp : th.down, barUp ? 0.72 : 0.60);
       ctx.fillRect(slotX(p.slot) - barW / 2, volBottom - h, barW, h);
     }
 
@@ -19956,7 +20022,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
       // 浮动信息条（分段排版：时间灰 / 价格白 / 涨跌彩色 / 均价金 / 量白）
       var dpct = pre > 0 ? (cp.price / pre - 1) * 100 : 0;
-      var cgain = dpct > 0.006 ? th.up : (dpct < -0.006 ? th.down : th.sub);
+      var cgain = dpct > 0.006 ? th.lineUp : (dpct < -0.006 ? th.down : th.sub);
       var segs = [
         { t: cp.t, c: th.sub },
         { t: cp.price.toFixed(2), c: cgain, b: true },
@@ -19964,7 +20030,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
       ];
       if (isNum(cp.avg) && cp.avg > 0) {
         segs.push({ t: '均价', c: th.sub });
-        segs.push({ t: cp.avg.toFixed(2), c: th.gold, b: true });
+        segs.push({ t: cp.avg.toFixed(2), c: th.avgLine, b: true });
       }
       segs.push({ t: '量', c: th.sub });
       segs.push({ t: fmtVol(cp.vol), c: th.main, b: true });
@@ -20127,13 +20193,49 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     }
     var pre = S.pre || 0;
     var sideCls = function (p) { return p > pre ? 'up' : (p < pre ? 'down' : 'flat'); };
+    /* ⭐⭐⭐ 2026-10-22 盘口价格改为「按买卖身份着色」（用户要求）
+       ─────────────────────────────────────────────────────────────────
+       「买入你就橙色显示，卖出就绿色显示」。
+       原来价格按"相对昨收涨跌"着色：买1 只要低于昨收就变绿、卖1 高于昨收
+       又变红，同一个盘口里颜色和买卖方向完全对不上，逐行扫过去是花的。
+       现在：买盘 → 主色橙（接货），卖盘 → 绿（出货）。
+       涨跌信息由档位标签和中间的最新价承担，不在这一列重复表达。 */
     var rowHtml = function (label, p, v, side) {
+      var pcls = side === 'bid' ? 'bid' : 'ask';
       return '<div class="mb-row ' + side + '">' +
         '<span class="mb-lb">' + label + '</span>' +
-        '<span class="mb-p ' + sideCls(p) + '">' + p.toFixed(2) + '</span>' +
+        '<span class="mb-p ' + pcls + '">' + p.toFixed(2) + '</span>' +
         '<span class="mb-a">' + fmtBookAmt(p, v) + '</span>' +
         '</div>';
     };
+
+    /* ⭐ 窄屏（≤820 CSS，含 1440 物理 / DPR2 的屏）用「两列并排」：
+       买盘在左、卖盘在右，5 行搞定 10 档，全部看得见。
+       竖排 10 行在窄屏会被高度裁掉 —— 只剩卖5~卖2，买盘整个看不见，
+       而用户最想看的就是买入价。 */
+    var narrow = window.matchMedia && window.matchMedia('(max-width: 820px)').matches;
+
+    if (narrow) {
+      var midLp = S.pts.length ? S.pts[S.pts.length - 1].price : 0;
+      if (!(midLp > 0)) midLp = pre;
+      if (!(midLp > 0) && book.bids.length) midLp = book.bids[0].p;
+      if (!(midLp > 0) && book.asks.length) midLp = book.asks[0].p;
+      var h2 = '<div class="mb-head mb-head-duo"><span>买盘</span><span></span><span></span><span>卖盘</span></div>';
+      /* 窄屏不再重复显示「最新价」—— 面板顶部的大数字就是它，
+         这里省下的 30px 正好够把 5 行盘口露全。 */
+      var quadN = Math.min(3, Math.max(book.bids.length, book.asks.length));
+      for (var q = 0; q < quadN; q++) {
+        var bd = book.bids[q], ak = book.asks[q];
+        h2 += '<div class="mb-row mb-duo">' +
+          (bd ? '<span class="mb-lb">买' + (q + 1) + '</span><span class="mb-p bid">' + bd.p.toFixed(2) + '</span>'
+              : '<span class="mb-lb"></span><span class="mb-p"></span>') +
+          (ak ? '<span class="mb-p ask">' + ak.p.toFixed(2) + '</span><span class="mb-lb">卖' + (q + 1) + '</span>'
+              : '<span class="mb-p"></span><span class="mb-lb"></span>') +
+          '</div>';
+      }
+      wrap.innerHTML = h2;
+      return;
+    }
 
     var html = '<div class="mb-head"><span>档位</span><span>价格</span><span>金额</span></div>';
     // 卖 5 → 卖 1（自上而下）
@@ -20141,7 +20243,13 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
       if (i < book.asks.length) html += rowHtml('卖' + (i + 1), book.asks[i].p, book.asks[i].v, 'ask');
     }
     // 中间：最新价
-    var lp = S.pts.length ? S.pts[S.pts.length - 1].price : pre;
+    /* ⚠️ 修既有 bug：盘口先于分时数据到达时 S.pre / S.pts 都还是 0，
+       中间那行会显示刺眼的「0.00 最新」。改成逐级兜底：
+       分时最后一笔 → 昨收 → 买一 → 卖一。 */
+    var lp = S.pts.length ? S.pts[S.pts.length - 1].price : 0;
+    if (!(lp > 0)) lp = pre;
+    if (!(lp > 0) && book.bids.length) lp = book.bids[0].p;
+    if (!(lp > 0) && book.asks.length) lp = book.asks[0].p;
     html += '<div class="mb-mid"><span class="mb-p ' + sideCls(lp) + '">' + lp.toFixed(2) + '</span>' +
       '<span class="mb-mid-t">最新</span></div>';
     // 买 1 → 买 5（自上而下）
@@ -20341,6 +20449,26 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     window.addEventListener('resize', function () {
       if (S.open && S.pts.length) { S.progress = 1; draw(); }
     });
+
+    /* ⭐⭐ 2026-10-22 画布尺寸变化必须自动重绘
+       ─────────────────────────────────────────────────────────────────
+       原来的漏洞：只在 window resize 时重绘。但 canvas 的 CSS 高度还会因为
+       别的原因变化 —— 面板开合动画、窄屏断点、缩放档位。
+       一旦 CSS 高度变了而没重绘，canvas 位图还是旧尺寸，视觉上就是
+       「整块图表区空白」（位图被清空但没重新画）。
+       实测场景：窄屏把画布从 340px 收到 115px 后，图表区全白。
+       ResizeObserver 监听元素自身尺寸，比 window resize 精确得多。
+       注意：draw() 只改 canvas.width/height 属性，不改 CSS 尺寸，
+       所以不会触发自己形成死循环。 */
+    if (typeof ResizeObserver !== 'undefined') {
+      var _roT = 0;
+      var ro = new ResizeObserver(function () {
+        if (!S.open || !S.pts.length) return;
+        clearTimeout(_roT);
+        _roT = setTimeout(function () { S.progress = 1; draw(); }, 40);
+      });
+      ro.observe(cv);
+    }
 
     // 全局点击：任意股票行 / 卡片 → 打开分时
     document.addEventListener('click', function (e) {
@@ -20550,7 +20678,6 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     state: S
   };
 })();
-
 </script>
 <!-- MC:BODY:END -->
 <!-- PB:BOOT:BEGIN -->
