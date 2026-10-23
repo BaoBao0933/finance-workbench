@@ -10735,11 +10735,11 @@ html:not([data-frost="off"])::after {
        把中间调压掉、把亮点暗点拉开 → 砂粒从"雾"变成"颗"。
      频率同时降到 1.8（颗粒变粗一档）：3.2 是"雾面"，1.8 才是肉眼可辨的**砂面**。
      ───────────────────────────────────────────────────────────────────── */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='3.2' intercept='-1.1'/%3E%3CfeFuncG type='linear' slope='3.2' intercept='-1.1'/%3E%3CfeFuncB type='linear' slope='3.2' intercept='-1.1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='2.2' intercept='-0.6'/%3E%3CfeFuncG type='linear' slope='2.2' intercept='-0.6'/%3E%3CfeFuncB type='linear' slope='2.2' intercept='-0.6'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 120px 120px;
   background-repeat: repeat;
 
-  opacity: var(--ft-grain-op, .28);
+  opacity: var(--ft-grain-op, .14);
   mix-blend-mode: soft-light;
 
   /* 提合成层：fixed + 混合模式必须隔离，否则滚动时会不断触发全屏重绘 */
@@ -10753,7 +10753,7 @@ html:not([data-frost="off"])::after {
       白色表面上"砂面的齿"本质是**细微的暗点** → 用 multiply 才出得来。
       opacity 仍由同一个变量缩放（×.85），保证 __frost.grain() 两个主题同步。 */
 html:root[data-theme="light"]:not([data-frost="off"])::after {
-  opacity: calc(var(--ft-grain-op, .28) * .72);
+  opacity: calc(var(--ft-grain-op, .14) * .80);
   mix-blend-mode: multiply;
 }
 
