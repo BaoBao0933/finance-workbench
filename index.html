@@ -10928,6 +10928,117 @@ html[data-fps-q] .live-bar {
    关掉时它们整段不匹配，自然回落到 type-glass / glass-pro / apple-fx 的配方。 */
 
 </style><!-- GF:CSS:END -->
+<!-- LQ:CSS:BEGIN -->
+<!-- liquid-glass (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
+<style id="liquid-glass-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   liquid-glass · 液态玻璃（参考 Lusilud / iOS 26 的液态玻璃动效）
+   ───────────────────────────────────────────────────────────────────────────
+   参考图：用户提供的「liquidglass 效果怎么设置」——一个圆形玻璃件浮在浅色渐变上，
+   玻璃体有明显的**厚边折射**、边缘有轻微**色散**，内部能透出背景，
+   交互时玻璃会**连续形变并回弹**。
+
+   ── 它的视觉签名拆成三条 ────────────────────────────────────────────────
+     ① 局部折射：背景在玻璃**边缘**被弯折（中间几乎不动），
+        靠"边缘位移场"实现 —— 而不是全画面均匀扭曲。
+     ② 色散：红/绿/蓝三条通道用**不同位移量**再 screen 叠加 → 边缘出现彩边。
+     ③ 厚边：边缘一圈更亮的"切面"，加上内侧一点点冷暖分离。
+
+   ── 实现方式 ───────────────────────────────────────────────────────────
+     用 SVG 滤镜挂在 backdrop-filter 上（Chromium 支持 backdrop-filter: url(#f)）：
+       · feImage 载入一张**径向渐变**作为位移场（中心灰、边缘亮）
+       · 三次 feDisplacementMap（scale 30/24/18）分别取 R/G/B 通道
+       · feBlend screen 叠加 → 折射 + 色散一次完成
+     ⚠️ 安全：若 url(#lq-glass) 不存在（滤镜注入失败/浏览器不支持），
+        整条 backdrop-filter 会被丢弃，元素回落到原有 blur —— 不会变裸。
+
+   ⚠️ 性能：滤镜只挂在**小面积**的 dock 与 3 张焦点卡上，且只在默认档启用；
+      fps-boost 降档（data-fps-q）时整块失效。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* --------------------------------------------------------------------------
+   一、焦点卡（首页核心指数）：真实折射 + 厚边 + 色散
+   -------------------------------------------------------------------------- */
+html:root:root:not([data-lq="off"]) #page-home .index-card.index-card {
+  /* ⚠️ 不加 !important 之外的兜底：url() 无效时本条整条被丢弃，
+     自动回落到 apple-fx 的 url(#apple-lg) blur(22px) —— 仍是玻璃。 */
+  -webkit-backdrop-filter: url(#lq-glass) blur(14px) saturate(1.55) !important;
+  backdrop-filter: url(#lq-glass) blur(14px) saturate(1.55) !important;
+
+  box-shadow:
+    /* 厚边：外圈 1px 亮切面 */
+    inset 0 0 0 1px rgba(255, 255, 255, .16),
+    /* 顶面受光 */
+    inset 0 1px 0 rgba(255, 255, 255, .34),
+    /* 内侧色散：左冷右暖，模拟波长分离 */
+    inset 1px 0 0 rgba(150, 195, 255, .13),
+    inset -1px 0 0 rgba(255, 178, 138, .11),
+    /* 边缘内侧 24px 的柔光（玻璃厚度里的散光） */
+    inset 0 0 26px -8px rgba(255, 255, 255, .16),
+    /* 落影 */
+    0 1px 2px rgba(0, 0, 0, .30),
+    0 26px 56px -22px rgba(0, 0, 0, .62) !important;
+}
+
+/* --------------------------------------------------------------------------
+   二、底部 Dock：最适合"液态玻璃"的对象（小、体积感强）
+   -------------------------------------------------------------------------- */
+html:root:root:not([data-lq="off"]) .mac-dock {
+  -webkit-backdrop-filter: url(#lq-glass) blur(16px) saturate(1.6);
+  backdrop-filter: url(#lq-glass) blur(16px) saturate(1.6);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .15),
+    inset 0 1px 0 rgba(255, 255, 255, .42),
+    inset 1px 0 0 rgba(160, 200, 255, .14),
+    inset -1px 0 0 rgba(255, 180, 140, .12),
+    inset 0 0 26px -8px rgba(255, 255, 255, .22),
+    0 18px 40px -12px rgba(4, 8, 18, .55),
+    0 0 28px rgba(255, 255, 255, .08) !important;
+
+  /* 液态形变：hover 时轻微鼓起 + 边缘更亮，离开用弹簧回位 */
+  transition:
+    transform .52s cubic-bezier(.34, 1.36, .5, 1),
+    box-shadow .40s cubic-bezier(.22, 1, .36, 1);
+}
+
+html:root:root:not([data-lq="off"]) .mac-dock:hover {
+  transform: translateX(-50%) scale(1.018);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .22),
+    inset 0 1px 0 rgba(255, 255, 255, .52),
+    inset 1px 0 0 rgba(160, 200, 255, .18),
+    inset -1px 0 0 rgba(255, 180, 140, .16),
+    inset 0 0 30px -8px rgba(255, 255, 255, .28),
+    0 22px 48px -14px rgba(4, 8, 18, .60),
+    0 0 36px rgba(255, 255, 255, .11) !important;
+}
+
+/* 按下：液态玻璃的"挤压"（压扁再回弹） */
+html:root:root:not([data-lq="off"]) .mac-dock:active {
+  transform: translateX(-50%) scale(.985, .96);
+  transition-duration: .12s;
+}
+
+/* --------------------------------------------------------------------------
+   三、降级
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html:root:root:not([data-lq="off"]) .mac-dock,
+  html:root:root:not([data-lq="off"]) .mac-dock:hover,
+  html:root:root:not([data-lq="off"]) .mac-dock:active {
+    transform: translateX(-50%);
+  }
+}
+
+/* 低帧率档：折射滤镜最贵，整块失效（元素回落到 apple-fx / 原 blur） */
+html[data-fps-q] .mac-dock,
+html[data-fps-q] #page-home .index-card {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+</style><!-- LQ:CSS:END -->
 </head>
 <body>
 
@@ -24609,5 +24720,93 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- GF:JS:END -->
+<!-- LQ:JS:BEGIN -->
+<!-- liquid-glass (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
+<script id="liquid-glass-js">
+/* liquid-glass · 注入 SVG 折射滤镜（边缘位移场 + 三通道色散）
+   --------------------------------------------------------------------------
+   为什么不用纯 CSS：真实折射需要「位移场随位置变化」，
+   CSS 滤镜做不到，必须用 SVG feDisplacementMap + 一张位移图。
+
+   位移图（feImage 的 href）是一张 160×160 的径向渐变：
+     中心 = #808080（灰 → 128 ≈ 中性 → 不位移）
+     62% 起仍是灰
+     边缘 = #ffffff（→ 255 → 强位移）
+   于是**只有边缘被弯折，中间不动** —— 这正是厚玻璃边缘的折射。
+
+   三条通道用不同 scale（30 / 24 / 18）各偏一次，再用 feBlend screen 叠加，
+   边缘就会出现红蓝分离的彩边（色散）。
+
+   ⚠️ 安全：滤镜由 JS 注入；若注入失败/浏览器不支持 url(#lq-glass)，
+      那条 backdrop-filter 会被整条丢弃 → 元素回落到原有 blur，仍然是玻璃。
+   ⚠️ 幂等：重复执行只保留一份滤镜。
+   -------------------------------------------------------------------------- */
+(function () {
+  if (window.__liquidGlassInstalled) return;
+  window.__liquidGlassInstalled = true;
+
+  var NS = 'http://www.w3.org/2000/svg';
+
+  /* 边缘位移场：中心灰、边缘亮（半径方向单调） */
+  var MAP = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E" +
+    "%3Cdefs%3E%3CradialGradient id='g' cx='50%25' cy='50%25' r='50%25'%3E" +
+    "%3Cstop offset='0%25' stop-color='%23808080'/%3E" +
+    "%3Cstop offset='58%25' stop-color='%23808080'/%3E" +
+    "%3Cstop offset='88%25' stop-color='%23d8d8d8'/%3E" +
+    "%3Cstop offset='100%25' stop-color='%23ffffff'/%3E" +
+    "%3C/radialGradient%3E%3C/defs%3E" +
+    "%3Crect width='160' height='160' fill='url(%23g)'/%3E%3C/svg%3E";
+
+  var FILTER = '' +
+    '<filter id="lq-glass" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">' +
+    '<feImage href="' + MAP + '" result="edge" preserveAspectRatio="none"/>' +
+    '<feGaussianBlur in="edge" stdDeviation="0.6" result="edgeb"/>' +
+    '<feDisplacementMap in="SourceGraphic" in2="edgeb" scale="30" xChannelSelector="R" yChannelSelector="G" result="dr"/>' +
+    '<feDisplacementMap in="SourceGraphic" in2="edgeb" scale="24" xChannelSelector="R" yChannelSelector="G" result="dg"/>' +
+    '<feDisplacementMap in="SourceGraphic" in2="edgeb" scale="18" xChannelSelector="R" yChannelSelector="G" result="db"/>' +
+    '<feColorMatrix in="dr" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="cr"/>' +
+    '<feColorMatrix in="dg" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="cg"/>' +
+    '<feColorMatrix in="db" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="cb"/>' +
+    '<feBlend in="cr" in2="cg" mode="screen" result="rg"/>' +
+    '<feBlend in="rg" in2="cb" mode="screen" result="rgb"/>' +
+    '<feGaussianBlur in="rgb" stdDeviation="0.4"/>' +
+    '</filter>';
+
+  function inject() {
+    if (document.getElementById('lq-glass')) return;
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('width', '0');
+    svg.setAttribute('height', '0');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.style.position = 'absolute';
+    svg.style.pointerEvents = 'none';
+    svg.innerHTML = FILTER;
+    document.body.appendChild(svg);
+  }
+
+  if (document.body) inject();
+  else document.addEventListener('DOMContentLoaded', inject);
+
+  window.__liquidGlass = {
+    state: function () {
+      return {
+        filter: !!document.getElementById('lq-glass'),
+        on: document.documentElement.getAttribute('data-lq') !== 'off'
+      };
+    },
+    off: function () {
+      document.documentElement.setAttribute('data-lq', 'off');
+      return this.state();
+    },
+    on: function () {
+      document.documentElement.removeAttribute('data-lq');
+      return this.state();
+    },
+    reinject: inject
+  };
+})();
+
+</script><!-- LQ:JS:END -->
 </body>
 </html>
