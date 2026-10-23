@@ -11118,6 +11118,144 @@ html[data-fps-q] #page-home .index-card {
 }
 
 </style><!-- LQ:CSS:END -->
+<!-- IF:CSS:BEGIN -->
+<!-- iso-figure (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
+<style id="iso-figure-style">
+/* ==========================================================================
+   iso-figure — 等距机械插画（学自 21st.dev / anatomy 技能的构造法）
+   --------------------------------------------------------------------------
+   两台机器：
+     ① 资金动力机（#iso-pump）· 液面 = 主力净流入，管口流向 = 流入/流出
+     ② 持仓压力表（#iso-gauge）· 指针 = 浮盈%，刻度 = 成本/涨停/跌停
+   构造法（来自 anatomy 的核心思想「物体即解释」）：
+     · 真实的机器零件：底板+脚垫、导轨、活塞、表头、刻度尺
+     · 四阶明暗：顶面最亮、右面中、左面暗、底面最暗
+     · 画家序：从远到近画，后画的压住先画的
+     · 数字与运动同源：液面高度、指针角度都由同一个数值驱动
+   ========================================================================== */
+
+/* ---- 卡片外壳：与工作台玻璃同源 ---- */
+.iso-card {
+  position: relative;
+  border-radius: 18px;
+  margin: 0 0 18px;
+  padding: 18px 22px 16px;
+  overflow: hidden;
+  background-color: rgba(18, 20, 26, .18);
+  background-image: linear-gradient(180deg,
+      rgba(28, 30, 38, .10) 0%,
+      rgba(18, 20, 27, .34) 46%,
+      rgba(9, 11, 16, .56) 100%);
+  -webkit-backdrop-filter: blur(22px) saturate(1.55);
+  backdrop-filter: blur(22px) saturate(1.55);
+  border: 1px solid rgba(255, 255, 255, .14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .26),
+    inset 0 0 0 1px rgba(255, 255, 255, .03),
+    inset 1px 0 0 rgba(150, 195, 255, .10),
+    inset -1px 0 0 rgba(255, 180, 140, .09),
+    inset 0 -30px 44px -36px rgba(0, 0, 0, .55),
+    0 1px 2px rgba(0, 0, 0, .26),
+    0 22px 48px -20px rgba(0, 0, 0, .58);
+  transition: transform .5s var(--ease-panel, cubic-bezier(.22,1,.36,1)),
+              box-shadow .4s var(--ease-standard, cubic-bezier(.2,0,0,1));
+}
+.iso-card::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.035) 18%, rgba(255,255,255,0) 46%),
+    radial-gradient(130% 70% at 50% -26%, rgba(255,255,255,.16), transparent 64%);
+}
+.iso-card::after {
+  content: ''; position: absolute; left: 5%; right: 5%; top: 0; height: 1px;
+  z-index: 5; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.42), transparent);
+}
+:root[data-theme="light"] .iso-card {
+  background-color: rgba(16, 18, 24, .52);
+  background-image: linear-gradient(180deg,
+      rgba(26, 28, 36, .40) 0%, rgba(16, 18, 24, .62) 46%, rgba(7, 9, 13, .80) 100%);
+  border-color: rgba(255, 255, 255, .52);
+}
+
+/* ---- 头部 ---- */
+.iso-head {
+  position: relative; z-index: 3;
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.iso-title {
+  font-size: 15px; font-weight: 700; letter-spacing: .6px;
+  color: #f2f4f7;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.iso-title::before {
+  content: ''; width: 7px; height: 7px; border-radius: 2px;
+  background: linear-gradient(135deg, var(--accent, #ff8a6b), var(--gold, #e0a15b));
+  box-shadow: 0 0 10px rgba(255, 138, 107, .55);
+}
+.iso-hint {
+  font-size: 11.5px; letter-spacing: .3px; color: rgba(228, 232, 238, .52);
+}
+
+/* ---- 舞台（SVG 在这里） ---- */
+.iso-stage {
+  position: relative; z-index: 2;
+  width: 100%; height: 268px;
+  margin: 2px 0 10px;
+}
+.iso-stage svg { width: 100%; height: 100%; display: block; overflow: visible; }
+@media (max-width: 720px) { .iso-stage { height: 224px; } }
+
+/* ---- 读数条 ---- */
+.iso-readout {
+  position: relative; z-index: 3;
+  display: flex; flex-wrap: wrap; gap: 10px 26px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(255, 255, 255, .08);
+}
+.iso-metric { display: flex; flex-direction: column; gap: 3px; min-width: 96px; }
+.iso-metric span {
+  font-size: 10.5px; letter-spacing: .5px; text-transform: uppercase;
+  color: rgba(228, 232, 238, .50);
+}
+.iso-metric b {
+  font-size: 19px; font-weight: 650; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: #f2f4f7; line-height: 1.1;
+}
+.iso-metric b.up   { color: var(--up, #ff7a5c); }
+.iso-metric b.down { color: var(--down, #3ddc84); }
+.iso-metric b small { font-size: 11.5px; font-weight: 450; opacity: .72; margin-left: 2px; }
+.iso-note {
+  margin-left: auto; align-self: center;
+  font-size: 11px; letter-spacing: .3px; color: rgba(228, 232, 238, .42);
+  text-align: right;
+}
+
+/* ---- 机器上的标签（贴在 SVG 里也用这套） ---- */
+.iso-label {
+  font-family: 'Space Grotesk', -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 11px; letter-spacing: .4px;
+  fill: rgba(214, 220, 230, .78);
+}
+.iso-label.dim { fill: rgba(190, 198, 210, .44); }
+.iso-label.em  { fill: #f2f4f7; font-weight: 650; }
+.iso-num {
+  font-family: 'Space Grotesk', -apple-system, "Segoe UI", "PingFang SC", sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 12px; font-weight: 650; fill: #f2f4f7;
+}
+
+/* ---- 降级：低帧率档关掉所有循环动画（fps-boost 的约定） ---- */
+html[data-fps-q="low"] .iso-card .iso-anim { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .iso-card .iso-anim { display: none; }
+  .iso-card { transition: none; }
+}
+
+</style><!-- IF:CSS:END -->
 </head>
 <body>
 
@@ -17889,8 +18027,15 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
       var w = Math.round(bw * s);
       var h = Math.round(bh * s);
-      if (el.width !== w) el.width = w;
-      if (el.height !== h) el.height = h;
+      /* SVG 的 .width 是只读的 SVGAnimatedLength，赋值会抛 TypeError（2026-10-23 修）
+         —— 此前 .pos-chart-wrap svg 等 5 个 SVG 图表的等比放大一直是静默失败的 */
+      if (el.namespaceURI === 'http://www.w3.org/2000/svg') {
+        if (el.getAttribute('width') != w) el.setAttribute('width', w);
+        if (el.getAttribute('height') != h) el.setAttribute('height', h);
+      } else {
+        if (el.width !== w) el.width = w;
+        if (el.height !== h) el.height = h;
+      }
       el.style.width = w + 'px';
       el.style.height = h + 'px';
       n++;
@@ -24887,5 +25032,621 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- LQ:JS:END -->
+<!-- IF:JS:BEGIN -->
+<!-- iso-figure (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
+<script id="iso-figure-js">
+/* ==========================================================================
+   iso-figure — 等距机械插画（学自 anatomy 技能：「物体即解释」）
+   --------------------------------------------------------------------------
+   两台机器，都由真实零件拼成，数字与运动同源：
+     ① #iso-pump  资金动力机：液面 = 主力净流入，管口流向 = 流入/流出
+     ② #iso-gauge 持仓压力表：指针 = 浮盈%，刻度 = 跌停 / 成本 / 涨停
+
+   等距投影（true isometric，30°）：
+       sx = (x - y) * cos30
+       sy = (x + y) * sin30 - z
+   顶面最亮 / 右面中 / 左面暗 / 底面最暗 —— 四阶明暗立住厚度。
+   ========================================================================== */
+(function () {
+  'use strict';
+  if (window.__isoFigures) return;
+
+  var COS30 = 0.8660254, SIN30 = 0.5;
+  function iso(x, y, z) {
+    return [(x - y) * COS30, (x + y) * SIN30 - z];
+  }
+  function P(p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }
+
+  /* 四阶明暗 */
+  var T = {
+    hi:   '#525e70',
+    top:  '#3c4553',
+    mid:  '#2c3441',
+    lo:   '#1d232c',
+    deep: '#141920',
+    edge: 'rgba(255,255,255,.11)',
+    edge2:'rgba(255,255,255,.05)',
+    accent:'#ff8a6b',
+    gold: '#e0a15b',
+    up:   '#ff7a5c',
+    down: '#3ddc84',
+    glass:'rgba(150,195,235,.13)',
+    glassLine:'rgba(190,220,255,.34)'
+  };
+
+  /* ---- 零件：盒子 ---- */
+  function box(x, y, z, w, d, h, opt) {
+    opt = opt || {};
+    var top = opt.top || T.top, left = opt.left || T.lo, right = opt.right || T.mid;
+    var e = opt.edge || T.edge;
+    var A = iso(x, y, z + h), B = iso(x + w, y, z + h), C = iso(x + w, y + d, z + h), D = iso(x, y + d, z + h);
+    var B0 = iso(x + w, y, z), C0 = iso(x + w, y + d, z), D0 = iso(x, y + d, z);
+    return '' +
+      '<path d="M' + P(D) + 'L' + P(C) + 'L' + P(C0) + 'L' + P(D0) + 'Z" fill="' + left + '"/>' +
+      '<path d="M' + P(C) + 'L' + P(B) + 'L' + P(B0) + 'L' + P(C0) + 'Z" fill="' + right + '"/>' +
+      '<path d="M' + P(A) + 'L' + P(B) + 'L' + P(C) + 'L' + P(D) + 'Z" fill="' + top + '"/>' +
+      '<path d="M' + P(A) + 'L' + P(B) + 'L' + P(C) + 'L' + P(D) + 'Z" fill="none" stroke="' + e + '" stroke-width="1"/>' +
+      '<path d="M' + P(D) + 'L' + P(C) + 'L' + P(B) + '" fill="none" stroke="' + e + '" stroke-width="1"/>';
+  }
+
+  /* ---- 零件：等距圆柱（缸体） ---- */
+  function isoEllipse(cx, cy, z, r) {
+    /* 投影后的椭圆：用 8 段折线近似圆，再走矩阵 */
+    var pts = [];
+    for (var i = 0; i < 32; i++) {
+      var a = i / 32 * Math.PI * 2;
+      pts.push(iso(cx + r * Math.cos(a), cy + r * Math.sin(a), z));
+    }
+    return 'M' + pts.map(P).join('L') + 'Z';
+  }
+
+  /* ---- 零件：刻度尺 ---- */
+  function ruler(x, y, z, w, ticks) {
+    var out = box(x, y, z, w, 7, 2, { top: T.mid, left: T.deep, right: T.lo });
+    var n = ticks || 24;
+    for (var i = 0; i <= n; i++) {
+      var tx = x + 4 + (w - 8) * (i / n);
+      var h = (i % 4 === 0) ? 7 : 4;
+      var a = iso(tx, y + 1, z + 2), b = iso(tx, y + 1, z + 2 + h);
+      out += '<path d="M' + P(a) + 'L' + P(b) + '" stroke="' + (i % 4 === 0 ? 'rgba(255,255,255,.28)' : 'rgba(255,255,255,.14)') + '" stroke-width="1"/>';
+    }
+    return out;
+  }
+
+  /* ---- 零件：脚垫 ---- */
+  function foot(x, y) {
+    return box(x, y, -7, 13, 13, 7, { top: T.mid, left: T.deep, right: T.lo }) +
+           box(x + 2.5, y + 2.5, -11, 8, 8, 4, { top: T.lo, left: T.deep, right: T.deep });
+  }
+
+  /* ==========================================================================
+     机器一：资金动力机
+     ========================================================================== */
+  function buildPump() {
+    var W = 820, H = 320;
+    var cx = 400, cy = 176;
+    function ip(x, y, z) {
+      var p = iso(x, y, z);
+      return [cx + p[0] * 1.06, cy + 62 + p[1] * 1.06];
+    }
+    function PP(p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }
+    function boxS(x, y, z, w, d, h, opt) {
+      opt = opt || {};
+      var top = opt.top || T.top, left = opt.left || T.lo, right = opt.right || T.mid;
+      var e = opt.edge || T.edge;
+      var A = ip(x, y, z + h), B = ip(x + w, y, z + h), C = ip(x + w, y + d, z + h), D = ip(x, y + d, z + h);
+      var B0 = ip(x + w, y, z), C0 = ip(x + w, y + d, z), D0 = ip(x, y + d, z);
+      return '' +
+        '<path d="M' + PP(D) + 'L' + PP(C) + 'L' + PP(C0) + 'L' + PP(D0) + 'Z" fill="' + left + '"/>' +
+        '<path d="M' + PP(C) + 'L' + PP(B) + 'L' + PP(B0) + 'L' + PP(C0) + 'Z" fill="' + right + '"/>' +
+        '<path d="M' + PP(A) + 'L' + PP(B) + 'L' + PP(C) + 'L' + PP(D) + 'Z" fill="' + top + '"/>' +
+        '<path d="M' + PP(A) + 'L' + PP(B) + 'L' + PP(C) + 'L' + PP(D) + 'Z" fill="none" stroke="' + e + '"/>' +
+        '<path d="M' + PP(D) + 'L' + PP(C) + 'L' + PP(B) + '" fill="none" stroke="' + e + '"/>';
+    }
+    function ellipsePts(r, z, n) {
+      var pts = [];
+      for (var i = 0; i < (n || 40); i++) {
+        var a = i / (n || 40) * Math.PI * 2;
+        pts.push(ip(r * Math.cos(a), r * Math.sin(a), z));
+      }
+      return pts;
+    }
+    function ellipsePath(r, z, n) { return 'M' + ellipsePts(r, z, n).map(PP).join('L') + 'Z'; }
+
+    var parts = [];
+    /* ① 底板 + 四脚 + 前沿刻度尺 */
+    parts.push(foot(-132, -78), foot(118, -78), foot(-132, 66), foot(118, 66));
+    parts.push(boxS(-124, -70, 0, 248, 140, 15, { top: T.mid, left: T.deep, right: T.lo }));
+    parts.push(boxS(-112, -58, 15, 224, 116, 3, { top: T.top, left: T.lo, right: T.mid, edge: T.edge2 }));
+    (function () {
+      for (var i = 0; i <= 20; i++) {
+        var tx = -104 + 208 * (i / 20);
+        var h = (i % 5 === 0) ? 9 : 5;
+        var a = ip(tx, 56, 18), b = ip(tx, 56, 18 + h);
+        parts.push('<path d="M' + PP(a) + 'L' + PP(b) + '" stroke="' + (i % 5 === 0 ? 'rgba(255,255,255,.32)' : 'rgba(255,255,255,.13)') + '" stroke-width="1"/>');
+      }
+    })();
+
+    /* ② 进/出管道 + 法兰 */
+    var pipeZ = 92;
+    parts.push(boxS(-230, -18, pipeZ - 8, 108, 30, 16, { top: T.top, left: T.lo, right: T.mid }));
+    parts.push(boxS(122, -18, pipeZ - 8, 108, 30, 16, { top: T.top, left: T.lo, right: T.mid }));
+    parts.push(boxS(-130, -26, pipeZ - 13, 14, 46, 26, { top: T.hi, left: T.mid, right: T.top }));
+    parts.push(boxS(116, -26, pipeZ - 13, 14, 46, 26, { top: T.hi, left: T.mid, right: T.top }));
+
+    /* ③ 玻璃缸体：先画背壁与液体，再画前玻璃 */
+    var TR = 62, TZ = 26, TH = 156;
+    var topC = ip(0, 0, TZ + TH), botC = ip(0, 0, TZ);
+    var halfW = 1.2247 * TR * 1.06;
+    var bL = topC[0] - halfW, bR = topC[0] + halfW;
+    var bT = topC[1], bB = botC[1];
+    var bW = bR - bL, bH = bB - bT;
+
+    /* 3a. 底椭圆 + 缸壁（背） */
+    parts.push('<path d="' + ellipsePath(TR, TZ) + '" fill="rgba(8,12,18,.72)" stroke="' + T.glassLine + '" stroke-width="1.2"/>');
+    parts.push('<rect x="' + bL.toFixed(1) + '" y="' + bT.toFixed(1) + '" width="' + bW.toFixed(1) + '" height="' + bH.toFixed(1) +
+      '" fill="rgba(26,36,50,.28)" stroke="none"/>');
+
+    /* 3b. 液体（半透明，裁在缸内）—— 液面由 y/height 控制 */
+    parts.push(
+      '<g clip-path="url(#if-tankClip)">' +
+        '<rect id="if-liquid" x="' + (bL + 1).toFixed(1) + '" y="' + (bT + 1).toFixed(1) +
+          '" width="' + (bW - 2).toFixed(1) + '" height="' + (bH - 2).toFixed(1) + '" fill="url(#if-liqGradUp)"/>' +
+        /* 液面：亮边 + 轻微起伏 */
+        '<path id="if-wave" d="" fill="none" stroke="rgba(230,255,245,.85)" stroke-width="2" stroke-linecap="round"/>' +
+        '<path id="if-wave2" d="" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="5" stroke-linecap="round"/>' +
+        /* 液体内部的竖向光泽（玻璃厚度里的折射） */
+        '<rect x="' + (bL + bW * 0.18).toFixed(1) + '" y="' + bT.toFixed(1) + '" width="' + (bW * 0.12).toFixed(1) +
+          '" height="' + bH.toFixed(1) + '" fill="rgba(255,255,255,.10)"/>' +
+        '<rect x="' + (bL + bW * 0.72).toFixed(1) + '" y="' + bT.toFixed(1) + '" width="' + (bW * 0.06).toFixed(1) +
+          '" height="' + bH.toFixed(1) + '" fill="rgba(255,255,255,.05)"/>' +
+      '</g>');
+
+    /* 3c. 前玻璃（盖在液体上：这是"玻璃罩住液体"的物理顺序） */
+    parts.push('<rect x="' + bL.toFixed(1) + '" y="' + bT.toFixed(1) + '" width="' + bW.toFixed(1) + '" height="' + bH.toFixed(1) +
+      '" fill="url(#if-glassFront)" stroke="' + T.glassLine + '" stroke-width="1.4" rx="4"/>');
+    /* 左缘亮、右缘暖 */
+    parts.push('<rect x="' + bL.toFixed(1) + '" y="' + bT.toFixed(1) + '" width="2" height="' + bH.toFixed(1) + '" fill="rgba(180,215,255,.30)"/>');
+    parts.push('<rect x="' + (bR - 2).toFixed(1) + '" y="' + bT.toFixed(1) + '" width="2" height="' + bH.toFixed(1) + '" fill="rgba(255,190,150,.22)"/>');
+
+    /* 3d. 顶盖（最后，压住缸壁上沿） */
+    parts.push('<path d="' + ellipsePath(TR, TZ + TH) + '" fill="rgba(30,40,54,.82)" stroke="' + T.glassLine + '" stroke-width="1.5"/>');
+    parts.push('<path d="' + ellipsePath(TR * 0.74, TZ + TH + 2) + '" fill="rgba(18,26,38,.62)" stroke="rgba(255,255,255,.10)"/>');
+    parts.push('<path d="' + ellipsePath(TR * 0.42, TZ + TH + 3.5) + '" fill="rgba(12,18,28,.5)" stroke="rgba(255,255,255,.08)"/>');
+
+    /* ④ 活塞杆 + 手轮 */
+    parts.push('<g id="if-piston">');
+    parts.push(boxS(-15, -15, TZ + TH + 4, 30, 30, 52, { top: T.hi, left: T.lo, right: T.mid }));
+    parts.push(boxS(-40, -40, TZ + TH + 56, 80, 80, 9, { top: T.top, left: T.lo, right: T.mid }));
+    for (var s = 0; s < 6; s++) {
+      var ang = s / 6 * Math.PI * 2;
+      var a0 = ip(Math.cos(ang) * 11, Math.sin(ang) * 11, TZ + TH + 65);
+      var a1 = ip(Math.cos(ang) * 37, Math.sin(ang) * 37, TZ + TH + 65);
+      parts.push('<path d="M' + PP(a0) + 'L' + PP(a1) + '" stroke="rgba(255,255,255,.22)" stroke-width="3.4" stroke-linecap="round"/>');
+    }
+    parts.push('<circle cx="' + ip(0, 0, TZ + TH + 65)[0].toFixed(1) + '" cy="' + ip(0, 0, TZ + TH + 65)[1].toFixed(1) + '" r="6" fill="' + T.accent + '" opacity=".8"/>');
+    parts.push('</g>');
+
+    /* ⑤ 底板上的两块小压力表 */
+    function miniDial(ox, oy, label) {
+      var o = ip(ox, oy, 20);
+      var g = '<g transform="translate(' + o[0].toFixed(1) + ',' + o[1].toFixed(1) + ')">';
+      g += '<path d="M-30,-7 L0,-20 L30,-7 L0,6 Z" fill="' + T.top + '" stroke="' + T.edge + '"/>';
+      g += '<path d="M-30,-7 L-30,7 L0,20 L0,6 Z" fill="' + T.lo + '"/>';
+      g += '<path d="M30,-7 L30,7 L0,20 L0,6 Z" fill="' + T.mid + '"/>';
+      g += '<ellipse cx="0" cy="-7" rx="20" ry="11.5" fill="rgba(12,16,22,.88)" stroke="rgba(255,255,255,.26)"/>';
+      g += '<path d="M-13,-11 A15,9 0 0 1 -1,-15" fill="none" stroke="#3ddc84" stroke-width="2.2" opacity=".7"/>';
+      g += '<path d="M1,-15 A15,9 0 0 1 13,-11" fill="none" stroke="#ff7a5c" stroke-width="2.2" opacity=".75"/>';
+      g += '<path class="iso-mini-needle" d="M0,-7 L0,-16" stroke="' + T.accent + '" stroke-width="2" stroke-linecap="round"/>';
+      g += '<circle cx="0" cy="-7" r="2.4" fill="#e8eef6"/>';
+      g += '<text class="iso-label dim" x="0" y="26" text-anchor="middle">' + label + '</text>';
+      g += '</g>';
+      return g;
+    }
+    parts.push(miniDial(-98, -26, 'IN 流入'));
+    parts.push(miniDial(98, -26, 'OUT 流出'));
+
+    /* ⑥ 流动粒子（进/出管） */
+    function flow(pathId, d, color, n, dir) {
+      var g = '<g class="iso-anim">';
+      g += '<path id="' + pathId + '" d="' + d + '" fill="none" stroke="none"/>';
+      for (var i = 0; i < n; i++) {
+        var dur = 2.0 + (i % 3) * 0.55;
+        var begin = (-i * dur / n).toFixed(2) + 's';
+        g += '<circle r="3.6" fill="' + color + '" opacity=".9">' +
+          '<animateMotion dur="' + dur + 's" begin="' + begin + '" repeatCount="indefinite" keyPoints="' + (dir ? '0;1' : '1;0') + '" keyTimes="0;1" calcMode="linear">' +
+          '<mpath href="#' + pathId + '"/></animateMotion>' +
+          '<animate attributeName="opacity" values="0;.95;.95;0" dur="' + dur + 's" begin="' + begin + '" repeatCount="indefinite"/>' +
+          '</circle>';
+      }
+      return g + '</g>';
+    }
+    parts.push(flow('if-flow-in', 'M' + PP(ip(-222, -3, pipeZ)) + 'L' + PP(ip(-126, -3, pipeZ)), T.up, 6, true));
+    parts.push(flow('if-flow-out', 'M' + PP(ip(126, -3, pipeZ)) + 'L' + PP(ip(222, -3, pipeZ)), T.down, 6, true));
+
+    /* ⑦ 标签 */
+    var li = ip(-222, -3, pipeZ - 18), lo = ip(130, -3, pipeZ - 18);
+    parts.push('<text class="iso-label dim" x="' + li[0].toFixed(0) + '" y="' + li[1].toFixed(0) + '">主力净流入</text>');
+    parts.push('<text class="iso-label dim" x="' + lo[0].toFixed(0) + '" y="' + lo[1].toFixed(0) + '">净流出</text>');
+
+    var svg =
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" aria-label="资金动力机">' +
+      '<defs>' +
+        '<linearGradient id="if-glassFront" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0" stop-color="rgba(210,235,255,.26)"/>' +
+          '<stop offset=".18" stop-color="rgba(170,210,250,.08)"/>' +
+          '<stop offset=".55" stop-color="rgba(150,200,245,.02)"/>' +
+          '<stop offset="1" stop-color="rgba(120,175,225,.18)"/>' +
+        '</linearGradient>' +
+        '<linearGradient id="if-liqGradUp" x1="0" y1="0" x2="0.3" y2="1">' +
+          '<stop offset="0" stop-color="rgba(255,150,118,.78)"/>' +
+          '<stop offset=".45" stop-color="rgba(255,122,92,.62)"/>' +
+          '<stop offset="1" stop-color="rgba(210,78,58,.80)"/>' +
+        '</linearGradient>' +
+        '<linearGradient id="if-liqGradDown" x1="0" y1="0" x2="0.3" y2="1">' +
+          '<stop offset="0" stop-color="rgba(79,232,160,.78)"/>' +
+          '<stop offset=".45" stop-color="rgba(61,220,132,.62)"/>' +
+          '<stop offset="1" stop-color="rgba(28,168,110,.80)"/>' +
+        '</linearGradient>' +
+        '<clipPath id="if-tankClip">' +
+          '<rect x="' + (bL + 1).toFixed(1) + '" y="' + (bT + 1).toFixed(1) +
+            '" width="' + (bW - 2).toFixed(1) + '" height="' + (bH - 2).toFixed(1) + '" rx="3"/>' +
+        '</clipPath>' +
+      '</defs>' +
+      parts.join('') + '</svg>';
+    return { svg: svg, geom: { bodyLeft: bL, bodyTopY: bT, bodyW: bW, bodyH: bH } };
+  }
+
+  /* ==========================================================================
+     机器二：持仓压力表 —— 表盘是主角，立柱只是把它举起来
+     ========================================================================== */
+  function buildGauge() {
+    var W = 820, H = 320;
+    var cx = 330, cy = 188;
+    function ip(x, y, z) {
+      var p = iso(x, y, z);
+      return [cx + p[0] * 1.02, cy + 20 + p[1] * 1.02];
+    }
+    function PP(p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }
+    function boxS(x, y, z, w, d, h, opt) {
+      opt = opt || {};
+      var top = opt.top || T.top, left = opt.left || T.lo, right = opt.right || T.mid;
+      var e = opt.edge || T.edge;
+      var A = ip(x, y, z + h), B = ip(x + w, y, z + h), C = ip(x + w, y + d, z + h), D = ip(x, y + d, z + h);
+      var B0 = ip(x + w, y, z), C0 = ip(x + w, y + d, z), D0 = ip(x, y + d, z);
+      return '' +
+        '<path d="M' + PP(D) + 'L' + PP(C) + 'L' + PP(C0) + 'L' + PP(D0) + 'Z" fill="' + left + '"/>' +
+        '<path d="M' + PP(C) + 'L' + PP(B) + 'L' + PP(B0) + 'L' + PP(C0) + 'Z" fill="' + right + '"/>' +
+        '<path d="M' + PP(A) + 'L' + PP(B) + 'L' + PP(C) + 'L' + PP(D) + 'Z" fill="' + top + '"/>' +
+        '<path d="M' + PP(A) + 'L' + PP(B) + 'L' + PP(C) + 'L' + PP(D) + 'Z" fill="none" stroke="' + e + '"/>' +
+        '<path d="M' + PP(D) + 'L' + PP(C) + 'L' + PP(B) + '" fill="none" stroke="' + e + '"/>';
+    }
+
+    var parts = [];
+    /* ① 底板 + 脚 + 前沿刻度 */
+    parts.push(foot(-120, -70), foot(98, -70), foot(-120, 56), foot(98, 56));
+    parts.push(boxS(-112, -62, 0, 214, 124, 14, { top: T.mid, left: T.deep, right: T.lo }));
+    parts.push(boxS(-100, -50, 14, 190, 100, 2.5, { top: T.top, left: T.lo, right: T.mid, edge: T.edge2 }));
+    (function () {
+      for (var i = 0; i <= 18; i++) {
+        var tx = -94 + 180 * (i / 18);
+        var h = (i % 3 === 0) ? 8 : 4.5;
+        var a = ip(tx, 42, 16.5), b = ip(tx, 42, 16.5 + h);
+        parts.push('<path d="M' + PP(a) + 'L' + PP(b) + '" stroke="' + (i % 3 === 0 ? 'rgba(255,255,255,.28)' : 'rgba(255,255,255,.12)') + '"/>');
+      }
+    })();
+
+    /* ② 立柱 + 抱箍 */
+    parts.push(boxS(-15, -15, 14, 30, 30, 86, { top: T.hi, left: T.lo, right: T.mid }));
+    parts.push(boxS(-21, -21, 86, 42, 42, 8, { top: T.top, left: T.lo, right: T.mid }));
+    for (var s = 0; s < 4; s++) {
+      var sa = s / 4 * Math.PI * 2 + 0.4;
+      var sp = ip(Math.cos(sa) * 16, Math.sin(sa) * 16, 90);
+      parts.push('<circle cx="' + sp[0].toFixed(1) + '" cy="' + sp[1].toFixed(1) + '" r="2.6" fill="rgba(255,255,255,.32)"/>');
+    }
+    /* ③ 横臂：一直伸到表头正下方 */
+    parts.push(boxS(-13, -100, 90, 26, 108, 11, { top: T.top, left: T.lo, right: T.mid }));
+
+    /* ④ 表头 —— 主角，尽量大 */
+    var DC = ip(0, -104, 112);
+    var g = '<g transform="translate(' + DC[0].toFixed(1) + ',' + DC[1].toFixed(1) + ')">';
+    /* 表头外壳厚度 */
+    g += '<ellipse cx="0" cy="16" rx="96" ry="56" fill="' + T.deep + '" stroke="' + T.edge + '" stroke-width="1.2"/>';
+    g += '<ellipse cx="0" cy="6" rx="96" ry="56" fill="' + T.mid + '" stroke="' + T.edge + '" stroke-width="1.2"/>';
+    g += '<ellipse cx="0" cy="2" rx="88" ry="51" fill="rgba(12,16,24,.94)" stroke="rgba(255,255,255,.18)" stroke-width="1.2"/>';
+    /* 刻度弧：左绿（亏）右红（盈） */
+    g += '<path d="M-66,-24 A72,42 0 0 1 -2,-46" fill="none" stroke="#3ddc84" stroke-width="7" stroke-linecap="round" opacity=".82"/>';
+    g += '<path d="M2,-46 A72,42 0 0 1 66,-24" fill="none" stroke="#ff7a5c" stroke-width="7" stroke-linecap="round" opacity=".86"/>';
+    /* 刻度线 */
+    for (var t = 0; t <= 10; t++) {
+      var ang = Math.PI * (1 - t / 10);
+      var rr1 = 68, rr2 = (t % 5 === 0) ? 52 : 60;
+      var x1 = Math.cos(ang) * rr1, y1 = -Math.sin(ang) * rr1 * 0.60;
+      var x2 = Math.cos(ang) * rr2, y2 = -Math.sin(ang) * rr2 * 0.60;
+      g += '<path d="M' + x1.toFixed(1) + ',' + y1.toFixed(1) + 'L' + x2.toFixed(1) + ',' + y2.toFixed(1) +
+        '" stroke="' + (t % 5 === 0 ? 'rgba(255,255,255,.62)' : 'rgba(255,255,255,.30)') +
+        '" stroke-width="' + (t % 5 === 0 ? 2.2 : 1.2) + '" stroke-linecap="round"/>';
+    }
+    /* 刻度文字 */
+    g += '<text class="iso-label dim" x="-72" y="-2" text-anchor="middle" font-size="11">跌停</text>';
+    g += '<text class="iso-label em"  x="0"   y="-38" text-anchor="middle" font-size="11">成本</text>';
+    g += '<text class="iso-label dim" x="72"  y="-2" text-anchor="middle" font-size="11">涨停</text>';
+    /* 中央小刻度盘 */
+    g += '<ellipse cx="0" cy="0" rx="26" ry="15" fill="rgba(30,38,52,.9)" stroke="rgba(255,255,255,.14)"/>';
+    /* 玻璃反光 */
+    g += '<ellipse cx="-22" cy="-20" rx="40" ry="17" fill="rgba(255,255,255,.08)"/>';
+    g += '<ellipse cx="30" cy="-8" rx="18" ry="8" fill="rgba(255,255,255,.05)"/>';
+    /* 指针（spring：由 JS 设 transform，CSS transition 回弹） */
+    g += '<g id="if-needle" style="transform-origin:0px 0px;transition:transform .95s cubic-bezier(.34,1.42,.5,1)">' +
+      '<path d="M0,10 L0,-58 L6.5,-44 L0,-64 L-6.5,-44 Z" fill="#ffb096" stroke="rgba(255,245,235,.5)" stroke-width="1"/>' +
+      '<path d="M0,10 L0,26" stroke="#ff8a6b" stroke-width="5" stroke-linecap="round" opacity=".85"/>' +
+      '</g>';
+    g += '<circle cx="0" cy="0" r="8" fill="#e8eef6" stroke="rgba(0,0,0,.4)"/>';
+    g += '<circle cx="0" cy="0" r="3.2" fill="' + T.accent + '"/>';
+    /* 表头玻璃罩 */
+    g += '<ellipse cx="0" cy="2" rx="88" ry="51" fill="url(#if-gaugeGlass)" stroke="none"/>';
+    g += '</g>';
+    parts.push(g);
+
+    /* ⑤ 连接块 */
+    parts.push(boxS(-17, -118, 100, 34, 26, 15, { top: T.hi, left: T.lo, right: T.mid }));
+
+    /* ⑥ 右侧：持股筹码堆 */
+    (function () {
+      var baseX = 58, baseY = -30;
+      for (var i = 0; i < 6; i++) {
+        var h = 9 + i * 3.5;
+        parts.push(boxS(baseX, baseY + i * 13, 14, 70, 10, h, {
+          top: i === 5 ? T.hi : T.top, left: T.lo, right: T.mid
+        }));
+      }
+      var lt = ip(baseX + 35, baseY + 72, 14);
+      parts.push('<text class="iso-label dim" x="' + lt[0].toFixed(0) + '" y="' + lt[1].toFixed(0) + '" text-anchor="middle">持股</text>');
+    })();
+
+    /* ⑦ 左前：成本配重块（金色） */
+    parts.push(boxS(-104, -22, 14, 46, 38, 24, { top: T.gold, left: '#5c4226', right: '#7a5632' }));
+    var ct = ip(-81, 14, 40);
+    parts.push('<text class="iso-label dim" x="' + ct[0].toFixed(0) + '" y="' + ct[1].toFixed(0) + '" text-anchor="middle">成本</text>');
+
+    var svg =
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" aria-label="持仓压力表">' +
+      '<defs>' +
+        '<linearGradient id="if-gaugeGlass" x1="0" y1="0" x2="0.3" y2="1">' +
+          '<stop offset="0" stop-color="rgba(200,230,255,.13)"/>' +
+          '<stop offset=".4" stop-color="rgba(160,205,250,.03)"/>' +
+          '<stop offset="1" stop-color="rgba(130,180,235,.08)"/>' +
+        '</linearGradient>' +
+      '</defs>' +
+      parts.join('') + '</svg>';
+    return { svg: svg };
+  }
+
+  /* ==========================================================================
+     数据装配
+     ========================================================================== */
+  function fmtYi(v) {
+    var s = v < 0 ? '-' : '+';
+    var a = Math.abs(v);
+    if (a >= 10000) return s + (a / 10000).toFixed(2) + '万亿';
+    if (a >= 1) return s + a.toFixed(2) + '亿';
+    return s + (a * 10000).toFixed(0) + '万';
+  }
+  function fmtMoney(v) {
+    var s = v < 0 ? '-' : '+';
+    return s + '¥' + Math.abs(v).toLocaleString('zh-CN', { maximumFractionDigits: 0 });
+  }
+
+  /* 从 DOM 里扒真实数据；扒不到就用演示值，保证图永远是"活"的 */
+  function readFund() {
+    var res = { net: 12.4, inAmt: 186.2, outAmt: 173.8, note: '演示数据' };
+    try {
+      var ins = document.querySelectorAll('#fund-a-sec-in .fund-amt, #fund-a-stk-in .fund-amt');
+      var outs = document.querySelectorAll('#fund-a-sec-out .fund-amt, #fund-a-stk-out .fund-amt');
+      function parseAll(nodes) {
+        var s = 0, n = 0;
+        nodes.forEach(function (el) {
+          var t = (el.textContent || '').trim();
+          var m = t.match(/(-?[\d.]+)\s*(亿|万)/);
+          if (!m) return;
+          var v = parseFloat(m[1]) * (m[2] === '亿' ? 1 : 0.0001);
+          s += v; n++;
+        });
+        return n ? s : null;
+      }
+      var pi = parseAll(ins), po = parseAll(outs);
+      if (pi !== null && po !== null && (pi || po)) {
+        res.inAmt = pi; res.outAmt = po; res.net = pi - po; res.note = '实时汇总';
+      }
+    } catch (e) { /* 保底演示值 */ }
+    return res;
+  }
+
+  function readHold() {
+    var res = { pnl: 12860, rate: 6.43, mv: 212400, note: '演示数据' };
+    try {
+      function num(id) {
+        var el = document.getElementById(id);
+        if (!el) return null;
+        var t = (el.textContent || '').replace(/[^\d.\-+]/g, '');
+        var v = parseFloat(t);
+        return isFinite(v) ? v : null;
+      }
+      var mv = num('ps-mv'), pnl = num('ps-pnl'), rate = num('ps-rate');
+      if (mv !== null && pnl !== null) {
+        res.mv = mv;
+        res.pnl = (document.getElementById('ps-pnl').textContent || '').indexOf('-') >= 0 ? -Math.abs(pnl) : pnl;
+        if (rate !== null) res.rate = (document.getElementById('ps-rate').textContent || '').indexOf('-') >= 0 ? -Math.abs(rate) : rate;
+        res.note = '本地持仓';
+      }
+    } catch (e) { }
+    return res;
+  }
+
+  /* ---- 注液机：液面 + 液色 + 活塞 + 小表指针 ---- */
+  var pumpGeom = null;
+  function updatePump(d) {
+    var card = document.getElementById('iso-pump');
+    if (!card) return;
+    /* 液位用「流入占总流量的比重」，而不是绝对净额 ——
+       否则像 +1009 亿这种极端数据会把液面直接顶满，看不出高低 */
+    var tot = Math.abs(d.inAmt) + Math.abs(d.outAmt);
+    var ratio = tot > 0 ? Math.abs(d.inAmt) / tot : 0.5;
+    var lvl = Math.max(0.12, Math.min(0.90, 0.16 + ratio * 0.74));
+    if (pumpGeom) {
+      var innerH = pumpGeom.bodyH - 2;
+      var h = Math.max(3, innerH * lvl);
+      var y = pumpGeom.bodyTopY + 1 + innerH - h;
+      var liq = card.querySelector('#if-liquid');
+      if (liq) {
+        liq.setAttribute('y', y.toFixed(1));
+        liq.setAttribute('height', h.toFixed(1));
+        liq.setAttribute('fill', d.net >= 0 ? 'url(#if-liqGradUp)' : 'url(#if-liqGradDown)');
+      }
+      /* 液面亮边 + 辅助边（两条路径同一条曲线） */
+      var x0 = pumpGeom.bodyLeft + 1, x1 = pumpGeom.bodyLeft + pumpGeom.bodyW - 1;
+      function waveD(amp) {
+        var dpath = 'M' + x0.toFixed(1) + ',' + y.toFixed(1);
+        for (var i = 1; i <= 12; i++) {
+          var xx = x0 + (x1 - x0) * (i / 12);
+          var yy = y + Math.sin(i * 1.15 + 0.4) * amp;
+          dpath += ' L' + xx.toFixed(1) + ',' + yy.toFixed(1);
+        }
+        return dpath;
+      }
+      var w1 = card.querySelector('#if-wave');
+      if (w1) w1.setAttribute('d', waveD(1.8));
+      var w2 = card.querySelector('#if-wave2');
+      if (w2) w2.setAttribute('d', waveD(1.8));
+    }
+    /* 活塞随液面升降 */
+    var pis = card.querySelector('#if-piston');
+    if (pis) {
+      pis.setAttribute('transform', 'translate(0,' + ((lvl - 0.5) * -30).toFixed(1) + ')');
+    }
+    /* 小表指针 */
+    card.querySelectorAll('.iso-mini-needle').forEach(function (nd, i) {
+      var v = i === 0 ? Math.min(1, Math.abs(d.inAmt) / 320) : Math.min(1, Math.abs(d.outAmt) / 320);
+      nd.setAttribute('transform', 'rotate(' + (-56 + v * 112).toFixed(1) + ' 0 -7)');
+    });
+    function set(id, txt, cls) {
+      var el = card.querySelector('#' + id);
+      if (!el) return;
+      el.textContent = txt;
+      el.className = cls || '';
+    }
+    set('if-net', fmtYi(d.net), d.net >= 0 ? 'up' : 'down');
+    set('if-in', fmtYi(d.inAmt), 'up');
+    set('if-out', fmtYi(d.outAmt), 'down');
+    var note = card.querySelector('#if-note');
+    if (note) note.textContent = (d.note || '') + ' · 液面随主力净流入升降';
+  }
+
+  /* ---- 压力表：指针角度 ---- */
+  function updateGauge(d) {
+    var card = document.getElementById('iso-gauge');
+    if (!card) return;
+    /* 浮盈率 -10% ~ +10% 映射到 180° ~ 0°（表盘平面内） */
+    var t = Math.max(0, Math.min(1, (d.rate + 10) / 20));
+    var ang = 180 - t * 180;   /* 180 = 全亏，0 = 全盈 */
+    var nd = card.querySelector('#if-needle');
+    if (nd) nd.style.transform = 'rotate(' + (90 - t * 180).toFixed(1) + 'deg)';
+    function set(id, txt, cls) {
+      var el = card.querySelector('#' + id);
+      if (!el) return;
+      el.textContent = txt;
+      el.className = cls || '';
+    }
+    set('if-pnl', fmtMoney(d.pnl), d.pnl >= 0 ? 'up' : 'down');
+    set('if-rate', (d.rate >= 0 ? '+' : '') + d.rate.toFixed(2) + '%', d.rate >= 0 ? 'up' : 'down');
+    set('if-mv', '¥' + Math.round(d.mv).toLocaleString('zh-CN'));
+    var note = card.querySelector('#if-note-g');
+    if (note) note.textContent = (d.note || '') + ' · 指针指向当前浮盈率';
+  }
+
+  /* ==========================================================================
+     挂载
+     ========================================================================== */
+  function cardHTML(kind) {
+    if (kind === 'pump') {
+      return '' +
+        '<div class="iso-card" id="iso-pump">' +
+          '<div class="iso-head">' +
+            '<div class="iso-title">资金动力机</div>' +
+            '<div class="iso-hint">液面 = 主力净流入 · 管口粒子 = 资金流向 · 活塞随液面升降</div>' +
+          '</div>' +
+          '<div class="iso-stage"></div>' +
+          '<div class="iso-readout">' +
+            '<div class="iso-metric"><span>主力净流入</span><b id="if-net" class="up">--</b></div>' +
+            '<div class="iso-metric"><span>流入</span><b id="if-in" class="up">--</b></div>' +
+            '<div class="iso-metric"><span>流出</span><b id="if-out" class="down">--</b></div>' +
+            '<div class="iso-note" id="if-note">--</div>' +
+          '</div>' +
+        '</div>';
+    }
+    return '' +
+      '<div class="iso-card" id="iso-gauge">' +
+        '<div class="iso-head">' +
+          '<div class="iso-title">持仓压力表</div>' +
+          '<div class="iso-hint">指针 = 浮盈率 · 左绿右红 · 刻度：跌停 / 成本 / 涨停</div>' +
+        '</div>' +
+        '<div class="iso-stage"></div>' +
+        '<div class="iso-readout">' +
+          '<div class="iso-metric"><span>持仓盈亏</span><b id="if-pnl" class="up">--</b></div>' +
+          '<div class="iso-metric"><span>收益率</span><b id="if-rate" class="up">--</b></div>' +
+          '<div class="iso-metric"><span>总市值</span><b id="if-mv">--</b></div>' +
+          '<div class="iso-note" id="if-note-g">--</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function mountOne(hostSel, kind) {
+    var host = document.querySelector(hostSel);
+    if (!host || document.getElementById(kind === 'pump' ? 'iso-pump' : 'iso-gauge')) return;
+    var wrap = document.createElement('div');
+    wrap.innerHTML = cardHTML(kind);
+    var card = wrap.firstChild;
+    var built = kind === 'pump' ? buildPump() : buildGauge();
+    if (kind === 'pump') pumpGeom = built.geom;
+    card.querySelector('.iso-stage').innerHTML = built.svg;
+    /* 插到页面最上面的容器里 */
+    if (host.firstChild) host.insertBefore(card, host.firstChild);
+    else host.appendChild(card);
+    return card;
+  }
+
+  function mount() {
+    mountOne('#page-funds .fund-wrap', 'pump');
+    mountOne('#page-holdings > div[style*="max-width"]', 'gauge');
+    updatePump(readFund());
+    updateGauge(readHold());
+    if (window.__isoFiguresTimer) clearInterval(window.__isoFiguresTimer);
+    window.__isoFiguresTimer = setInterval(function () {
+      /* 只在对应页可见时刷新 */
+      var f = document.getElementById('page-funds');
+      var h = document.getElementById('page-holdings');
+      if (f && f.style.display !== 'none') updatePump(readFund());
+      if (h && h.style.display !== 'none') updateGauge(readHold());
+    }, 3000);
+  }
+
+  window.__isoFigures = {
+    mount: mount,
+    updatePump: updatePump,
+    updateGauge: updateGauge,
+    state: function () { return { pump: !!document.getElementById('iso-pump'), gauge: !!document.getElementById('iso-gauge') }; },
+    off: function () {
+      ['iso-pump', 'iso-gauge'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+      });
+    }
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
+  else mount();
+})();
+
+</script><!-- IF:JS:END -->
 </body>
 </html>
