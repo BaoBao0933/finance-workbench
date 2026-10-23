@@ -10725,13 +10725,21 @@ html:not([data-frost="off"])::after {
   z-index: 9990;              /* 在内容之上（颗粒要盖住整块玻璃，包括卡片） */
   pointer-events: none;        /* 绝不挡点击 */
 
-  /* 单尺度细砂：实测双尺度叠加会互相稀释（两层都是 soft-light，
-     结果整体变平），反而不如单层清楚。这里保留最有效的细砂层。 */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='3.2' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='80' height='80' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 80px 80px;
+  /* ⭐⭐ 2026-10-23 v3：解决「肉眼看不到毛」
+     ─────────────────────────────────────────────────────────────────────
+     根因不是浓度不够，而是**噪声本身的对比度太低**：
+       feTurbulence 输出围绕 50% 灰呈高斯分布，绝大多数像素都挤在中间调；
+       而 soft-light 在 50% 灰处几乎是**恒等映射**（不改变底色）。
+       于是 opacity 从 .085 加到 .24，实际能看见的只有极端像素 —— 效果提升远小于数值。
+     正解：在 SVG 里就用 feComponentTransfer 把噪声**拉对比**（slope 3.2 / intercept -1.1），
+       把中间调压掉、把亮点暗点拉开 → 砂粒从"雾"变成"颗"。
+     频率同时降到 1.8（颗粒变粗一档）：3.2 是"雾面"，1.8 才是肉眼可辨的**砂面**。
+     ───────────────────────────────────────────────────────────────────── */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='3.2' intercept='-1.1'/%3E%3CfeFuncG type='linear' slope='3.2' intercept='-1.1'/%3E%3CfeFuncB type='linear' slope='3.2' intercept='-1.1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 120px 120px;
   background-repeat: repeat;
 
-  opacity: var(--ft-grain-op, .24);
+  opacity: var(--ft-grain-op, .28);
   mix-blend-mode: soft-light;
 
   /* 提合成层：fixed + 混合模式必须隔离，否则滚动时会不断触发全屏重绘 */
@@ -10745,7 +10753,7 @@ html:not([data-frost="off"])::after {
       白色表面上"砂面的齿"本质是**细微的暗点** → 用 multiply 才出得来。
       opacity 仍由同一个变量缩放（×.85），保证 __frost.grain() 两个主题同步。 */
 html:root[data-theme="light"]:not([data-frost="off"])::after {
-  opacity: calc(var(--ft-grain-op, .24) * .85);
+  opacity: calc(var(--ft-grain-op, .28) * .72);
   mix-blend-mode: multiply;
 }
 
@@ -24384,13 +24392,13 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   window.__frostInstalled = true;
 
   var root = document.documentElement;
-  var DEFAULT_OP = '.24';
+  var DEFAULT_OP = '.28';
 
   function state() {
     var off = root.getAttribute('data-frost') === 'off';
     return {
       on: !off,
-      grain: parseFloat(getComputedStyle(root).getPropertyValue('--ft-grain-op')) || 0.24,
+      grain: parseFloat(getComputedStyle(root).getPropertyValue('--ft-grain-op')) || 0.28,
       theme: root.getAttribute('data-theme') || 'dark'
     };
   }
@@ -24409,7 +24417,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     /* 浓度：传 0.02~0.24，越界自动收敛（超过 0.30 会盖住小字） */
     grain: function (v) {
       var n = Number(v);
-      if (!isFinite(n)) n = 0.24;
+      if (!isFinite(n)) n = 0.28;
       n = Math.max(0, Math.min(0.30, n));
       root.style.setProperty('--ft-grain-op', String(n));
       return state();
