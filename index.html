@@ -10735,11 +10735,11 @@ html:not([data-frost="off"])::after {
        把中间调压掉、把亮点暗点拉开 → 砂粒从"雾"变成"颗"。
      频率同时降到 1.8（颗粒变粗一档）：3.2 是"雾面"，1.8 才是肉眼可辨的**砂面**。
      ───────────────────────────────────────────────────────────────────── */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='2.2' intercept='-0.6'/%3E%3CfeFuncG type='linear' slope='2.2' intercept='-0.6'/%3E%3CfeFuncB type='linear' slope='2.2' intercept='-0.6'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 120px 120px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='2.2' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='1.6' intercept='-0.25'/%3E%3CfeFuncG type='linear' slope='1.6' intercept='-0.25'/%3E%3CfeFuncB type='linear' slope='1.6' intercept='-0.25'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 100px 100px;
   background-repeat: repeat;
 
-  opacity: var(--ft-grain-op, .14);
+  opacity: var(--ft-grain-op, .03);
   mix-blend-mode: soft-light;
 
   /* 提合成层：fixed + 混合模式必须隔离，否则滚动时会不断触发全屏重绘 */
@@ -10753,7 +10753,7 @@ html:not([data-frost="off"])::after {
       白色表面上"砂面的齿"本质是**细微的暗点** → 用 multiply 才出得来。
       opacity 仍由同一个变量缩放（×.85），保证 __frost.grain() 两个主题同步。 */
 html:root[data-theme="light"]:not([data-frost="off"])::after {
-  opacity: calc(var(--ft-grain-op, .14) * .80);
+  opacity: calc(var(--ft-grain-op, .03) * .85);
   mix-blend-mode: multiply;
 }
 
@@ -10787,7 +10787,7 @@ html:root:root:not([data-frost="off"]) {
     /* ① 霜边：比原来亮一档的 1px 内框 */
     inset 0 0 0 1px rgba(255, 255, 255, .20),
     /* ② 顶面受光：砂面顶部的漫反射最强（2px 更"厚"） */
-    inset 0 2px 0 rgba(255, 255, 255, .65),
+    inset 0 3px 0 rgba(255, 255, 255, .70),
     /* ③ 边缘第一圈：贴着边框的散射亮带 */
     inset 0 0 3px rgba(255, 255, 255, .16),
     /* ④ 边缘第二圈：18px 的柔光带（玻璃厚度里的散光） */
@@ -10797,12 +10797,12 @@ html:root:root:not([data-frost="off"]) {
     /* ⑤b 折射带：贴着边框 8px 的厚玻璃环（真实毛玻璃最显眼的一圈） */
     inset 0 0 9px 1px rgba(255, 255, 255, .13),
     /* ⑤c 顶面斜向镜面扫光：光打在半透砂面上那一道 */
-    inset 56px 72px 120px -96px rgba(255, 255, 255, .38),
+    inset 96px 120px 200px -160px rgba(255, 255, 255, .55),
     /* ⑥ 乳雾：整块表面的白化（散射把底色洗淡）
           ⭐ .078 → .145：这是"看起来像磨砂"最关键的一项，
           但也**不能无限加**：到 .185 时小号灰字对比度从 2.47 掉到 1.91，
           已经影响读数。.145 是"明显乳白 + 还能读"的平衡点。 */
-    inset 0 0 0 4000px rgba(252, 250, 247, .175),
+    inset 0 0 0 4000px rgba(252, 250, 247, .185),
     /* ⑦ 顶部大面积柔光：光从上面来 */
     inset 0 42px 84px -64px rgba(255, 255, 255, .32),
     /* ⑧ 色散：左右两侧极轻的冷暖分离（真玻璃的边缘色差） */
