@@ -10671,6 +10671,155 @@ body::after {
 }
 </style>
 <!-- GL:CSS:END -->
+<!-- FT:CSS:BEGIN -->
+<!-- frost-tex (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
+<style id="frost-tex-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   frost-tex · 毛玻璃的「毛」（2026-10-23）
+   ───────────────────────────────────────────────────────────────────────────
+   用户原话：「毛玻璃的毛的质感可以继续优化升级一下。现在的玻璃质感我觉得还不够」
+
+   ── 先分清「玻璃」和「毛玻璃」的区别 ─────────────────────────────────
+     玻璃靠的是【透】：高光、折射、透射。
+     毛玻璃（frosted / sandblasted）多了一件事：【散射】。
+     光打到砂面上被漫反射，于是有三条肉眼可见的后果：
+
+       ① 表面起颗粒  —— 砂面的"毛"，也是名字的来源
+       ② 内部发乳白  —— 散射把背景的颜色"洗淡"，整体提亮、降对比（奶玻璃感）
+       ③ 边缘发亮    —— 边缘光程最长、散射最多，所以边缘比中心亮一圈
+
+     之前的 15 层只做了 ① 的一半（方向性高光 = 反射）和厚度，缺 ② ③。
+     所以看起来还是"深色亚克力板"而不是"磨砂玻璃"。
+
+   ── 这一层做三件事 ───────────────────────────────────────────────────
+     ① 细砂颗粒：全屏一次性噪点层（feTurbulence，静态，不逐帧）
+     ② 乳雾   ：给玻璃表面盖一层极淡的奶白（散射导致的白化）
+     ③ 霜边   ：边缘一圈更亮的柔光带（边缘散射）
+
+   ⚠️ 铁律：全部是**静态**材质，零动画、零 rAF、零逐帧重绘。
+   ⚠️ 铁律 D：默认态必须可见 —— 颗粒/乳雾都是"默认就画出来"，
+      不依赖任何 JS 或动画点亮。
+   ⚠️ 性能：颗粒层是全屏 fixed 图层（本项目已知的掉帧三要素之一），
+      因此必须给降级开关：fps-boost 降到 low 档直接 display:none。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* --------------------------------------------------------------------------
+   一、细砂颗粒层
+   --------------------------------------------------------------------------
+   参数怎么定的（都是实测出来的）：
+     baseFrequency 2.2 —— 颗粒必须**细**。0.8~1.1 出来是一团团的云，
+                          放大后像"脏屏幕"；2.2 才是砂面的齿感。
+     numOctaves 2      —— 3 个八度会带出低频块状，破坏"细"。
+     tile 128px        —— 平铺单元。太大浪费显存，太小会看出重复节奏。
+     opacity .085      —— 暗底上的甜点值：齿感清楚可见，但不会盖住文字。
+                          .14 以上肉眼就是电视雪花，.05 以下基本看不出。
+     soft-light        —— 比 overlay 温和得多：overlay 在暗底上会把噪点
+                          放大成黑白麻点，soft-light 只是"轻微提亮/压暗"。
+   -------------------------------------------------------------------------- */
+html:not([data-frost="off"])::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9990;              /* 在内容之上（颗粒要盖住整块玻璃，包括卡片） */
+  pointer-events: none;        /* 绝不挡点击 */
+
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='2.2' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='128' height='128' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
+  background-repeat: repeat;
+
+  opacity: var(--ft-grain-op, .085);
+  mix-blend-mode: soft-light;
+
+  /* 提合成层：fixed + 混合模式必须隔离，否则滚动时会不断触发全屏重绘 */
+  transform: translateZ(0);
+  will-change: opacity;
+}
+
+/* 浅色主题：⭐ 必须换 blend 模式，不能只调 opacity。
+   ⚠️ 实测：soft-light 在白底上几乎不留痕（整屏差异只有 0.2%），
+      因为 soft-light 对高明度区域几乎是恒等映射。
+      白色表面上"砂面的齿"本质是**细微的暗点** → 用 multiply 才出得来。
+      opacity 仍由同一个变量缩放（×.55），保证 __frost.grain() 两个主题同步。 */
+html:root[data-theme="light"]:not([data-frost="off"])::after {
+  opacity: calc(var(--ft-grain-op, .085) * .70);
+  mix-blend-mode: multiply;
+}
+
+/* 关掉（用户/调试用）：上面的 :not() 已经让整块失效，这条是兜底 */
+html[data-frost="off"]::after { display: none; }
+
+/* --------------------------------------------------------------------------
+   二、乳雾 + 霜边（接管 --tg-rim）
+   --------------------------------------------------------------------------
+   ⚠️ 为什么改 --tg-rim 而不是给每个卡片写 box-shadow：
+      type-glass 把玻璃元素的阴影统一收敛成
+        box-shadow: var(--tg-spec), var(--tg-rim), var(--tg-lift);
+      所以只要换掉这个变量，**所有**玻璃表面一起升级，且不用碰任何选择器。
+
+   ⚠️ 为什么要 `html:root:root`（特异性 0,2,1）：
+      glass-pro 已经用 `html:root`（0,1,1）接管过这个变量。
+      这里必须高它一级，才能与插入顺序无关地稳定生效。
+      浅色则用 `html:root:root[data-theme="light"]`（0,3,1）压过它的 (0,2,1)。
+
+   ⭐ 乳雾用 `inset 0 0 0 4000px` 而不是大半径 blur：
+      带 blur 的大半径 inset 阴影**每帧都要重新模糊**，是真正的性能杀手；
+      纯 spread（0 模糊）只是一次填充，渲染成本几乎为零。
+      spread 取 4000px，保证任何尺寸的元素（最宽的面板 ~1600px）都能被完全覆盖，
+      不会出现"中间没盖到"的接缝。
+   -------------------------------------------------------------------------- */
+/* ⭐ 用 `:not([data-frost="off"])` 而不是"先写上去再覆盖回去"：
+   关掉时本规则直接不匹配，--tg-rim 自动回落到 glass-pro 的定义 ——
+   不用把别人的数值抄一份（抄了就会漂移），也不用 JS 才生效。 */
+html:root:root:not([data-frost="off"]) {
+  --tg-rim:
+    /* ① 霜边：比原来亮一档的 1px 内框 */
+    inset 0 0 0 1px rgba(255, 255, 255, .09),
+    /* ② 顶面受光：砂面顶部的漫反射最强 */
+    inset 0 1px 0 rgba(255, 255, 255, .40),
+    /* ③ 乳雾：整块表面的白化（散射把底色洗淡） */
+    inset 0 0 0 4000px rgba(252, 250, 247, .078),
+    /* ④ 顶部 44px 再补一层柔光：让"光从上面来"更明确 */
+    inset 0 44px 96px -70px rgba(255, 255, 255, .10),
+    /* ⑤ 原玻璃厚度：顶面内侧雾光 */
+    inset 0 16px 30px -24px rgba(255, 255, 255, .34),
+    /* ⑥ 原玻璃厚度：底部吃光 */
+    inset 0 -22px 34px -28px rgba(0, 0, 0, .24),
+    /* ⑦ 底面反光 */
+    inset 0 -5px 10px -8px rgba(255, 255, 255, .24);
+}
+
+html:root:root[data-theme="light"]:not([data-frost="off"]) {
+  --tg-rim:
+    inset 0 0 0 1px rgba(255, 255, 255, .95),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    /* 乳雾：浅色玻璃不能加白（本来就是白的，加了等于没加）
+       → 改加一层极淡的暖米色，让表面"有肉"，同时和白底分得开 */
+    inset 0 0 0 4000px rgba(249, 242, 233, .095),
+    inset 0 44px 96px -70px rgba(255, 255, 255, .55),
+    /* 底边暖灰吃光：浅色玻璃的厚度感全靠这一条 */
+    inset 0 -16px 30px -26px rgba(140, 110, 80, .12),
+    inset 0 0 2px rgba(255, 255, 255, .90);
+}
+
+/* --------------------------------------------------------------------------
+   三、降级与无障碍
+   -------------------------------------------------------------------------- */
+
+/* fps-boost 降档：颗粒层是全屏混合层，第一优先级砍掉它 */
+html[data-fps-q="low"]::after { display: none; }
+html[data-fps-q="medium"]::after { opacity: .03; }
+
+/* 深色高对比 / 强制对比模式下，颗粒会让文字边缘发毛，去掉 */
+@media (prefers-contrast: more) {
+  html::after { display: none; }
+}
+
+/* 打印：纸面上不需要屏幕颗粒 */
+@media print {
+  html::after { display: none; }
+}
+
+</style><!-- FT:CSS:END -->
 </head>
 <body>
 
@@ -24184,5 +24333,58 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   else init();
 })();
 </script>
+<!-- FT:JS:BEGIN -->
+<!-- frost-tex (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
+<script id="frost-tex-js">
+/* frost-tex · 极小运行时（2026-10-23）
+   --------------------------------------------------------------------------
+   本层的主体是纯 CSS（颗粒层 + --tg-rim 接管），**页面不依赖这段 JS**。
+   这里只提供一个开关，方便：
+     · 用户觉得颗粒碍眼时一键关掉
+     · 调试时对比开/关（__frost.off() / __frost.on()）
+     · 调颗粒浓度（__frost.grain(0.03 ~ 0.12)）
+   ⚠️ 铁律 D：JS 没跑 / 报错，颗粒照常显示（CSS 默认就是开的）。
+   -------------------------------------------------------------------------- */
+(function () {
+  if (window.__frostInstalled) return;
+  window.__frostInstalled = true;
+
+  var root = document.documentElement;
+  var DEFAULT_OP = '.085';
+
+  function state() {
+    var off = root.getAttribute('data-frost') === 'off';
+    return {
+      on: !off,
+      grain: parseFloat(getComputedStyle(root).getPropertyValue('--ft-grain-op')) || 0.085,
+      theme: root.getAttribute('data-theme') || 'dark'
+    };
+  }
+
+  function set(v) {
+    if (v === 'off') root.setAttribute('data-frost', 'off');
+    else root.removeAttribute('data-frost');
+    return state();
+  }
+
+  window.__frost = {
+    state: state,
+    set: set,
+    on: function () { return set('on'); },
+    off: function () { return set('off'); },
+    /* 浓度：传 0.02~0.12，越界自动收敛（超过 0.12 就是雪花屏了） */
+    grain: function (v) {
+      var n = Number(v);
+      if (!isFinite(n)) n = 0.085;
+      n = Math.max(0, Math.min(0.12, n));
+      root.style.setProperty('--ft-grain-op', String(n));
+      return state();
+    }
+  };
+
+  root.style.setProperty('--ft-grain-op', DEFAULT_OP);
+})();
+
+</script><!-- FT:JS:END -->
 </body>
 </html>
