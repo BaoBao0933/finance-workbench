@@ -1189,6 +1189,9 @@
     transition: box-shadow .2s, transform .2s, border-color .2s;
   }
   .index-card:hover { transform: translateY(-2px); }
+  /* 2026-10-23 指数卡片可点开分时图：给个手型，让人知道能点 */
+  .index-card[data-secid] { cursor: pointer; }
+  .index-card[data-secid]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .index-card.gr { border-color: transparent; }
   .index-card.gr .ic-name { color: var(--text-main); }
   .ic-top { display: flex; align-items: center; gap: 9px; }
@@ -7908,6 +7911,10 @@ html[data-fps-q] .mc-speed {
   border-left: 1px solid var(--card-border);
   overflow: hidden;
 }
+/* ⭐ 2026-10-23 无盘口（指数/停牌）时整块隐藏，走势图占满宽度。
+   否则右侧空着 182px 写“盘口暂不可用”，纯浪费。 */
+.mm-book.is-empty { display: none; }
+
 .mb-head {
   display: grid;
   grid-template-columns: 38px 1fr 60px;
@@ -11974,6 +11981,18 @@ async function sinaFundFlow(type, dirIn, size) {
 function buildCardNode(cfg, focus) {
   const div = document.createElement('div');
   div.className = 'index-card' + (focus ? ' focus-card' : '');
+  /* ⭐ 2026-10-23 核心指数可点开分时图。
+     ⚠️ 只给 A 股指数（1.000001 / 0.399006 这类）挂入口：
+        分时图按 A 股 240 分钟布局，恒生/日经/美股时段长度不同，
+        硬接进来会画出错位的图，所以那几张保持只读。
+     直接写 data-secid，不走 guessSecid —— 000001 会被猜成深市平安银行。 */
+  if (/^[01]\.[0-9]{6}$/.test(cfg.secid)) {
+    div.dataset.secid = cfg.secid;
+    div.setAttribute('role', 'button');
+    div.setAttribute('tabindex', '0');
+    div.title = '点击查看分时图';
+    div.setAttribute('aria-label', '查看 ' + cfg.name + ' 分时图');
+  }
   div.innerHTML = `
     <div class="ic-top">
       <span class="ic-name">${cfg.name}</span>
@@ -19559,7 +19578,10 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   //   .watch-row 自选 / .pos-row 持仓 / .lhb-row 龙虎榜 / .sec-row 成分股与核心个股
   //   .lad-stock 连板梯队里的单只（注意不要用 .ladder-row，那行有多只股票）
   //   .fund-row  人气榜 / 资金流向个股（板块类型的 fund-row 会在解析时被排除）
-  var ROW_SEL = '.watch-row, .pos-row, .lhb-row, .sec-row, .lad-stock, .fund-row';
+  /* ⭐ 2026-10-23 加入 .index-card：核心指数（上证/深证/创业板…）也能点开分时图。
+     指数的 secid 自带市场前缀（1.000001 / 0.399001），不能走 guessSecid ——
+     000001 会被猜成深市平安银行。所以卡片上直接写 data-secid。 */
+  var ROW_SEL = '.watch-row, .pos-row, .lhb-row, .sec-row, .lad-stock, .fund-row, .index-card';
   var SKIP_SEL = 'button, a, input, select, textarea, .w-del, .w-pin, [data-act]';
   var PAD = { l: 52, r: 56, t: 12, b: 17 };
   var GAP = 13;
@@ -19684,6 +19706,27 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     return attempt();
   }
 
+  /* ⭐⭐ 2026-10-23 均价校正 —— 指数和个股的「均价」不能同一套算法
+     ─────────────────────────────────────────────────────────────────
+     现象：上证指数分时图的均价显示 15.21（指数是 3600 点），
+           Y 轴被撑成 ±111%，走势被压成一条直线。
+     原因：指数没有「股本」概念，`成交额 / (成交量×100)` 算出来的是
+           成分股每股均价（十几块），和指数点位差两个数量级。
+           这个值一旦进了 dev 计算，纵轴范围就爆炸了。
+     判据：均价偏离昨收超过 20% 就判定这个字段不可信
+           （A 股涨跌停 10%，指数日内更小），改用成交量加权均价 VWAP。
+     ⚠️ 注意要在每个点上校正，而不是只改最后一个点 —— 均价线是逐点画的。 */
+  function fixAvg(pts, pre) {
+    var pv = 0, vv = 0;
+    pts.forEach(function (p) {
+      if (p.vol > 0 && p.price > 0) { pv += p.price * p.vol; vv += p.vol; }
+      var bad = !isNum(p.avg) || p.avg <= 0 ||
+                (pre > 0 && Math.abs(p.avg / pre - 1) > 0.2);
+      if (bad) p.avg = vv > 0 ? pv / vv : p.price;
+    });
+    return pts;
+  }
+
   function parseEast(d) {
     var pts = [];
     d.trends.forEach(function (s) {
@@ -19705,8 +19748,10 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     // （已与 push2 的 f47/f48 交叉核对：累加 1,991,764 手 = f47 ✓）
     var tv = 0, ta = 0;
     pts.forEach(function (p) { tv += p.vol; ta += p.amt; });
+    var preE = parseFloat(d.preClose) || 0;
+    fixAvg(pts, preE);
     return {
-      name: d.name || '', pre: parseFloat(d.preClose) || 0, pts: pts,
+      name: d.name || '', pre: preE, pts: pts,
       totalVol: tv, totalAmt: ta,
       date: (d.trends[0] || '').slice(0, 10)
     };
@@ -19766,6 +19811,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
         vol: dv, amt: da
       });
     });
+    fixAvg(pts, pre);
     return {
       name: name, pre: pre, pts: pts,
       totalVol: cumV, totalAmt: cumA,
@@ -19831,6 +19877,9 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
       if (isNum(p.avg) && p.avg > 0) dev = Math.max(dev, Math.abs(p.avg - pre));
     });
     if (!(dev > 0)) dev = Math.max(pre * 0.002, 0.01);
+    /* 纵轴上限：A 股涨跌停 10%，再宽就没法看了。
+       这是最后一道防线 —— 万一数据源给出离谱的价格，也不会把走势压成直线。 */
+    if (pre > 0) dev = Math.min(dev, pre * 0.15);
     var yTop = pre + dev * 1.12, yBot = pre - dev * 1.12;
     var yOf = function (v) { return PAD.t + (yTop - v) / (yTop - yBot) * plotH; };
     var slotX = function (s) { return PAD.l + s / SLOTS * plotW; };
@@ -20128,7 +20177,17 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     if (isNum(meta.totalVol) && meta.totalVol > 0) S.vol = meta.totalVol;
     if (isNum(meta.totalAmt) && meta.totalAmt > 0) S.amt = meta.totalAmt;
     var last = pts[pts.length - 1];
-    S.avg = (isNum(last.avg) && last.avg > 0) ? last.avg : (S.vol > 0 ? S.amt / (S.vol * 100) : last.price);
+    /* 均价：优先用最后一笔的 avg（已被 fixAvg 校正过）；
+       再退到个股算法 amt/(vol*100)，但这个对指数不成立，
+       所以再加一道「偏离昨收 >20% 就改 VWAP」的兜底。 */
+    var avgCalc = (isNum(last.avg) && last.avg > 0) ? last.avg
+                : (S.vol > 0 ? S.amt / (S.vol * 100) : last.price);
+    if (!(avgCalc > 0) || (S.pre > 0 && Math.abs(avgCalc / S.pre - 1) > 0.2)) {
+      var _pv = 0, _vv = 0;
+      pts.forEach(function (p) { if (p.vol > 0 && p.price > 0) { _pv += p.price * p.vol; _vv += p.vol; } });
+      if (_vv > 0) avgCalc = _pv / _vv;
+    }
+    S.avg = avgCalc;
     S.lastTime = last.t;
 
     var pct = S.pre > 0 ? (last.price / S.pre - 1) * 100 : 0;
@@ -20187,10 +20246,16 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   function renderBook(book) {
     var wrap = byId('mm-book');
     if (!wrap) return;
+    /* ⭐ 2026-10-23 无盘口时整块收起来
+       指数（上证/创业板/科创50）本来就没有五档，停牌股也可能没有。
+       原来留一块「盘口暂不可用」空占右侧 182px，图表白白少这么宽。
+       给 wrap 打 is-empty，CSS 里直接 display:none，走势图吃掉整宽。 */
     if (!book || (!book.bids.length && !book.asks.length)) {
+      wrap.classList.add('is-empty');
       wrap.innerHTML = '<div class="mb-empty">盘口暂不可用</div>';
       return;
     }
+    wrap.classList.remove('is-empty');
     var pre = S.pre || 0;
     var sideCls = function (p) { return p > pre ? 'up' : (p < pre ? 'down' : 'flat'); };
     /* ⭐⭐⭐ 2026-10-22 盘口价格改为「按买卖身份着色」（用户要求）
@@ -20484,6 +20549,12 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
   // 从行元素里取股票名（不同列表的行结构不一样，逐个适配）
   function pickName(row) {
+    // 0) 核心指数卡片：<span class="ic-name">上证指数</span>
+    var icn = row.querySelector && row.querySelector('.ic-name');
+    if (icn) {
+      var t0 = (icn.textContent || '').trim();
+      if (t0) return t0;
+    }
     // 1) 自选 / 持仓行：<span class="w-name">名称 <span class="w-flag">A股</span></span>
     var wn = row.querySelector && row.querySelector('.w-name');
     if (wn) {
