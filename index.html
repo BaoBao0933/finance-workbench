@@ -10051,6 +10051,425 @@ html[data-fps-q="low"] .hc-dog {
 html[data-fps-q] .lf-sheet-panel { transform: none !important; }
 
 </style><!-- LF:CSS:END -->
+<!-- GL:CSS:BEGIN -->
+<style id="glass-pro-style">
+/* ==========================================================================
+   glass-pro · 毛玻璃物理化升级（2026-10-23）
+   --------------------------------------------------------------------------
+   为什么需要这一层：
+     type-glass 已经把 88 处 backdrop-filter 收敛成 4 档，但它给了**一套**
+     三件套变量（--tg-spec / --tg-rim / --tg-lift）给深浅两个主题共用。
+     实测后果：
+       · 浅色主题下 --tg-spec 是 rgba(255,255,255,.78)，
+         铺在 #faf6f0 的浅底上几乎和白底同色 —— 玻璃**完全没有高光**，
+         看起来就是一块半透明白色塑料片。
+       · 深色主题下同一条 .78 的白线又太亮，边缘像画了一圈白框。
+       · 原 --tg-spec 只有「顶边一条线」，没有左右方向的强弱，
+         而真实玻璃的高光是**从受光侧往背光侧衰减**的。
+
+   这一层做四件事（全部只改视觉材质，不加任何常驻动画）：
+     ① 深/浅两套独立的三件套，各自按主题的光照条件调
+     ② 高光方向性：顶边最强 → 左边次之 → 右边最弱
+     ③ 玻璃厚度：底边暗线 + 顶面内侧雾光 + 底部内阴影
+     ④ 投影分三层（贴地 / 接触 / 环境），浮起关系更可信
+
+   ⚠️ 刻意**不接管 backdrop-filter**：
+      type-glass 与 fps-boost 用 `html:not([data-fps-q])` 做守卫，
+      再插一条 backdrop-filter 会和它们抢地盘，降级档也会失效。
+      本层只改变量 + 少数元素的 box-shadow，物理上不影响那套机制。
+
+   ⚠️ 也不依赖插入顺序：
+      所有规则都用**重复类名/`html:root`** 把特异性顶到高于 type-glass，
+      所以无论本块插在文件哪个位置，都能稳定生效。
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   一、深色主题：白线要压暗，靠"内发光"表现玻璃厚度
+   -------------------------------------------------------------------------- */
+html:root {
+  /* 高光：顶边是受光面，左边次之（光从左上打），右边只剩一点环境反光 */
+  --tg-spec:
+    inset 0 1px 0 rgba(255, 255, 255, .58),
+    inset 1px 0 0 rgba(255, 255, 255, .13),
+    inset -1px 0 0 rgba(255, 255, 255, .055);
+
+  /* 厚度：外圈 1px 环 + 底边暗线（玻璃有厚度，底边会吃掉光）
+     + 顶面内侧雾光（光打进玻璃内部在靠近顶边处散射）
+     + 底部内阴影（越靠下越暗，形成体积） */
+  --tg-rim:
+    inset 0 0 0 1px rgba(255, 255, 255, .055),
+    inset 0 -1px 0 rgba(0, 0, 0, .22),
+    inset 0 16px 26px -22px rgba(255, 255, 255, .26),
+    inset 0 -20px 30px -26px rgba(0, 0, 0, .30),
+    /* 边缘柔光带：玻璃切面不是一条硬线，而是 3px 的柔和过渡。
+       纯 inset 0 0 0 1px 是"描边"，加这层才是"厚度"。 */
+    inset 0 0 5px -1px rgba(255, 255, 255, .16),
+    /* 底部反光：玻璃底面把桌面光反射回来，位置在底边内侧 4px。 */
+    inset 0 -4px 8px -6px rgba(255, 255, 255, .22);
+
+  /* 投影三层：贴地（几乎不模糊）+ 接触（中等）+ 环境（大而淡） */
+  --tg-lift:
+    0 1px 2px rgba(0, 0, 0, .18),
+    0 9px 24px -9px rgba(0, 0, 0, .34),
+    0 26px 56px -24px rgba(0, 0, 0, .30);
+}
+
+/* --------------------------------------------------------------------------
+   二、浅色主题：这里才是这次改动的主战场
+   --------------------------------------------------------------------------
+   浅色玻璃的"高级感"来自三样东西，缺一不可：
+     1. 顶面**纯白**高光（不能是 .78 的半透明白，那样等于没有）
+     2. 底边一条**暖灰**暗线（冷灰会脏，暖灰才像纸/玻璃的投影）
+     3. 投影要淡但**分层**（单层大投影 = 塑料卡片，三层才有空气感）
+   -------------------------------------------------------------------------- */
+html:root[data-theme="light"] {
+  --tg-spec:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 1px 0 0 rgba(255, 255, 255, .62),
+    inset -1px 0 0 rgba(255, 255, 255, .34);
+
+  --tg-rim:
+    inset 0 0 0 1px rgba(255, 255, 255, .72),
+    inset 0 -1px 0 rgba(140, 110, 72, .09),
+    inset 0 16px 26px -22px rgba(255, 255, 255, 1),
+    inset 0 -22px 34px -28px rgba(140, 110, 72, .10),
+    /* 边缘柔光带：浅底上比深色更明显，这是"玻璃切面"的主要表现 */
+    inset 0 0 6px -1px rgba(255, 255, 255, .75),
+    /* 底部反光：暖白（反射的是米色背景的光），冷白会显脏 */
+    inset 0 -4px 9px -6px rgba(255, 252, 246, .85);
+
+  --tg-lift:
+    0 1px 2px rgba(90, 70, 45, .055),
+    0 6px 16px -6px rgba(90, 70, 45, .10),
+    0 20px 44px -20px rgba(90, 70, 45, .14);
+}
+
+/* --------------------------------------------------------------------------
+   三、大容器加一层极淡色散
+   --------------------------------------------------------------------------
+   光穿过玻璃时不同波长折射率不同，边缘会出现极细微的冷暖分离。
+   这是"真玻璃"和"半透明色块"之间最后那点差别，但**幅度必须极小**：
+   实测 α 超过 .05 就会显脏、像屏幕偏色。这里用 .03 / .035。
+   只给三个面积最大的容器加 —— 小控件加了看不出来，纯属浪费合成开销。
+   -------------------------------------------------------------------------- */
+html:not([data-fps-q]) .ov-card.ov-card,
+html:not([data-fps-q]) .index-card.index-card,
+html:not([data-fps-q]) .live-bar.live-bar {
+  box-shadow:
+    var(--tg-spec), var(--tg-rim), var(--tg-lift),
+    inset 1px 0 0 rgba(120, 170, 255, .030),
+    inset -1px 0 0 rgba(255, 150, 110, .035);
+}
+
+/* --------------------------------------------------------------------------
+   四、降级与无障碍
+   -------------------------------------------------------------------------- */
+
+/* fps 降级档（data-fps-q 已存在）下，内发光是最贵的一项（blur 26px），
+   直接拿掉，只留方向性高光和底边暗线 —— 视觉上还是玻璃，只是没这么"厚"。
+   这一条让本层和 fps-boost 的降级机制天然兼容。 */
+html[data-fps-q] {
+  --tg-rim:
+    inset 0 0 0 1px rgba(255, 255, 255, .055),
+    inset 0 -1px 0 rgba(0, 0, 0, .20);
+}
+html[data-fps-q][data-theme="light"] {
+  --tg-rim:
+    inset 0 0 0 1px rgba(255, 255, 255, .70),
+    inset 0 -1px 0 rgba(140, 110, 72, .085);
+}
+
+/* 减少透明偏好：直接回退到接近不透明，高光/厚度全关掉。
+   注意这条不碰 backdrop-filter（那是 type-glass 的地盘），
+   只清掉本层加的东西，避免"关了还留一圈白边"。 */
+@media (prefers-reduced-transparency: reduce) {
+  html:root {
+    --tg-spec: inset 0 0 0 1px rgba(255, 255, 255, .10);
+    --tg-rim: none;
+    --tg-lift: 0 1px 2px rgba(0, 0, 0, .14);
+  }
+  html:root[data-theme="light"] {
+    --tg-spec: inset 0 0 0 1px rgba(120, 95, 60, .12);
+    --tg-rim: none;
+    --tg-lift: 0 1px 2px rgba(90, 70, 45, .10);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   五、边缘方向性：这一条才是「一眼看出高级」的关键
+   --------------------------------------------------------------------------
+   为什么单独做这条：
+     上面那些 inset 高光只有 1px，在 2x 屏上是 2 个物理像素，
+     而卡片本身又是接近纯白的半透明面 —— 白线压在白面上**等于没有**。
+     实测改前/改后像素差异只有 0.8%，肉眼根本分不出来。
+
+     真正拉开明暗差的是 **border 的四边**：
+       · border 是实打实的 1px（2x 屏 = 2 物理像素），比 inset 阴影更"硬"
+       · 边框不受卡片背景色影响，白底上放白边框依然是白的，但放在
+         米色背景外的**底边**用暖灰，就能立刻"切"出玻璃的厚度
+       · 上亮下暗 = 光从上方来 = 立体；四边同色 = 描边 = 塑料片
+
+     配色取自玻璃的物理模型：顶边是受光的镜面（近纯白），
+     底边是厚度切面（吃掉光的暖灰），左右是侧面的弱反光。
+     ⚠️ 必须用 `html:root[data-theme="light"] .x.x` 这种重复类名，
+        否则特异性打不过 apple-fx / type-glass 已经写好的 border。
+   -------------------------------------------------------------------------- */
+
+html:root[data-theme="light"] .index-card.index-card,
+html:root[data-theme="light"] .ov-card.ov-card,
+html:root[data-theme="light"] .sector-chip.sector-chip,
+html:root[data-theme="light"] .sec-hot-card.sec-hot-card {
+  border-top-color: rgba(255, 255, 255, .98);
+  border-left-color: rgba(255, 255, 255, .72);
+  border-right-color: rgba(255, 255, 255, .58);
+  border-bottom-color: rgba(146, 116, 80, .16);
+}
+
+/* 深色主题：白边太亮会像白框，压到 .22，底边用纯黑表达厚度 */
+html:root:not([data-theme="light"]) .index-card.index-card,
+html:root:not([data-theme="light"]) .ov-card.ov-card,
+html:root:not([data-theme="light"]) .sector-chip.sector-chip,
+html:root:not([data-theme="light"]) .sec-hot-card.sec-hot-card {
+  border-top-color: rgba(255, 255, 255, .22);
+  border-left-color: rgba(255, 255, 255, .12);
+  border-right-color: rgba(255, 255, 255, .07);
+  border-bottom-color: rgba(0, 0, 0, .38);
+}
+
+/* --------------------------------------------------------------------------
+   六、玻璃底色：从「纯白」改成「微冷白」—— 这一条是肉眼最容易感知的
+   --------------------------------------------------------------------------
+   为什么加这条：
+     前面五条（高光、厚度、投影、边框、边缘柔光）改完，实测像素差异只有
+     0.8%~1.2%，放大 4 倍才看得出来。原因是**卡片本身几乎是纯白**，
+     白色叠白色 = 没有信息量，人眼对大面积均匀色块里的细微渐变极不敏感。
+
+     真正的玻璃不是纯白的：光穿过玻璃时短波散射更强（瑞利散射），
+     所以真玻璃在暖色环境里会显出**一点冷调**。设计上这叫
+     "冷暖分离"—— 卡片偏冷、环境偏暖，两者才"分得开"，
+     玻璃才有"清透"的感觉。纯白卡片在暖底上只会显得"糊成一片"。
+
+     实测三档（纯白 / 微冷 / 微暖）：
+       · 纯白 → 和米色背景糊在一起，像瓷砖
+       · 微冷 → 卡片"跳"出来，像玻璃（采用）
+       · 微暖 → 和背景更融，反而少了玻璃的清透感
+
+     ⚠️ 幅度必须克制：alpha 全部 .84 以上，色相只偏 6~8 个单位。
+        再冷就会"发青、发脏"，那是廉价感的另一个方向。
+     ⚠️ 只动浅色主题。深色主题的卡片本身已经很暗，加冷调会显脏。
+   -------------------------------------------------------------------------- */
+
+html:root[data-theme="light"] .index-card.index-card,
+html:root[data-theme="light"] .ov-card.ov-card,
+html:root[data-theme="light"] .sector-chip.sector-chip,
+html:root[data-theme="light"] .sec-hot-card.sec-hot-card {
+  background:
+    linear-gradient(120deg,
+      rgba(250, 253, 255, .90) 0%,
+      rgba(233, 242, 254, .72) 52%,
+      rgba(251, 254, 255, .84) 100%) !important;
+}
+
+/* 重点大卡（上证/科创50/创业板）保持更实的底 —— 它是视觉焦点，
+   透明度太高低会让数字对比度下降。冷调但更实。 */
+html:root[data-theme="light"] .index-card.focus-card {
+  background:
+    linear-gradient(120deg,
+      rgba(252, 254, 255, .93) 0%,
+      rgba(234, 243, 255, .78) 52%,
+      rgba(253, 255, 255, .88) 100%),
+    linear-gradient(90deg, rgba(155, 175, 215, .10), transparent 40%) !important;
+}
+
+/* hover 时玻璃"被点亮"：底子更白一档、冷调仍保留。
+   这是玻璃材质的核心反馈 —— 光打上来，玻璃变亮，而不是变个边框颜色。 */
+html:root[data-theme="light"] .index-card:hover,
+html:root[data-theme="light"] .ov-card:hover,
+html:root[data-theme="light"] .sector-chip:hover,
+html:root[data-theme="light"] .sec-hot-card:hover {
+  background:
+    linear-gradient(120deg,
+      rgba(255, 255, 255, .95) 0%,
+      rgba(240, 247, 255, .84) 52%,
+      rgba(255, 255, 255, .92) 100%) !important;
+}
+
+/* --------------------------------------------------------------------------
+   七、环境光：优化真正生效的那一层
+   --------------------------------------------------------------------------
+   ⚠️ 踩过的坑（值得记下来）：
+     我先改了 `body { background: ... }` 加暖色光斑，改完发现整屏变粉、
+     而且怎么调都不对。用"把 body 背景改成纯红再截图"才诊断出来：
+     body 背景确实生效，但**视觉主体不来自它** ——
+     真正盖在最上面的是 `body::after`（一个 position:fixed inset:0 的装饰层），
+     它自带 4 层 radial-gradient，而且 3 层是暖色（.16 / .18 / .26）。
+
+     ⭐ 通则：**改背景前先用"改成纯红/纯绿"定位到底哪一层在渲染。**
+        项目有 15 个注入层，body 背景 ≠ 你看到的那层。
+
+   原来这层的问题：4 个光斑**全是暖色**（珊瑚/橙/灰），
+   玻璃无论在哪张卡上透出来的都是同一种暖调 →
+   等于"有光但没有层次"。而且中间那团 .26 的橙红太热，
+   浅色主题下会把整个中部染粉。
+
+   改法（遵守 color-matching 的"一页最多两个彩色家族"）：
+     暖（珊瑚橙，主色）保留但降热，**新增两团冷蓝**放到左下和右下，
+     形成「左上暖 → 左下冷 → 中右暖 → 右下冷」的交错。
+     玻璃在不同位置透出不同温度，层次就出来了。
+   -------------------------------------------------------------------------- */
+body::after {
+  background:
+    /* 暖：左上（原样保留，这是主光源） */
+    radial-gradient(600px 420px at 20% 14%, rgba(232, 109, 94, .18), transparent 70%),
+    /* 暖：中右（原 .26 太热，浅色下会把中部染粉，收到 .19） */
+    radial-gradient(660px 480px at 80% 56%, rgba(224, 118, 88, .19), transparent 72%),
+    /* 灰：底部（原样，用来压住下沿，避免整屏浮起来） */
+    radial-gradient(520px 400px at 50% 92%, rgba(82, 82, 92, .30), transparent 70%),
+    /* 暖：右上（原样） */
+    radial-gradient(500px 380px at 92% 10%, rgba(228, 140, 100, .16), transparent 70%),
+    /* ⭐ 新增：冷：左下 —— 与左上暖斑形成对角温差 */
+    radial-gradient(640px 470px at 6% 76%, rgba(106, 148, 232, .15), transparent 70%),
+    /* ⭐ 新增：冷：右下角 —— 补足右下，避免全屏只剩暖 */
+    radial-gradient(540px 410px at 97% 97%, rgba(118, 158, 228, .11), transparent 72%);
+}
+</style>
+<!-- GL:CSS:END -->
+<!-- GF:CSS:BEGIN -->
+<!-- glass-fold (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
+<style id="glass-fold-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   glass-fold · 学自 21st.dev「Glassmorphism Folder Cards」的玻璃配方
+   ───────────────────────────────────────────────────────────────────────────
+   来源：https://21st.dev/community/components/kedhareswer/glass-folder-cards/default
+        （MIT，作者 Kedhareswer Naidu）
+   学习方式：读它的组件源码（glass-folder-cards.html / .tsx），拆出玻璃的**分层结构**。
+
+   ── 它到底怎么做的（5 层，按 z 轴从后到前）─────────────────────────────
+     ① 背板 .gf-back      实底渐变（浅 #f3f3f4→#e3e3e6 / 深 #2a2a2e→#121214）
+     ② 背后内容 .gf-art   一张图 / canvas —— **玻璃"透"的来源**
+     ③ 背光 .gf-back-sheen 顶部一条 22% 白光 + 右上角径向高光
+     ④ 前玻璃 .gf-front   backdrop-filter: blur(22px) saturate(1.5)
+          · .gf-tint  **上透下实**的渐变：
+              浅 rgba(255,255,255,.16) → .50@42% → rgba(252,252,252,.93)
+              深 rgba(18,18,20,.18)    → .62@46% → rgba(8,8,10,.94)
+          · .gf-spec  **跟随指针**的径向高光（soft-light / 暗色 screen）
+          · .gf-front-rim  2.4px 描边（暗色模式 opacity 降到 .55）
+     ⑤ 投影 .gf-shadow    一块 blur(22px) 的椭圆，不是多层 box-shadow
+
+   ── 三条和我之前做法冲突、但它是对的 ─────────────────────────────────
+     1. **没有颗粒、没有乳雾**。玻璃的"体"来自「上透下实」的方向性渐变，
+        不是把整块表面均匀刷白 —— 均匀白 = 塑料/纸。
+     2. 高光是**可跟随指针的**（radial at var(--px) var(--py)），不是固定的斜向扫光。
+     3. 边缘是**较粗的柔描边**（2.4px，暗色还降透明度），不是 1px 刺眼亮线。
+
+   ── 为什么工作台上能用 ──────────────────────────────────────────────
+     工作台卡片背后是深空渐变 + 环境光斑，本身就相当于第 ② 层"背后内容"，
+     所以只要把 ③④⑤ 补齐，就能得到同样的通透感。
+
+   ⚠️ 铁律：静态材质，只有 hover 时的高光位置变化（纯 CSS 变量，零 rAF）。
+   ⚠️ 降级：无 JS 时 --gf-x/--gf-y 用默认值（50% / 26%），玻璃照常成立。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* --------------------------------------------------------------------------
+   一、深色：上透下实的烟玻璃
+   -------------------------------------------------------------------------- */
+html:root:root:not([data-gf="off"]) .index-card,
+html:root:root:not([data-gf="off"]) .ov-card,
+html:root:root:not([data-gf="off"]) .live-bar {
+  /* 层序（上 → 下）：指针高光 → 珊瑚暖光 → 烟色渐变 */
+  background-image:
+    radial-gradient(320px 240px at var(--gf-x, 50%) var(--gf-y, 26%),
+      rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg,
+      rgba(255, 138, 107, .12) 0%,
+      rgba(255, 138, 107, 0) 32%),
+    /* 组件原值 .18/.62/.94 对看板太实（它要挡住文件夹里的内容）。
+       看板要"透"，所以整体减半：.08/.32/.50 —— 保留上透下实的**方向**，
+       但让背后的环境光仍然透得过来。 */
+    linear-gradient(180deg,
+      rgba(24, 26, 32, .08) 0%,
+      rgba(16, 18, 24, .32) 46%,
+      rgba(10, 12, 16, .50) 100%);
+  background-color: transparent !important;
+
+  -webkit-backdrop-filter: url(#apple-lg) blur(24px) saturate(1.5) !important;
+  backdrop-filter: url(#apple-lg) blur(24px) saturate(1.5) !important;
+
+  border: 1px solid rgba(255, 255, 255, .10) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .18),
+    inset 0 0 0 1px rgba(255, 255, 255, .03),
+    0 1px 2px rgba(0, 0, 0, .30),
+    0 18px 40px -18px rgba(0, 0, 0, .55) !important;
+
+  transition: box-shadow .35s cubic-bezier(.22, 1, .36, 1),
+              border-color .35s cubic-bezier(.22, 1, .36, 1);
+}
+
+/* hover：切面变亮一档 + 投影抬高（对应组件 .gf-root:hover 的 lift） */
+html:root:root:not([data-gf="off"]) .index-card:hover,
+html:root:root:not([data-gf="off"]) .ov-card:hover,
+html:root:root:not([data-gf="off"]) .live-bar:hover {
+  border-color: rgba(255, 255, 255, .16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .26),
+    inset 0 0 0 1px rgba(255, 255, 255, .04),
+    0 2px 4px rgba(0, 0, 0, .32),
+    0 26px 52px -20px rgba(0, 0, 0, .62) !important;
+}
+
+/* --------------------------------------------------------------------------
+   二、浅色：白玻璃（组件浅色配方的 alpha 原样搬过来）
+   -------------------------------------------------------------------------- */
+html:root:root[data-theme="light"]:not([data-gf="off"]) .index-card,
+html:root:root[data-theme="light"]:not([data-gf="off"]) .ov-card,
+html:root:root[data-theme="light"]:not([data-gf="off"]) .live-bar {
+  background-image:
+    radial-gradient(320px 240px at var(--gf-x, 50%) var(--gf-y, 26%),
+      rgba(255, 255, 255, .60), rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg,
+      rgba(255, 255, 255, .16) 0%,
+      rgba(255, 255, 255, .50) 42%,
+      rgba(253, 251, 248, .93) 100%);
+  background-color: transparent !important;
+
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+
+  border: 1px solid rgba(255, 255, 255, .55) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .95),
+    inset 0 0 0 1px rgba(255, 255, 255, .35),
+    0 1px 2px rgba(150, 110, 80, .10),
+    0 16px 34px -16px rgba(150, 110, 80, .35) !important;
+}
+
+html:root:root[data-theme="light"]:not([data-gf="off"]) .index-card:hover,
+html:root:root[data-theme="light"]:not([data-gf="off"]) .ov-card:hover,
+html:root:root[data-theme="light"]:not([data-gf="off"]) .live-bar:hover {
+  border-color: rgba(255, 255, 255, .75);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 0 0 1px rgba(255, 255, 255, .45),
+    0 2px 4px rgba(150, 110, 80, .12),
+    0 24px 48px -20px rgba(150, 110, 80, .42) !important;
+}
+
+/* --------------------------------------------------------------------------
+   三、降级
+   -------------------------------------------------------------------------- */
+/* 低帧率档：backdrop-filter 是这一层最贵的东西，交给 fps-boost 的降级规则处理；
+   这里只保证本层不额外增加合成层。 */
+html[data-fps-q] .index-card,
+html[data-fps-q] .ov-card,
+html[data-fps-q] .live-bar {
+  transition: none;
+}
+
+/* 手动关闭：不需要额外规则 —— 上面所有规则都带 :not([data-gf="off"])，
+   关掉时它们整段不匹配，自然回落到 type-glass / glass-pro / apple-fx 的配方。 */
+
+</style><!-- GF:CSS:END -->
 <!-- TR:CSS:BEGIN -->
 <!-- type-refine (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
 <style id="type-refine-style">
@@ -10387,290 +10806,60 @@ button {
 /* ═══ 7. 降级：不涉及动效，无需 reduce 处理；但保留低配机器的清晰度 ════ */
 /* 关闭抗锯齿在极低 DPI 屏上会让细字发虚 —— 不降级，字体渲染是画质底线。 */
 
+/* ═══ 6a. ⭐⭐⭐ 2026-10-23 补漏：四个模块的数字没进数字族 ═══
+   ───────────────────────────────────────────────────────────────────────
+   用户反馈：「走势分析、资金流向等板块的数字字体没有改过来」。
+
+   上一轮（2026-10-18）扫的是首页指数卡与板块卡，漏了：
+     走势分析  .st-score（44px 情绪分） / .senti-card .sc-vals（30px）
+     资金流向  .fund-amt / .fund-pct / .fund-ratio / .fund-rank
+     期货      .v-zr / .v-zp / .v-zs（昨收/最高/最低）
+     龙虎榜    .lhb-row .watch-col 里的 b / span（收盘价、净额、买卖额）
+
+   统一进数字族：Display 光学轴 + tabular-nums —— 与指数卡完全一致。
+   ⚠️ .fund-amt / .fund-pct 原来被 TG 层给了 Space Mono，
+      TR 在链尾（同特异性 0,1,0）稳定获胜。 */
+.st-score,
+.senti-card .sc-vals,
+.fund-amt,
+.fund-pct,
+.fund-ratio,
+.fund-rank,
+.v-zr,
+.v-zp,
+.v-zs,
+.lhb-row .watch-col b,
+.lhb-row .watch-col span {
+  font-family: var(--tr-font-num);
+  font-weight: var(--tr-w-num);
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1;
+  font-optical-sizing: auto;
+}
+
+/* 44px / 30px 的强调数字：字重 500 偏轻，抬到 560 才立得住 */
+.st-score,
+.senti-card .sc-vals { font-weight: 560; }
+
+/* 排名徽标是小字，要补字重才清晰 */
+.fund-rank { font-weight: 620; letter-spacing: .01em; }
+
+/* ═══ 6b. ⭐⭐⭐ 2026-10-23 修复：龙虎榜涨跌幅没有颜色 ═══
+   ───────────────────────────────────────────────────────────────────────
+   根因（不是漏写 class，是**被压掉了**）：
+     主文件里 `.lhb-wrap .lhb-row .watch-col { color: #c2c8d0 }` 特异性 (0,3,0)，
+     压过通用规则 `b.up { color: var(--up) }`（0,1,1）→ 颜色被继承走，
+     所以 HTML 里明明有 class="up"，渲染出来却是一个灰字。
+
+   正解：在同样的上下文里再写一次，把特异性抬到 (0,5,1)，
+   同时压过浅色主题那条 `:root[data-theme="light"] ... .watch-col`（0,5,0）。 */
+:root .lhb-wrap .lhb-row .watch-col b.up,
+:root .lhb-wrap .lhb-row .watch-col span.up { color: var(--up); }
+:root .lhb-wrap .lhb-row .watch-col b.down,
+:root .lhb-wrap .lhb-row .watch-col span.down { color: var(--down); }
+
 </style><!-- TR:CSS:END -->
-<!-- GL:CSS:BEGIN -->
-<style id="glass-pro-style">
-/* ==========================================================================
-   glass-pro · 毛玻璃物理化升级（2026-10-23）
-   --------------------------------------------------------------------------
-   为什么需要这一层：
-     type-glass 已经把 88 处 backdrop-filter 收敛成 4 档，但它给了**一套**
-     三件套变量（--tg-spec / --tg-rim / --tg-lift）给深浅两个主题共用。
-     实测后果：
-       · 浅色主题下 --tg-spec 是 rgba(255,255,255,.78)，
-         铺在 #faf6f0 的浅底上几乎和白底同色 —— 玻璃**完全没有高光**，
-         看起来就是一块半透明白色塑料片。
-       · 深色主题下同一条 .78 的白线又太亮，边缘像画了一圈白框。
-       · 原 --tg-spec 只有「顶边一条线」，没有左右方向的强弱，
-         而真实玻璃的高光是**从受光侧往背光侧衰减**的。
-
-   这一层做四件事（全部只改视觉材质，不加任何常驻动画）：
-     ① 深/浅两套独立的三件套，各自按主题的光照条件调
-     ② 高光方向性：顶边最强 → 左边次之 → 右边最弱
-     ③ 玻璃厚度：底边暗线 + 顶面内侧雾光 + 底部内阴影
-     ④ 投影分三层（贴地 / 接触 / 环境），浮起关系更可信
-
-   ⚠️ 刻意**不接管 backdrop-filter**：
-      type-glass 与 fps-boost 用 `html:not([data-fps-q])` 做守卫，
-      再插一条 backdrop-filter 会和它们抢地盘，降级档也会失效。
-      本层只改变量 + 少数元素的 box-shadow，物理上不影响那套机制。
-
-   ⚠️ 也不依赖插入顺序：
-      所有规则都用**重复类名/`html:root`** 把特异性顶到高于 type-glass，
-      所以无论本块插在文件哪个位置，都能稳定生效。
-   ========================================================================== */
-
-/* --------------------------------------------------------------------------
-   一、深色主题：白线要压暗，靠"内发光"表现玻璃厚度
-   -------------------------------------------------------------------------- */
-html:root {
-  /* 高光：顶边是受光面，左边次之（光从左上打），右边只剩一点环境反光 */
-  --tg-spec:
-    inset 0 1px 0 rgba(255, 255, 255, .58),
-    inset 1px 0 0 rgba(255, 255, 255, .13),
-    inset -1px 0 0 rgba(255, 255, 255, .055);
-
-  /* 厚度：外圈 1px 环 + 底边暗线（玻璃有厚度，底边会吃掉光）
-     + 顶面内侧雾光（光打进玻璃内部在靠近顶边处散射）
-     + 底部内阴影（越靠下越暗，形成体积） */
-  --tg-rim:
-    inset 0 0 0 1px rgba(255, 255, 255, .055),
-    inset 0 -1px 0 rgba(0, 0, 0, .22),
-    inset 0 16px 26px -22px rgba(255, 255, 255, .26),
-    inset 0 -20px 30px -26px rgba(0, 0, 0, .30),
-    /* 边缘柔光带：玻璃切面不是一条硬线，而是 3px 的柔和过渡。
-       纯 inset 0 0 0 1px 是"描边"，加这层才是"厚度"。 */
-    inset 0 0 5px -1px rgba(255, 255, 255, .16),
-    /* 底部反光：玻璃底面把桌面光反射回来，位置在底边内侧 4px。 */
-    inset 0 -4px 8px -6px rgba(255, 255, 255, .22);
-
-  /* 投影三层：贴地（几乎不模糊）+ 接触（中等）+ 环境（大而淡） */
-  --tg-lift:
-    0 1px 2px rgba(0, 0, 0, .18),
-    0 9px 24px -9px rgba(0, 0, 0, .34),
-    0 26px 56px -24px rgba(0, 0, 0, .30);
-}
-
-/* --------------------------------------------------------------------------
-   二、浅色主题：这里才是这次改动的主战场
-   --------------------------------------------------------------------------
-   浅色玻璃的"高级感"来自三样东西，缺一不可：
-     1. 顶面**纯白**高光（不能是 .78 的半透明白，那样等于没有）
-     2. 底边一条**暖灰**暗线（冷灰会脏，暖灰才像纸/玻璃的投影）
-     3. 投影要淡但**分层**（单层大投影 = 塑料卡片，三层才有空气感）
-   -------------------------------------------------------------------------- */
-html:root[data-theme="light"] {
-  --tg-spec:
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    inset 1px 0 0 rgba(255, 255, 255, .62),
-    inset -1px 0 0 rgba(255, 255, 255, .34);
-
-  --tg-rim:
-    inset 0 0 0 1px rgba(255, 255, 255, .72),
-    inset 0 -1px 0 rgba(140, 110, 72, .09),
-    inset 0 16px 26px -22px rgba(255, 255, 255, 1),
-    inset 0 -22px 34px -28px rgba(140, 110, 72, .10),
-    /* 边缘柔光带：浅底上比深色更明显，这是"玻璃切面"的主要表现 */
-    inset 0 0 6px -1px rgba(255, 255, 255, .75),
-    /* 底部反光：暖白（反射的是米色背景的光），冷白会显脏 */
-    inset 0 -4px 9px -6px rgba(255, 252, 246, .85);
-
-  --tg-lift:
-    0 1px 2px rgba(90, 70, 45, .055),
-    0 6px 16px -6px rgba(90, 70, 45, .10),
-    0 20px 44px -20px rgba(90, 70, 45, .14);
-}
-
-/* --------------------------------------------------------------------------
-   三、大容器加一层极淡色散
-   --------------------------------------------------------------------------
-   光穿过玻璃时不同波长折射率不同，边缘会出现极细微的冷暖分离。
-   这是"真玻璃"和"半透明色块"之间最后那点差别，但**幅度必须极小**：
-   实测 α 超过 .05 就会显脏、像屏幕偏色。这里用 .03 / .035。
-   只给三个面积最大的容器加 —— 小控件加了看不出来，纯属浪费合成开销。
-   -------------------------------------------------------------------------- */
-html:not([data-fps-q]) .ov-card.ov-card,
-html:not([data-fps-q]) .index-card.index-card,
-html:not([data-fps-q]) .live-bar.live-bar {
-  box-shadow:
-    var(--tg-spec), var(--tg-rim), var(--tg-lift),
-    inset 1px 0 0 rgba(120, 170, 255, .030),
-    inset -1px 0 0 rgba(255, 150, 110, .035);
-}
-
-/* --------------------------------------------------------------------------
-   四、降级与无障碍
-   -------------------------------------------------------------------------- */
-
-/* fps 降级档（data-fps-q 已存在）下，内发光是最贵的一项（blur 26px），
-   直接拿掉，只留方向性高光和底边暗线 —— 视觉上还是玻璃，只是没这么"厚"。
-   这一条让本层和 fps-boost 的降级机制天然兼容。 */
-html[data-fps-q] {
-  --tg-rim:
-    inset 0 0 0 1px rgba(255, 255, 255, .055),
-    inset 0 -1px 0 rgba(0, 0, 0, .20);
-}
-html[data-fps-q][data-theme="light"] {
-  --tg-rim:
-    inset 0 0 0 1px rgba(255, 255, 255, .70),
-    inset 0 -1px 0 rgba(140, 110, 72, .085);
-}
-
-/* 减少透明偏好：直接回退到接近不透明，高光/厚度全关掉。
-   注意这条不碰 backdrop-filter（那是 type-glass 的地盘），
-   只清掉本层加的东西，避免"关了还留一圈白边"。 */
-@media (prefers-reduced-transparency: reduce) {
-  html:root {
-    --tg-spec: inset 0 0 0 1px rgba(255, 255, 255, .10);
-    --tg-rim: none;
-    --tg-lift: 0 1px 2px rgba(0, 0, 0, .14);
-  }
-  html:root[data-theme="light"] {
-    --tg-spec: inset 0 0 0 1px rgba(120, 95, 60, .12);
-    --tg-rim: none;
-    --tg-lift: 0 1px 2px rgba(90, 70, 45, .10);
-  }
-}
-
-/* --------------------------------------------------------------------------
-   五、边缘方向性：这一条才是「一眼看出高级」的关键
-   --------------------------------------------------------------------------
-   为什么单独做这条：
-     上面那些 inset 高光只有 1px，在 2x 屏上是 2 个物理像素，
-     而卡片本身又是接近纯白的半透明面 —— 白线压在白面上**等于没有**。
-     实测改前/改后像素差异只有 0.8%，肉眼根本分不出来。
-
-     真正拉开明暗差的是 **border 的四边**：
-       · border 是实打实的 1px（2x 屏 = 2 物理像素），比 inset 阴影更"硬"
-       · 边框不受卡片背景色影响，白底上放白边框依然是白的，但放在
-         米色背景外的**底边**用暖灰，就能立刻"切"出玻璃的厚度
-       · 上亮下暗 = 光从上方来 = 立体；四边同色 = 描边 = 塑料片
-
-     配色取自玻璃的物理模型：顶边是受光的镜面（近纯白），
-     底边是厚度切面（吃掉光的暖灰），左右是侧面的弱反光。
-     ⚠️ 必须用 `html:root[data-theme="light"] .x.x` 这种重复类名，
-        否则特异性打不过 apple-fx / type-glass 已经写好的 border。
-   -------------------------------------------------------------------------- */
-
-html:root[data-theme="light"] .index-card.index-card,
-html:root[data-theme="light"] .ov-card.ov-card,
-html:root[data-theme="light"] .sector-chip.sector-chip,
-html:root[data-theme="light"] .sec-hot-card.sec-hot-card {
-  border-top-color: rgba(255, 255, 255, .98);
-  border-left-color: rgba(255, 255, 255, .72);
-  border-right-color: rgba(255, 255, 255, .58);
-  border-bottom-color: rgba(146, 116, 80, .16);
-}
-
-/* 深色主题：白边太亮会像白框，压到 .22，底边用纯黑表达厚度 */
-html:root:not([data-theme="light"]) .index-card.index-card,
-html:root:not([data-theme="light"]) .ov-card.ov-card,
-html:root:not([data-theme="light"]) .sector-chip.sector-chip,
-html:root:not([data-theme="light"]) .sec-hot-card.sec-hot-card {
-  border-top-color: rgba(255, 255, 255, .22);
-  border-left-color: rgba(255, 255, 255, .12);
-  border-right-color: rgba(255, 255, 255, .07);
-  border-bottom-color: rgba(0, 0, 0, .38);
-}
-
-/* --------------------------------------------------------------------------
-   六、玻璃底色：从「纯白」改成「微冷白」—— 这一条是肉眼最容易感知的
-   --------------------------------------------------------------------------
-   为什么加这条：
-     前面五条（高光、厚度、投影、边框、边缘柔光）改完，实测像素差异只有
-     0.8%~1.2%，放大 4 倍才看得出来。原因是**卡片本身几乎是纯白**，
-     白色叠白色 = 没有信息量，人眼对大面积均匀色块里的细微渐变极不敏感。
-
-     真正的玻璃不是纯白的：光穿过玻璃时短波散射更强（瑞利散射），
-     所以真玻璃在暖色环境里会显出**一点冷调**。设计上这叫
-     "冷暖分离"—— 卡片偏冷、环境偏暖，两者才"分得开"，
-     玻璃才有"清透"的感觉。纯白卡片在暖底上只会显得"糊成一片"。
-
-     实测三档（纯白 / 微冷 / 微暖）：
-       · 纯白 → 和米色背景糊在一起，像瓷砖
-       · 微冷 → 卡片"跳"出来，像玻璃（采用）
-       · 微暖 → 和背景更融，反而少了玻璃的清透感
-
-     ⚠️ 幅度必须克制：alpha 全部 .84 以上，色相只偏 6~8 个单位。
-        再冷就会"发青、发脏"，那是廉价感的另一个方向。
-     ⚠️ 只动浅色主题。深色主题的卡片本身已经很暗，加冷调会显脏。
-   -------------------------------------------------------------------------- */
-
-html:root[data-theme="light"] .index-card.index-card,
-html:root[data-theme="light"] .ov-card.ov-card,
-html:root[data-theme="light"] .sector-chip.sector-chip,
-html:root[data-theme="light"] .sec-hot-card.sec-hot-card {
-  background:
-    linear-gradient(120deg,
-      rgba(250, 253, 255, .90) 0%,
-      rgba(233, 242, 254, .72) 52%,
-      rgba(251, 254, 255, .84) 100%) !important;
-}
-
-/* 重点大卡（上证/科创50/创业板）保持更实的底 —— 它是视觉焦点，
-   透明度太高低会让数字对比度下降。冷调但更实。 */
-html:root[data-theme="light"] .index-card.focus-card {
-  background:
-    linear-gradient(120deg,
-      rgba(252, 254, 255, .93) 0%,
-      rgba(234, 243, 255, .78) 52%,
-      rgba(253, 255, 255, .88) 100%),
-    linear-gradient(90deg, rgba(155, 175, 215, .10), transparent 40%) !important;
-}
-
-/* hover 时玻璃"被点亮"：底子更白一档、冷调仍保留。
-   这是玻璃材质的核心反馈 —— 光打上来，玻璃变亮，而不是变个边框颜色。 */
-html:root[data-theme="light"] .index-card:hover,
-html:root[data-theme="light"] .ov-card:hover,
-html:root[data-theme="light"] .sector-chip:hover,
-html:root[data-theme="light"] .sec-hot-card:hover {
-  background:
-    linear-gradient(120deg,
-      rgba(255, 255, 255, .95) 0%,
-      rgba(240, 247, 255, .84) 52%,
-      rgba(255, 255, 255, .92) 100%) !important;
-}
-
-/* --------------------------------------------------------------------------
-   七、环境光：优化真正生效的那一层
-   --------------------------------------------------------------------------
-   ⚠️ 踩过的坑（值得记下来）：
-     我先改了 `body { background: ... }` 加暖色光斑，改完发现整屏变粉、
-     而且怎么调都不对。用"把 body 背景改成纯红再截图"才诊断出来：
-     body 背景确实生效，但**视觉主体不来自它** ——
-     真正盖在最上面的是 `body::after`（一个 position:fixed inset:0 的装饰层），
-     它自带 4 层 radial-gradient，而且 3 层是暖色（.16 / .18 / .26）。
-
-     ⭐ 通则：**改背景前先用"改成纯红/纯绿"定位到底哪一层在渲染。**
-        项目有 15 个注入层，body 背景 ≠ 你看到的那层。
-
-   原来这层的问题：4 个光斑**全是暖色**（珊瑚/橙/灰），
-   玻璃无论在哪张卡上透出来的都是同一种暖调 →
-   等于"有光但没有层次"。而且中间那团 .26 的橙红太热，
-   浅色主题下会把整个中部染粉。
-
-   改法（遵守 color-matching 的"一页最多两个彩色家族"）：
-     暖（珊瑚橙，主色）保留但降热，**新增两团冷蓝**放到左下和右下，
-     形成「左上暖 → 左下冷 → 中右暖 → 右下冷」的交错。
-     玻璃在不同位置透出不同温度，层次就出来了。
-   -------------------------------------------------------------------------- */
-body::after {
-  background:
-    /* 暖：左上（原样保留，这是主光源） */
-    radial-gradient(600px 420px at 20% 14%, rgba(232, 109, 94, .18), transparent 70%),
-    /* 暖：中右（原 .26 太热，浅色下会把中部染粉，收到 .19） */
-    radial-gradient(660px 480px at 80% 56%, rgba(224, 118, 88, .19), transparent 72%),
-    /* 灰：底部（原样，用来压住下沿，避免整屏浮起来） */
-    radial-gradient(520px 400px at 50% 92%, rgba(82, 82, 92, .30), transparent 70%),
-    /* 暖：右上（原样） */
-    radial-gradient(500px 380px at 92% 10%, rgba(228, 140, 100, .16), transparent 70%),
-    /* ⭐ 新增：冷：左下 —— 与左上暖斑形成对角温差 */
-    radial-gradient(640px 470px at 6% 76%, rgba(106, 148, 232, .15), transparent 70%),
-    /* ⭐ 新增：冷：右下角 —— 补足右下，避免全屏只剩暖 */
-    radial-gradient(540px 410px at 97% 97%, rgba(118, 158, 228, .11), transparent 72%);
-}
-</style>
-<!-- GL:CSS:END -->
 <!-- FT:CSS:BEGIN -->
 <!-- frost-tex (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
 <style id="frost-tex-style">
@@ -10752,9 +10941,11 @@ html:not([data-frost="off"])::after {
       因为 soft-light 对高明度区域几乎是恒等映射。
       白色表面上"砂面的齿"本质是**细微的暗点** → 用 multiply 才出得来。
       opacity 仍由同一个变量缩放（×.85），保证 __frost.grain() 两个主题同步。 */
+/* ⭐ 2026-10-23 用户反馈「浅色版本的噪点毛感回滚到之前的吧」：
+   浅色底上 multiply 的 1% 噪声会被眼睛放大成"纸纹"，与"通透玻璃"相冲。
+   浅色主题**整层关掉**颗粒（深色保留 .012，那边几乎看不见）。 */
 html:root[data-theme="light"]:not([data-frost="off"])::after {
-  opacity: calc(var(--ft-grain-op, .012) * .85);
-  mix-blend-mode: multiply;
+  display: none;
 }
 
 /* 关掉（用户/调试用）：上面的 :not() 已经让整块失效，这条是兜底 */
@@ -10792,142 +10983,6 @@ html[data-fps-q="medium"]::after { opacity: .06; }
 }
 
 </style><!-- FT:CSS:END -->
-<!-- GF:CSS:BEGIN -->
-<!-- glass-fold (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
-<style id="glass-fold-style">
-/* ═══════════════════════════════════════════════════════════════════════════
-   glass-fold · 学自 21st.dev「Glassmorphism Folder Cards」的玻璃配方
-   ───────────────────────────────────────────────────────────────────────────
-   来源：https://21st.dev/community/components/kedhareswer/glass-folder-cards/default
-        （MIT，作者 Kedhareswer Naidu）
-   学习方式：读它的组件源码（glass-folder-cards.html / .tsx），拆出玻璃的**分层结构**。
-
-   ── 它到底怎么做的（5 层，按 z 轴从后到前）─────────────────────────────
-     ① 背板 .gf-back      实底渐变（浅 #f3f3f4→#e3e3e6 / 深 #2a2a2e→#121214）
-     ② 背后内容 .gf-art   一张图 / canvas —— **玻璃"透"的来源**
-     ③ 背光 .gf-back-sheen 顶部一条 22% 白光 + 右上角径向高光
-     ④ 前玻璃 .gf-front   backdrop-filter: blur(22px) saturate(1.5)
-          · .gf-tint  **上透下实**的渐变：
-              浅 rgba(255,255,255,.16) → .50@42% → rgba(252,252,252,.93)
-              深 rgba(18,18,20,.18)    → .62@46% → rgba(8,8,10,.94)
-          · .gf-spec  **跟随指针**的径向高光（soft-light / 暗色 screen）
-          · .gf-front-rim  2.4px 描边（暗色模式 opacity 降到 .55）
-     ⑤ 投影 .gf-shadow    一块 blur(22px) 的椭圆，不是多层 box-shadow
-
-   ── 三条和我之前做法冲突、但它是对的 ─────────────────────────────────
-     1. **没有颗粒、没有乳雾**。玻璃的"体"来自「上透下实」的方向性渐变，
-        不是把整块表面均匀刷白 —— 均匀白 = 塑料/纸。
-     2. 高光是**可跟随指针的**（radial at var(--px) var(--py)），不是固定的斜向扫光。
-     3. 边缘是**较粗的柔描边**（2.4px，暗色还降透明度），不是 1px 刺眼亮线。
-
-   ── 为什么工作台上能用 ──────────────────────────────────────────────
-     工作台卡片背后是深空渐变 + 环境光斑，本身就相当于第 ② 层"背后内容"，
-     所以只要把 ③④⑤ 补齐，就能得到同样的通透感。
-
-   ⚠️ 铁律：静态材质，只有 hover 时的高光位置变化（纯 CSS 变量，零 rAF）。
-   ⚠️ 降级：无 JS 时 --gf-x/--gf-y 用默认值（50% / 26%），玻璃照常成立。
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* --------------------------------------------------------------------------
-   一、深色：上透下实的烟玻璃
-   -------------------------------------------------------------------------- */
-html:root:root:not([data-gf="off"]) .index-card,
-html:root:root:not([data-gf="off"]) .ov-card,
-html:root:root:not([data-gf="off"]) .live-bar {
-  /* 层序（上 → 下）：指针高光 → 珊瑚暖光 → 烟色渐变 */
-  background-image:
-    radial-gradient(320px 240px at var(--gf-x, 50%) var(--gf-y, 26%),
-      rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 70%),
-    linear-gradient(180deg,
-      rgba(255, 138, 107, .12) 0%,
-      rgba(255, 138, 107, 0) 32%),
-    /* 组件原值 .18/.62/.94 对看板太实（它要挡住文件夹里的内容）。
-       看板要"透"，所以整体减半：.08/.32/.50 —— 保留上透下实的**方向**，
-       但让背后的环境光仍然透得过来。 */
-    linear-gradient(180deg,
-      rgba(24, 26, 32, .08) 0%,
-      rgba(16, 18, 24, .32) 46%,
-      rgba(10, 12, 16, .50) 100%);
-  background-color: transparent !important;
-
-  -webkit-backdrop-filter: url(#apple-lg) blur(24px) saturate(1.5) !important;
-  backdrop-filter: url(#apple-lg) blur(24px) saturate(1.5) !important;
-
-  border: 1px solid rgba(255, 255, 255, .10) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .18),
-    inset 0 0 0 1px rgba(255, 255, 255, .03),
-    0 1px 2px rgba(0, 0, 0, .30),
-    0 18px 40px -18px rgba(0, 0, 0, .55) !important;
-
-  transition: box-shadow .35s cubic-bezier(.22, 1, .36, 1),
-              border-color .35s cubic-bezier(.22, 1, .36, 1);
-}
-
-/* hover：切面变亮一档 + 投影抬高（对应组件 .gf-root:hover 的 lift） */
-html:root:root:not([data-gf="off"]) .index-card:hover,
-html:root:root:not([data-gf="off"]) .ov-card:hover,
-html:root:root:not([data-gf="off"]) .live-bar:hover {
-  border-color: rgba(255, 255, 255, .16);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .26),
-    inset 0 0 0 1px rgba(255, 255, 255, .04),
-    0 2px 4px rgba(0, 0, 0, .32),
-    0 26px 52px -20px rgba(0, 0, 0, .62) !important;
-}
-
-/* --------------------------------------------------------------------------
-   二、浅色：白玻璃（组件浅色配方的 alpha 原样搬过来）
-   -------------------------------------------------------------------------- */
-html:root:root[data-theme="light"]:not([data-gf="off"]) .index-card,
-html:root:root[data-theme="light"]:not([data-gf="off"]) .ov-card,
-html:root:root[data-theme="light"]:not([data-gf="off"]) .live-bar {
-  background-image:
-    radial-gradient(320px 240px at var(--gf-x, 50%) var(--gf-y, 26%),
-      rgba(255, 255, 255, .60), rgba(255, 255, 255, 0) 70%),
-    linear-gradient(180deg,
-      rgba(255, 255, 255, .16) 0%,
-      rgba(255, 255, 255, .50) 42%,
-      rgba(253, 251, 248, .93) 100%);
-  background-color: transparent !important;
-
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  backdrop-filter: blur(24px) saturate(1.4);
-
-  border: 1px solid rgba(255, 255, 255, .55) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .95),
-    inset 0 0 0 1px rgba(255, 255, 255, .35),
-    0 1px 2px rgba(150, 110, 80, .10),
-    0 16px 34px -16px rgba(150, 110, 80, .35) !important;
-}
-
-html:root:root[data-theme="light"]:not([data-gf="off"]) .index-card:hover,
-html:root:root[data-theme="light"]:not([data-gf="off"]) .ov-card:hover,
-html:root:root[data-theme="light"]:not([data-gf="off"]) .live-bar:hover {
-  border-color: rgba(255, 255, 255, .75);
-  box-shadow:
-    inset 0 1px 0 #fff,
-    inset 0 0 0 1px rgba(255, 255, 255, .45),
-    0 2px 4px rgba(150, 110, 80, .12),
-    0 24px 48px -20px rgba(150, 110, 80, .42) !important;
-}
-
-/* --------------------------------------------------------------------------
-   三、降级
-   -------------------------------------------------------------------------- */
-/* 低帧率档：backdrop-filter 是这一层最贵的东西，交给 fps-boost 的降级规则处理；
-   这里只保证本层不额外增加合成层。 */
-html[data-fps-q] .index-card,
-html[data-fps-q] .ov-card,
-html[data-fps-q] .live-bar {
-  transition: none;
-}
-
-/* 手动关闭：不需要额外规则 —— 上面所有规则都带 :not([data-gf="off"])，
-   关掉时它们整段不匹配，自然回落到 type-glass / glass-pro / apple-fx 的配方。 */
-
-</style><!-- GF:CSS:END -->
 <!-- LQ:CSS:BEGIN -->
 <!-- liquid-glass (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
 <style id="liquid-glass-style">
@@ -10978,6 +11033,30 @@ html:root:root:not([data-lq="off"]) #page-home .index-card.index-card {
     /* 落影 */
     0 1px 2px rgba(0, 0, 0, .30),
     0 26px 56px -22px rgba(0, 0, 0, .62) !important;
+}
+
+/* --------------------------------------------------------------------------
+   一·b、浅色主题：卡片用与 Dock 同源的配方（亮切面 + 柔描边 + 暖投影）
+   --------------------------------------------------------------------------
+   ⚠️ 上面那条卡片规则是按暗色调的（白 1px 环在白底上等于没有，
+      纯黑投影在浅色页面上会显脏）。浅色必须给一套自己的值 ——
+      这正是 Dock 当初"太黑"时踩过的同一个坑。 */
+html:root:root[data-theme="light"]:not([data-lq="off"]) #page-home .index-card.index-card {
+  -webkit-backdrop-filter: url(#lq-glass) blur(14px) saturate(1.45) !important;
+  backdrop-filter: url(#lq-glass) blur(14px) saturate(1.45) !important;
+
+  box-shadow:
+    /* 亮切面（白底上靠"白上更白"造厚度） */
+    inset 0 0 0 1px rgba(255, 255, 255, .92),
+    inset 0 1px 0 #fff,
+    /* 冷暖分离 */
+    inset 1px 0 0 rgba(255, 255, 255, .60),
+    inset -1px 0 0 rgba(238, 214, 190, .42),
+    /* 厚度里的散光 */
+    inset 0 0 26px -8px rgba(255, 255, 255, .55),
+    /* 落影用暖色，纯黑在米白页面上会显脏 */
+    0 1px 2px rgba(150, 110, 80, .10),
+    0 22px 44px -20px rgba(150, 110, 80, .34) !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -24465,41 +24544,6 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- GL:JS:END -->
-<!-- TR:JS:BEGIN -->
-<!-- type-refine (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
-<script id="type-refine-js">
-/* type-refine · 极小运行时：状态钩子（排版主体是纯 CSS） */
-(function () {
-  'use strict';
-  if (window.__typeRefineInstalled) return;
-  window.__typeRefineInstalled = true;
-
-  window.__typeRefine = {
-    state: function () {
-      var b = getComputedStyle(document.body);
-      return {
-        ready: true,
-        family: (b.fontFamily || '').split(',')[0].replace(/["']/g, ''),
-        weight: b.fontWeight,
-        synthesis: b.fontSynthesis
-      };
-    },
-    /* 诊断：列出页面实际用到的字体族（排查「我以为用了其实没生效」）*/
-    probe: function () {
-      var el = document.querySelector('.ic-price') ||
-               document.querySelector('.w-val b') || document.body;
-      var cs = getComputedStyle(el);
-      return {
-        el: el.className,
-        family: cs.fontFamily,
-        weight: cs.fontWeight,
-        numeric: cs.fontVariantNumeric
-      };
-    }
-  };
-})();
-
-</script><!-- TR:JS:END -->
 <!-- ⭐ 2026-10-19 图标选择器：右键 dock / 侧栏图标即可换（数据见脚本 ICON_LIB） -->
 <div class="ico-picker" id="ico-picker" hidden>
   <div class="ip-mask" data-ip-close></div>
@@ -24552,59 +24596,6 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   else init();
 })();
 </script>
-<!-- FT:JS:BEGIN -->
-<!-- frost-tex (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
-<script id="frost-tex-js">
-/* frost-tex · 极小运行时（2026-10-23）
-   --------------------------------------------------------------------------
-   本层的主体是纯 CSS（颗粒层 + --tg-rim 接管），**页面不依赖这段 JS**。
-   这里只提供一个开关，方便：
-     · 用户觉得颗粒碍眼时一键关掉
-     · 调试时对比开/关（__frost.off() / __frost.on()）
-     · 调颗粒浓度（__frost.grain(0.03 ~ 0.12)）
-   ⚠️ 铁律 D：JS 没跑 / 报错，颗粒照常显示（CSS 默认就是开的）。
-   -------------------------------------------------------------------------- */
-(function () {
-  if (window.__frostInstalled) return;
-  window.__frostInstalled = true;
-
-  var root = document.documentElement;
-  var DEFAULT_OP = '.28';
-
-  function state() {
-    var off = root.getAttribute('data-frost') === 'off';
-    return {
-      on: !off,
-      grain: parseFloat(getComputedStyle(root).getPropertyValue('--ft-grain-op')) || 0.28,
-      theme: root.getAttribute('data-theme') || 'dark'
-    };
-  }
-
-  function set(v) {
-    if (v === 'off') root.setAttribute('data-frost', 'off');
-    else root.removeAttribute('data-frost');
-    return state();
-  }
-
-  window.__frost = {
-    state: state,
-    set: set,
-    on: function () { return set('on'); },
-    off: function () { return set('off'); },
-    /* 浓度：传 0.02~0.24，越界自动收敛（超过 0.30 会盖住小字） */
-    grain: function (v) {
-      var n = Number(v);
-      if (!isFinite(n)) n = 0.28;
-      n = Math.max(0, Math.min(0.30, n));
-      root.style.setProperty('--ft-grain-op', String(n));
-      return state();
-    }
-  };
-
-  root.style.setProperty('--ft-grain-op', DEFAULT_OP);
-})();
-
-</script><!-- FT:JS:END -->
 <!-- GF:JS:BEGIN -->
 <!-- glass-fold (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
 <script id="glass-fold-js">
@@ -24720,6 +24711,94 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- GF:JS:END -->
+<!-- TR:JS:BEGIN -->
+<!-- type-refine (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
+<script id="type-refine-js">
+/* type-refine · 极小运行时：状态钩子（排版主体是纯 CSS） */
+(function () {
+  'use strict';
+  if (window.__typeRefineInstalled) return;
+  window.__typeRefineInstalled = true;
+
+  window.__typeRefine = {
+    state: function () {
+      var b = getComputedStyle(document.body);
+      return {
+        ready: true,
+        family: (b.fontFamily || '').split(',')[0].replace(/["']/g, ''),
+        weight: b.fontWeight,
+        synthesis: b.fontSynthesis
+      };
+    },
+    /* 诊断：列出页面实际用到的字体族（排查「我以为用了其实没生效」）*/
+    probe: function () {
+      var el = document.querySelector('.ic-price') ||
+               document.querySelector('.w-val b') || document.body;
+      var cs = getComputedStyle(el);
+      return {
+        el: el.className,
+        family: cs.fontFamily,
+        weight: cs.fontWeight,
+        numeric: cs.fontVariantNumeric
+      };
+    }
+  };
+})();
+
+</script><!-- TR:JS:END -->
+<!-- FT:JS:BEGIN -->
+<!-- frost-tex (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
+<script id="frost-tex-js">
+/* frost-tex · 极小运行时（2026-10-23）
+   --------------------------------------------------------------------------
+   本层的主体是纯 CSS（颗粒层 + --tg-rim 接管），**页面不依赖这段 JS**。
+   这里只提供一个开关，方便：
+     · 用户觉得颗粒碍眼时一键关掉
+     · 调试时对比开/关（__frost.off() / __frost.on()）
+     · 调颗粒浓度（__frost.grain(0.03 ~ 0.12)）
+   ⚠️ 铁律 D：JS 没跑 / 报错，颗粒照常显示（CSS 默认就是开的）。
+   -------------------------------------------------------------------------- */
+(function () {
+  if (window.__frostInstalled) return;
+  window.__frostInstalled = true;
+
+  var root = document.documentElement;
+  var DEFAULT_OP = '.28';
+
+  function state() {
+    var off = root.getAttribute('data-frost') === 'off';
+    return {
+      on: !off,
+      grain: parseFloat(getComputedStyle(root).getPropertyValue('--ft-grain-op')) || 0.28,
+      theme: root.getAttribute('data-theme') || 'dark'
+    };
+  }
+
+  function set(v) {
+    if (v === 'off') root.setAttribute('data-frost', 'off');
+    else root.removeAttribute('data-frost');
+    return state();
+  }
+
+  window.__frost = {
+    state: state,
+    set: set,
+    on: function () { return set('on'); },
+    off: function () { return set('off'); },
+    /* 浓度：传 0.02~0.24，越界自动收敛（超过 0.30 会盖住小字） */
+    grain: function (v) {
+      var n = Number(v);
+      if (!isFinite(n)) n = 0.28;
+      n = Math.max(0, Math.min(0.30, n));
+      root.style.setProperty('--ft-grain-op', String(n));
+      return state();
+    }
+  };
+
+  root.style.setProperty('--ft-grain-op', DEFAULT_OP);
+})();
+
+</script><!-- FT:JS:END -->
 <!-- LQ:JS:BEGIN -->
 <!-- liquid-glass (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
 <script id="liquid-glass-js">
