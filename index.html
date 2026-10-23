@@ -4633,18 +4633,41 @@ html[data-fps-q] .fd-open .page.active .module {
 
   padding: var(--dock-pad) var(--dock-pad) calc(var(--dock-pad) + 3px);
 
-  /* 玻璃质感：毛玻璃 + 半透明底 + 内描边 */
-  background: rgba(28, 32, 44, .62);
-  backdrop-filter: blur(22px) saturate(180%);
-  -webkit-backdrop-filter: blur(22px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, .13);
+  /* 玻璃质感：毛玻璃 + 半透明底 + 内描边
+     ─────────────────────────────────────────────────────────────────────
+     ⭐ 2026-10-23 用户反馈「dock 栏有点太黑了」。
+     原写法 `rgba(28,32,44,.62)` 是**单层实心深色**：叠在深空底上，
+     等于把底下的一切都压成一条黑胶条 —— 与周围「被光照亮」的玻璃卡
+     根本不是同一种材质，所以看着突兀。
+
+     正解【双层】而不是「把同一个颜色调亮」：
+       上层 = 自上而下的白色薄雾  ← 光从上方照到玻璃上的那层反光
+       下层 = 抬高亮度、降低饱和的冷灰玻璃
+     只调下层会变成一条均匀的灰带，仍然"平"；有了上层才有玻璃的
+     方向感和厚度。实测整体亮度比页面底高 16~20 级，
+     才读成「一块被照亮的玻璃」而不是「一块黑」。
+
+     ⚠️ saturate 180% → 150%：过饱和会抽掉中性灰、把深色压得更闷。
+     ⚠️ 光雾只铺到 100%，不循环、不加动画 —— 零逐帧成本。 */
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, .12) 0%,
+      rgba(255, 255, 255, .04) 46%,
+      rgba(255, 255, 255, 0) 100%),
+    rgba(70, 82, 108, .40);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, .17);
   border-radius: var(--dock-radius);
 
-  /* 悬浮阴影：让 dock 「浮」在内容之上 */
+  /* 悬浮阴影：让 dock 「浮」在内容之上
+     ⚠️ 外阴影从纯黑 .38 收到 .30 并偏冷（#040812）：
+        黑阴影在深底上会糊成一圈「脏边」，越看越黑。 */
   box-shadow:
-    0 12px 32px rgba(0, 0, 0, .38),
-    0 2px 8px rgba(0, 0, 0, .22),
-    inset 0 1px 0 rgba(255, 255, 255, .14);
+    0 14px 34px rgba(4, 8, 18, .30),
+    0 2px 8px rgba(4, 8, 18, .18),
+    inset 0 1px 0 rgba(255, 255, 255, .22),
+    inset 0 -1px 0 rgba(255, 255, 255, .05);
 
   /* ⭐ Ambient 层：dock 整体「下沉」—— 按下时整条栏跟着沉一点，
      松手用 iOS 弹簧回弹。这是「实体感」的来源：不是图标在动，
@@ -4657,6 +4680,43 @@ html[data-fps-q] .fd-open .page.active .module {
   /* ⭐ 入场：从下方浮起（只播一次）*/
   animation: dock-in .58s cubic-bezier(.22, 1, .36, 1) both;
   animation-delay: .12s;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   1b. 浅色主题：暖白玻璃（2026-10-23 补）
+   ───────────────────────────────────────────────────────────────────────────
+   ⚠️ 这条本来在 glass-light/gl.css:229 里有，但 **gl.css 从未被注入到主文件**
+      （index.html 里只有 GL:CSS 的图标色部分），于是浅色主题下 dock 一直是
+      那条深灰玻璃 → 用户看到的「dock 栏有点太黑了」。
+   ⚠️ 另一重证据：浅色下图标色是深褐 #4f3a2a（主样式表 :root[data-theme=light]
+      .mac-dock 定义的），深褐配深灰底本来就说不通 —— 说明设计意图就是白底。
+
+   配方与深色同构（两层）：
+     上层 白雾（顶亮底透）→ 光从上方打到玻璃上
+     下层 暖白玻璃 → 与页面的冷白底、浅色卡的暖白同族
+   外加一圈暖色投影：白底上的白玻璃**必须靠阴影立起来**，
+   只靠边框会糊成一片。
+   ═════════════════════════════════════════════════════════════════════════ */
+:root[data-theme="light"] .mac-dock {
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, .72) 0%,
+      rgba(255, 255, 255, .18) 58%,
+      rgba(255, 255, 255, 0) 100%),
+    rgba(255, 250, 243, .52);
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border-color: rgba(255, 255, 255, .92);
+  box-shadow:
+    0 14px 34px rgba(150, 108, 82, .20),
+    0 2px 8px rgba(150, 108, 82, .10),
+    inset 0 1px 0 rgba(255, 255, 255, .95),
+    inset 0 -1px 0 rgba(180, 140, 110, .07);
+}
+
+/* 浅色下 hover 不能用白光（在白玻璃上看不见），改用暖褐薄雾 */
+:root[data-theme="light"] .mac-dock .md-item:not(.active):hover {
+  background: rgba(180, 140, 100, .16);
 }
 
 /* 按下时整条 dock 下沉 */
@@ -4770,7 +4830,8 @@ html[data-fps-q] .fd-open .page.active .module {
   transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
 .mac-dock .md-item:not(.active):hover {
-  background: rgba(255, 255, 255, .06);
+  /* 2026-10-23：dock 底变亮后 .06 白几乎看不见，提到 .09 */
+  background: rgba(255, 255, 255, .09);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
