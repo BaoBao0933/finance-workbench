@@ -10707,12 +10707,14 @@ body::after {
    一、细砂颗粒层
    --------------------------------------------------------------------------
    参数怎么定的（都是实测出来的）：
-     baseFrequency 2.2 —— 颗粒必须**细**。0.8~1.1 出来是一团团的云，
-                          放大后像"脏屏幕"；2.2 才是砂面的齿感。
+     baseFrequency 2.8 —— 颗粒必须**细**。0.8~1.1 出来是一团团的云，
+                          放大后像"脏屏幕"；2.2 是砂面；2.8 才是**细砂**。
+                          ⭐ 2026-10-23 第二版：用户说"还是保守" → 2.2 → 2.8。
      numOctaves 2      —— 3 个八度会带出低频块状，破坏"细"。
-     tile 128px        —— 平铺单元。太大浪费显存，太小会看出重复节奏。
-     opacity .085      —— 暗底上的甜点值：齿感清楚可见，但不会盖住文字。
-                          .14 以上肉眼就是电视雪花，.05 以下基本看不出。
+     tile 96px         —— 平铺单元。128px 在细颗粒下仍看得出节奏，收到 96px。
+     opacity .20       —— ⭐ 从 .085 提到 .20（约 2.4 倍）。
+                          这是"看得见的砂面"与"电视雪花"之间的上限值；
+                          .24 以上开始盖住小字，别再加。
      soft-light        —— 比 overlay 温和得多：overlay 在暗底上会把噪点
                           放大成黑白麻点，soft-light 只是"轻微提亮/压暗"。
    -------------------------------------------------------------------------- */
@@ -10723,11 +10725,13 @@ html:not([data-frost="off"])::after {
   z-index: 9990;              /* 在内容之上（颗粒要盖住整块玻璃，包括卡片） */
   pointer-events: none;        /* 绝不挡点击 */
 
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='2.2' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='128' height='128' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 128px 128px;
+  /* 单尺度细砂：实测双尺度叠加会互相稀释（两层都是 soft-light，
+     结果整体变平），反而不如单层清楚。这里保留最有效的细砂层。 */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='3.2' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='80' height='80' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 80px 80px;
   background-repeat: repeat;
 
-  opacity: var(--ft-grain-op, .085);
+  opacity: var(--ft-grain-op, .24);
   mix-blend-mode: soft-light;
 
   /* 提合成层：fixed + 混合模式必须隔离，否则滚动时会不断触发全屏重绘 */
@@ -10739,9 +10743,9 @@ html:not([data-frost="off"])::after {
    ⚠️ 实测：soft-light 在白底上几乎不留痕（整屏差异只有 0.2%），
       因为 soft-light 对高明度区域几乎是恒等映射。
       白色表面上"砂面的齿"本质是**细微的暗点** → 用 multiply 才出得来。
-      opacity 仍由同一个变量缩放（×.55），保证 __frost.grain() 两个主题同步。 */
+      opacity 仍由同一个变量缩放（×.85），保证 __frost.grain() 两个主题同步。 */
 html:root[data-theme="light"]:not([data-frost="off"])::after {
-  opacity: calc(var(--ft-grain-op, .085) * .70);
+  opacity: calc(var(--ft-grain-op, .24) * .85);
   mix-blend-mode: multiply;
 }
 
@@ -10773,32 +10777,62 @@ html[data-frost="off"]::after { display: none; }
 html:root:root:not([data-frost="off"]) {
   --tg-rim:
     /* ① 霜边：比原来亮一档的 1px 内框 */
-    inset 0 0 0 1px rgba(255, 255, 255, .09),
-    /* ② 顶面受光：砂面顶部的漫反射最强 */
-    inset 0 1px 0 rgba(255, 255, 255, .40),
-    /* ③ 乳雾：整块表面的白化（散射把底色洗淡） */
-    inset 0 0 0 4000px rgba(252, 250, 247, .078),
-    /* ④ 顶部 44px 再补一层柔光：让"光从上面来"更明确 */
-    inset 0 44px 96px -70px rgba(255, 255, 255, .10),
-    /* ⑤ 原玻璃厚度：顶面内侧雾光 */
-    inset 0 16px 30px -24px rgba(255, 255, 255, .34),
-    /* ⑥ 原玻璃厚度：底部吃光 */
-    inset 0 -22px 34px -28px rgba(0, 0, 0, .24),
-    /* ⑦ 底面反光 */
-    inset 0 -5px 10px -8px rgba(255, 255, 255, .24);
+    inset 0 0 0 1px rgba(255, 255, 255, .20),
+    /* ② 顶面受光：砂面顶部的漫反射最强（2px 更"厚"） */
+    inset 0 2px 0 rgba(255, 255, 255, .65),
+    /* ③ 边缘第一圈：贴着边框的散射亮带 */
+    inset 0 0 3px rgba(255, 255, 255, .16),
+    /* ④ 边缘第二圈：18px 的柔光带（玻璃厚度里的散光） */
+    inset 0 0 18px -2px rgba(255, 255, 255, .22),
+    /* ⑤ 边缘第三圈：46px 的外扩散射，让"厚度"有体积 */
+    inset 0 0 46px -10px rgba(255, 255, 255, .20),
+    /* ⑤b 折射带：贴着边框 8px 的厚玻璃环（真实毛玻璃最显眼的一圈） */
+    inset 0 0 9px 1px rgba(255, 255, 255, .13),
+    /* ⑤c 顶面斜向镜面扫光：光打在半透砂面上那一道 */
+    inset 56px 72px 120px -96px rgba(255, 255, 255, .38),
+    /* ⑥ 乳雾：整块表面的白化（散射把底色洗淡）
+          ⭐ .078 → .145：这是"看起来像磨砂"最关键的一项，
+          但也**不能无限加**：到 .185 时小号灰字对比度从 2.47 掉到 1.91，
+          已经影响读数。.145 是"明显乳白 + 还能读"的平衡点。 */
+    inset 0 0 0 4000px rgba(252, 250, 247, .175),
+    /* ⑦ 顶部大面积柔光：光从上面来 */
+    inset 0 42px 84px -64px rgba(255, 255, 255, .32),
+    /* ⑧ 色散：左右两侧极轻的冷暖分离（真玻璃的边缘色差） */
+    inset 1px 0 0 rgba(150, 195, 255, .16),
+    inset -1px 0 0 rgba(255, 180, 140, .14),
+    /* ⑨ 底边吃光：越靠下越暗，形成体积 */
+    inset 0 -28px 44px -34px rgba(0, 0, 0, .42);
+
+  /* 投影：三层 + 一圈极淡的"霜华"（玻璃发光溢到周围） */
+  --tg-lift:
+    0 1px 2px rgba(0, 0, 0, .24),
+    0 10px 26px -10px rgba(0, 0, 0, .42),
+    0 30px 64px -26px rgba(0, 0, 0, .38),
+    0 0 46px rgba(255, 255, 255, .13);
 }
 
 html:root:root[data-theme="light"]:not([data-frost="off"]) {
   --tg-rim:
-    inset 0 0 0 1px rgba(255, 255, 255, .95),
-    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 0 0 1px rgba(255, 255, 255, .98),
+    inset 0 2px 0 #fff,
+    inset 0 0 3px rgba(255, 255, 255, .90),
+    inset 0 0 18px -2px rgba(255, 255, 255, .75),
+    inset 0 0 46px -10px rgba(255, 252, 246, .62),
+    inset 0 0 10px 1px rgba(255, 255, 255, .55),
+    inset 56px 72px 120px -96px rgba(255, 255, 255, .55),
     /* 乳雾：浅色玻璃不能加白（本来就是白的，加了等于没加）
-       → 改加一层极淡的暖米色，让表面"有肉"，同时和白底分得开 */
-    inset 0 0 0 4000px rgba(249, 242, 233, .095),
-    inset 0 44px 96px -70px rgba(255, 255, 255, .55),
+       → 改加一层暖米色，让表面"有肉"，同时和白底分得开 */
+    inset 0 0 0 4000px rgba(247, 238, 228, .18),
+    inset 1px 0 0 rgba(255, 255, 255, .90),
+    inset -1px 0 0 rgba(240, 222, 200, .55),
     /* 底边暖灰吃光：浅色玻璃的厚度感全靠这一条 */
-    inset 0 -16px 30px -26px rgba(140, 110, 80, .12),
-    inset 0 0 2px rgba(255, 255, 255, .90);
+    inset 0 -22px 36px -28px rgba(140, 110, 80, .18);
+
+  --tg-lift:
+    0 1px 2px rgba(90, 70, 45, .07),
+    0 8px 20px -8px rgba(90, 70, 45, .13),
+    0 24px 52px -22px rgba(90, 70, 45, .17),
+    0 0 40px rgba(255, 250, 240, .65);
 }
 
 /* --------------------------------------------------------------------------
@@ -10807,7 +10841,7 @@ html:root:root[data-theme="light"]:not([data-frost="off"]) {
 
 /* fps-boost 降档：颗粒层是全屏混合层，第一优先级砍掉它 */
 html[data-fps-q="low"]::after { display: none; }
-html[data-fps-q="medium"]::after { opacity: .03; }
+html[data-fps-q="medium"]::after { opacity: .06; }
 
 /* 深色高对比 / 强制对比模式下，颗粒会让文字边缘发毛，去掉 */
 @media (prefers-contrast: more) {
@@ -24350,13 +24384,13 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   window.__frostInstalled = true;
 
   var root = document.documentElement;
-  var DEFAULT_OP = '.085';
+  var DEFAULT_OP = '.24';
 
   function state() {
     var off = root.getAttribute('data-frost') === 'off';
     return {
       on: !off,
-      grain: parseFloat(getComputedStyle(root).getPropertyValue('--ft-grain-op')) || 0.085,
+      grain: parseFloat(getComputedStyle(root).getPropertyValue('--ft-grain-op')) || 0.24,
       theme: root.getAttribute('data-theme') || 'dark'
     };
   }
@@ -24372,11 +24406,11 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     set: set,
     on: function () { return set('on'); },
     off: function () { return set('off'); },
-    /* 浓度：传 0.02~0.12，越界自动收敛（超过 0.12 就是雪花屏了） */
+    /* 浓度：传 0.02~0.24，越界自动收敛（超过 0.30 会盖住小字） */
     grain: function (v) {
       var n = Number(v);
-      if (!isFinite(n)) n = 0.085;
-      n = Math.max(0, Math.min(0.12, n));
+      if (!isFinite(n)) n = 0.24;
+      n = Math.max(0, Math.min(0.30, n));
       root.style.setProperty('--ft-grain-op', String(n));
       return state();
     }
