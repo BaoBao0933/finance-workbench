@@ -11462,8 +11462,10 @@ html[data-fps-q="low"] .bd-face.bd-dip { animation: none; }
 /* ═══════════════════════════════════════════════════════════════════════════
    banner-iso · 横幅 2.5D 图标样式（2026-10-24）
    ───────────────────────────────────────────────────────────────────────────
-   用户要求：不要阴影；多几个 2.5D 图标（柱组/火箭/小狗/金币）按标语每天换。
-   立体感与明暗全部在 SVG 里（顶面亮 / 左面中 / 右面暗），**不靠阴影、不靠滤镜**。
+   用户要求：① 金币阴影去掉一点 ② 点它要一个一个跳动 ③ 其他图标也是
+            ④ 这个 2.5D 动画要有简单交互
+   立体感与明暗全部在 SVG 里（顶面亮 / 左面中 / 右面暗），不靠阴影、不靠滤镜。
+   交互：hover 微抬 → 按下回弹 → 点击时各 .bi-u 单元依次弹跳（逐个，非整体）。
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .bi-iso {
@@ -11471,12 +11473,31 @@ html[data-fps-q="low"] .bd-face.bd-dip { animation: none; }
   height: 48px;
   display: block;
   overflow: visible;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .3s cubic-bezier(.22, 1, .36, 1);
+  /* backwards 而不是 both：动画结束后释放 transform，hover/active 才能接管 */
+  animation: bi-in .34s cubic-bezier(.22, 1, .36, 1) backwards;
 }
 
-/* 整体浮沉：5.6s ±1.6px，只动 transform（盖掉原来幅度大、频率快的 floaty） */
+/* hover：极轻地抬起 + 放大，告诉用户「这个能点」 */
+.bi-iso:hover { transform: translateY(-1px) scale(1.055); }
+/* 按下：缩一点，松手后由 JS 弹跳接上 */
+.bi-iso:active { transform: scale(.965); }
+.bi-iso:focus-visible {
+  outline: 2px solid rgba(255, 216, 163, .55);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+
+/* 透明热区：让整块 48×48 都可点，而不是只有画到形状的地方 */
+.bi-hit { pointer-events: all; }
+
+/* 整体浮沉：5.6s ±1.6px，只动 transform */
 .fun-banner .fb-emoji:has(.bi-iso) {
   width: 48px;
   height: 48px;
+  pointer-events: auto;
   animation: bi-float 5.6s ease-in-out infinite;
 }
 @keyframes bi-float {
@@ -11485,20 +11506,21 @@ html[data-fps-q="low"] .bd-face.bd-dip { animation: none; }
 }
 
 /* 换图标时的一次性淡入（不进循环） */
-.bi-iso { animation: bi-in .34s cubic-bezier(.22, 1, .36, 1) both; }
 @keyframes bi-in {
   from { opacity: 0; transform: translateY(3px) scale(.94); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* 降级：低帧率档 / 减少动效 → 完全静止，图标照常显示 */
-html[data-fps-q="low"] .fun-banner .fb-emoji:has(.bi-iso),
-html[data-fps-q="low"] .bi-iso {
+/* 降级：低帧率档 → 停掉常驻浮沉（点击弹跳保留，那是用户主动触发的） */
+html[data-fps-q="low"] .fun-banner .fb-emoji:has(.bi-iso) {
   animation: none !important;
 }
+
+/* 减少动效：浮沉、换图淡入全部静止，点击也不弹（JS 里同步判断） */
 @media (prefers-reduced-motion: reduce) {
   .fun-banner .fb-emoji:has(.bi-iso),
   .bi-iso { animation: none !important; }
+  .bi-iso, .bi-iso:hover, .bi-iso:active { transform: none; }
 }
 
 </style><!-- BI:CSS:END -->
@@ -25649,18 +25671,18 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 /* ═══════════════════════════════════════════════════════════════════════════
    banner-iso · 横幅 2.5D 等距图标（2026-10-24）
    ───────────────────────────────────────────────────────────────────────────
-   用户：「多生成几个 2.5D 的柱子啊。小火箭或者小狗之类的可爱的又跟投资相关的。
-          可以根据标语每天替换」
-
-   四枚等距小物（anatomy 技能的 30° 投影：sx=(x−y)·cos30, sy=(x+y)·sin30−z）：
-     bars   柱组   —— 行情/持仓/市场类寄语（默认）
-     rocket 火箭   —— 牛市/大涨/贪婪/赚翻
-     dog    小狗   —— 幽默/心情/回本/信仰
-     coin   金币   —— 钱/现金/利润/价值/价格
+   四枚等距小物（30° 投影：sx=(x−y)·cos30, sy=(x+y)·sin30−z）：
+     bars   柱组 / rocket 火箭 / dog 小狗 / coin 金币
    统一材质：顶面 #ffd8a3 / 左面 #e8a35c / 右面 #c47b36（狗用地色系）
-   切换方式：读 .fb-title 的当日寄语 → 关键词命中 → 换图标；
-             横幅每天 0 点换句时，MutationObserver 自动跟着换。
-   ⚠️ 全部是静态 SVG 路径，动画只有 transform/opacity，无阴影、无滤镜。
+
+   ⭐ 交互按 anatomy 技能的 motion 配方实现（references/motion.md）：
+      · 点击 = 给每个 .bi-u 单元一次**冲量**，由欠阻尼弹簧自然回落
+        （不是关键帧：会有一点点过冲和余震，像真的被手指弹了一下）
+      · 各单元按 data-step 错相起跳 → 金币一枚一枚、柱子一根一根
+      · 单个 rAF 循环，settled 就停；离屏停；reduced-motion 直接不动
+      · 冲量单位是局部坐标（会被外层 scale 放大），所以逐图标给不同幅度
+
+   ⚠️ 静态 SVG 路径；动画只写 transform 属性，不碰 filter/布局。
    ⚠️ emoji 仍作为 JS 失败时的兜底保留。
    ═══════════════════════════════════════════════════════════════════════════ */
 (function () {
@@ -25669,10 +25691,10 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   window.__biInstalled = true;
 
   var ICONS = {
-    bars: '<g transform="translate(12.17 18.00) scale(1.1771)"><polygon points="0,-10 7.79,-5.5 0,-1 -7.79,-5.5" fill="#ffd8a3"/><polygon points="7.79,4.5 0,9 0,-1 7.79,-5.5" fill="#c47b36"/><polygon points="0,9 -7.79,4.5 -7.79,-5.5 0,-1" fill="#e8a35c"/><polygon points="10.05,-10.2 17.84,-5.7 10.05,-1.2 2.25,-5.7" fill="#ffd8a3"/><polygon points="17.84,10.3 10.05,14.8 10.05,-1.2 17.84,-5.7" fill="#c47b36"/><polygon points="10.05,14.8 2.25,10.3 2.25,-5.7 10.05,-1.2" fill="#e8a35c"/><polygon points="20.09,-10.4 27.89,-5.9 20.09,-1.4 12.3,-5.9" fill="#ffd8a3"/><polygon points="27.89,16.1 20.09,20.6 20.09,-1.4 27.89,-5.9" fill="#c47b36"/><polygon points="20.09,20.6 12.3,16.1 12.3,-5.9 20.09,-1.4" fill="#e8a35c"/></g>',
-    rocket: '<g transform="translate(24.00 33.42) scale(1.4841)"><polygon points="0,-3 4.33,-0.5 0,2 -4.33,-0.5" fill="#ffb37a"/><polygon points="4.33,4.5 0,7 0,2 4.33,-0.5" fill="#b3562a"/><polygon points="0,7 -4.33,4.5 -4.33,-0.5 0,2" fill="#e07e42"/><polygon points="-4.85,-12.8 -1.73,-11 -6.06,-8.5 -9.18,-10.3" fill="#e8a35c"/><polygon points="-1.73,-1 -6.06,1.5 -6.06,-8.5 -1.73,-11" fill="#9d5b2c"/><polygon points="-6.06,1.5 -9.18,-0.3 -9.18,-10.3 -6.06,-8.5" fill="#c98242"/><polygon points="6.06,-6.5 9.18,-4.7 4.85,-2.2 1.73,-4" fill="#e8a35c"/><polygon points="9.18,5.3 4.85,7.8 4.85,-2.2 9.18,-4.7" fill="#9d5b2c"/><polygon points="4.85,7.8 1.73,6 1.73,-4 4.85,-2.2" fill="#c98242"/><polygon points="0,-17 7.79,-12.5 0,-8 -7.79,-12.5" fill="#ffd8a3"/><polygon points="7.79,-0.5 0,4 0,-8 7.79,-12.5" fill="#c47b36"/><polygon points="0,4 -7.79,-0.5 -7.79,-12.5 0,-8" fill="#e8a35c"/><polygon points="7.79,-12.5 0,-8 0,-20.5" fill="#ffe9c8"/><polygon points="0,-8 -7.79,-12.5 0,-20.5" fill="#f2d0a0"/></g>',
-    dog: '<g transform="translate(23.54 26.27) scale(1.3376)"><polygon points="0,-13 12.12,-6 0,1 -12.12,-6" fill="#ffd8a3"/><polygon points="12.12,7 0,14 0,1 12.12,-6" fill="#c47b36"/><polygon points="0,14 -12.12,7 -12.12,-6 0,1" fill="#e8a35c"/><polygon points="-9.96,0.75 -2.17,5.25 -6.06,7.5 -13.86,3" fill="#fffaf2"/><polygon points="-2.17,11.25 -6.06,13.5 -6.06,7.5 -2.17,5.25" fill="#e8dcc9"/><polygon points="-6.06,13.5 -13.86,9 -13.86,3 -6.06,7.5" fill="#f8f0e2"/><polygon points="-6.58,-17.4 -2.08,-14.8 -9.01,-10.8 -13.51,-13.4" fill="#e3ac75"/><polygon points="-2.08,-1.8 -9.01,2.2 -9.01,-10.8 -2.08,-14.8" fill="#a96f38"/><polygon points="-9.01,2.2 -13.51,-0.4 -13.51,-13.4 -9.01,-10.8" fill="#c8894f"/><polygon points="10.05,-7.8 14.55,-5.2 7.62,-1.2 3.12,-3.8" fill="#e3ac75"/><polygon points="14.55,7.8 7.62,11.8 7.62,-1.2 14.55,-5.2" fill="#a96f38"/><polygon points="7.62,11.8 3.12,9.2 3.12,-3.8 7.62,-1.2" fill="#c8894f"/><polygon points="-9.02,-2.59 -6.95,-1.39 -6.95,1.41 -9.02,0.21" fill="#4a3426"/><polygon points="-5.21,-0.39 -3.14,0.81 -3.14,3.61 -5.21,2.41" fill="#4a3426"/><polygon points="-6.95,4.41 -5.21,5.41 -5.21,7.41 -6.95,6.41" fill="#4a3426"/></g>',
-    coin: '<g transform="translate(24.00 31.35) scale(2.4496)"><path d="M-8.5729 -0 A8.5729 4.9497 0 0 0 8.5729 3 A8.5729 4.9497 0 0 1 -8.5729 -0 Z" fill="#b3762f"/><ellipse cx="0" cy="-0" rx="8.5729" ry="4.9497" fill="#f7c07a"/><ellipse cx="0" cy="-0" rx="5.14374" ry="2.96982" fill="none" stroke="#d59a4e" stroke-width=".8"/><path d="M-8.5729 -3 A8.5729 4.9497 0 0 0 8.5729 0 A8.5729 4.9497 0 0 1 -8.5729 -3 Z" fill="#b3762f"/><ellipse cx="0" cy="-3" rx="8.5729" ry="4.9497" fill="#f7c07a"/><ellipse cx="0" cy="-3" rx="5.14374" ry="2.96982" fill="none" stroke="#d59a4e" stroke-width=".8"/><path d="M-8.5729 -6 A8.5729 4.9497 0 0 0 8.5729 -3 A8.5729 4.9497 0 0 1 -8.5729 -6 Z" fill="#b3762f"/><ellipse cx="0" cy="-6" rx="8.5729" ry="4.9497" fill="#f7c07a"/><ellipse cx="0" cy="-6" rx="5.14374" ry="2.96982" fill="none" stroke="#d59a4e" stroke-width=".8"/></g>'
+    bars: '<g transform="translate(12.28 18.05) scale(1.1659)"><g class="bi-u" data-step="0"><polygon points="0,-10 7.79,-5.5 0,-1 -7.79,-5.5" fill="#ffd8a3"/><polygon points="7.79,4.5 0,9 0,-1 7.79,-5.5" fill="#c47b36"/><polygon points="0,9 -7.79,4.5 -7.79,-5.5 0,-1" fill="#e8a35c"/></g><g class="bi-u" data-step="1"><polygon points="10.05,-10.2 17.84,-5.7 10.05,-1.2 2.25,-5.7" fill="#ffd8a3"/><polygon points="17.84,10.3 10.05,14.8 10.05,-1.2 17.84,-5.7" fill="#c47b36"/><polygon points="10.05,14.8 2.25,10.3 2.25,-5.7 10.05,-1.2" fill="#e8a35c"/></g><g class="bi-u" data-step="2"><polygon points="20.09,-10.4 27.89,-5.9 20.09,-1.4 12.3,-5.9" fill="#ffd8a3"/><polygon points="27.89,16.1 20.09,20.6 20.09,-1.4 27.89,-5.9" fill="#c47b36"/><polygon points="20.09,20.6 12.3,16.1 12.3,-5.9 20.09,-1.4" fill="#e8a35c"/></g></g>',
+    rocket: '<g transform="translate(24.00 33.33) scale(1.4700)"><g class="bi-u" data-step="0"><polygon points="0,-3 4.33,-0.5 0,2 -4.33,-0.5" fill="#ffb37a"/><polygon points="4.33,4.5 0,7 0,2 4.33,-0.5" fill="#b3562a"/><polygon points="0,7 -4.33,4.5 -4.33,-0.5 0,2" fill="#e07e42"/></g><g class="bi-u" data-step="1"><polygon points="-4.85,-12.8 -1.73,-11 -6.06,-8.5 -9.18,-10.3" fill="#e8a35c"/><polygon points="-1.73,-1 -6.06,1.5 -6.06,-8.5 -1.73,-11" fill="#9d5b2c"/><polygon points="-6.06,1.5 -9.18,-0.3 -9.18,-10.3 -6.06,-8.5" fill="#c98242"/></g><g class="bi-u" data-step="1"><polygon points="6.06,-6.5 9.18,-4.7 4.85,-2.2 1.73,-4" fill="#e8a35c"/><polygon points="9.18,5.3 4.85,7.8 4.85,-2.2 9.18,-4.7" fill="#9d5b2c"/><polygon points="4.85,7.8 1.73,6 1.73,-4 4.85,-2.2" fill="#c98242"/></g><g class="bi-u" data-step="2"><polygon points="0,-17 7.79,-12.5 0,-8 -7.79,-12.5" fill="#ffd8a3"/><polygon points="7.79,-0.5 0,4 0,-8 7.79,-12.5" fill="#c47b36"/><polygon points="0,4 -7.79,-0.5 -7.79,-12.5 0,-8" fill="#e8a35c"/><polygon points="7.79,-12.5 0,-8 0,-20.5" fill="#ffe9c8"/><polygon points="0,-8 -7.79,-12.5 0,-20.5" fill="#f2d0a0"/></g></g>',
+    dog: '<g transform="translate(23.54 26.25) scale(1.3248)"><g class="bi-u" data-step="0"><polygon points="0,-13 12.12,-6 0,1 -12.12,-6" fill="#ffd8a3"/><polygon points="12.12,7 0,14 0,1 12.12,-6" fill="#c47b36"/><polygon points="0,14 -12.12,7 -12.12,-6 0,1" fill="#e8a35c"/></g><g class="bi-u" data-step="1"><polygon points="-9.96,0.75 -2.17,5.25 -6.06,7.5 -13.86,3" fill="#fffaf2"/><polygon points="-2.17,11.25 -6.06,13.5 -6.06,7.5 -2.17,5.25" fill="#e8dcc9"/><polygon points="-6.06,13.5 -13.86,9 -13.86,3 -6.06,7.5" fill="#f8f0e2"/><polygon points="-9.02,-2.59 -6.95,-1.39 -6.95,1.41 -9.02,0.21" fill="#4a3426"/><polygon points="-5.21,-0.39 -3.14,0.81 -3.14,3.61 -5.21,2.41" fill="#4a3426"/><polygon points="-6.95,4.41 -5.21,5.41 -5.21,7.41 -6.95,6.41" fill="#4a3426"/></g><g class="bi-u" data-step="2"><polygon points="-6.58,-17.4 -2.08,-14.8 -9.01,-10.8 -13.51,-13.4" fill="#e3ac75"/><polygon points="-2.08,-1.8 -9.01,2.2 -9.01,-10.8 -2.08,-14.8" fill="#a96f38"/><polygon points="-9.01,2.2 -13.51,-0.4 -13.51,-13.4 -9.01,-10.8" fill="#c8894f"/></g><g class="bi-u" data-step="2"><polygon points="10.05,-7.8 14.55,-5.2 7.62,-1.2 3.12,-3.8" fill="#e3ac75"/><polygon points="14.55,7.8 7.62,11.8 7.62,-1.2 14.55,-5.2" fill="#a96f38"/><polygon points="7.62,11.8 3.12,9.2 3.12,-3.8 7.62,-1.2" fill="#c8894f"/></g></g>',
+    coin: '<g transform="translate(24.00 27.41) scale(2.1334)"><g class="bi-u" data-step="0"><path d="M-8.5729 -0 A8.5729 4.9497 0 0 0 8.5729 -0 L8.5729 3.2 A8.5729 4.9497 0 0 1 -8.5729 3.2 Z" fill="#a86e34"/><ellipse cx="0" cy="-0" rx="8.5729" ry="4.9497" fill="#f0ba78"/><ellipse cx="0" cy="-0" rx="8.3229" ry="4.8197" fill="none" stroke="#8f5d2a" stroke-width=".45" opacity=".7"/><ellipse cx="0" cy="-0" rx="5.14374" ry="2.96982" fill="none" stroke="#cf975a" stroke-width=".7"/></g><g class="bi-u" data-step="1"><path d="M-8.5729 -3.2 A8.5729 4.9497 0 0 0 8.5729 -3.2 L8.5729 0 A8.5729 4.9497 0 0 1 -8.5729 0 Z" fill="#b0763a"/><ellipse cx="0" cy="-3.2" rx="8.5729" ry="4.9497" fill="#f7c384"/><ellipse cx="0" cy="-3.2" rx="8.3229" ry="4.8197" fill="none" stroke="#94622d" stroke-width=".45" opacity=".7"/><ellipse cx="0" cy="-3.2" rx="5.14374" ry="2.96982" fill="none" stroke="#d89f61" stroke-width=".7"/></g><g class="bi-u" data-step="2"><path d="M-8.5729 -6.4 A8.5729 4.9497 0 0 0 8.5729 -6.4 L8.5729 -3.2 A8.5729 4.9497 0 0 1 -8.5729 -3.2 Z" fill="#bf8442"/><ellipse cx="0" cy="-6.4" rx="8.5729" ry="4.9497" fill="#fdd39a"/><ellipse cx="0" cy="-6.4" rx="8.3229" ry="4.8197" fill="none" stroke="#9a6730" stroke-width=".45" opacity=".7"/><ellipse cx="0" cy="-6.4" rx="5.14374" ry="2.96982" fill="none" stroke="#e0aa6c" stroke-width=".7"/></g></g>'
   };
 
   /* 关键词 → 图标（顺序即优先级） */
@@ -25683,7 +25705,20 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     { re: /(股|投资|持仓|买入|市场|仓位|交易|趋势|周期|波动|风险)/, key: 'bars' }
   ];
 
+  /* 弹簧：k=150 时 ω≈12.2，d=8.5 给 ζ≈0.35 —— 欠阻尼，跳起后自然回落带一点余震。
+     冲量 = amp × 22 时峰值位移约等于 amp（局部坐标单位）。 */
+  var SPRING = { k: 150, d: 8.5, gain: 22 };
+
+  /* amp：局部坐标下的跳起高度；gap：相邻单元的起跳间隔（毫秒） */
+  var HOP = {
+    bars:   { amp: 3.0, gap: 84 },
+    coin:   { amp: 2.0, gap: 96 },
+    rocket: { amp: 2.3, gap: 80 },
+    dog:    { amp: 2.5, gap: 86 }
+  };
+
   var LAST = { text: '', key: '' };
+  var reduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
 
   function pick(text) {
     for (var i = 0; i < RULES.length; i++) {
@@ -25697,7 +25732,90 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
   function svgFor(key) {
     return '<svg class="bi-iso" viewBox="0 0 48 48" role="img" aria-label="行情图标" data-icon="' + key + '">'
+      /* 透明热区：整个 48×48 都能点，不只是画到的地方 */
+      + '<rect class="bi-hit" x="0" y="0" width="48" height="48" fill="transparent"/>'
       + (ICONS[key] || ICONS.bars) + '</svg>';
+  }
+
+  /* ── 弹跳：一次冲量 + 欠阻尼弹簧（anatomy · motion.md）────────────────── */
+  function unitsOf(svg) {
+    if (svg.__biUnits) return svg.__biUnits;
+    var nodes = svg.querySelectorAll('.bi-u');
+    var list = [];
+    for (var i = 0; i < nodes.length; i++) {
+      list.push({
+        el: nodes[i],
+        step: parseInt(nodes[i].getAttribute('data-step') || '0', 10),
+        y: 0, v: 0, fired: false
+      });
+    }
+    svg.__biUnits = list;
+    return list;
+  }
+
+  function makeHopper(svg, cfg) {
+    var units = unitsOf(svg);
+    var raf = 0, last = 0, t0 = 0;
+
+    function tick(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 1 / 60;
+      last = now;
+      var moving = false;
+      var sub = Math.max(1, Math.ceil(dt * 240));   /* 240Hz 子步，弹簧才稳 */
+      var h = dt / sub;
+
+      for (var i = 0; i < units.length; i++) {
+        var u = units[i];
+        if (!u.fired) {
+          if (now - t0 >= u.step * cfg.gap) {
+            u.fired = true;
+            u.v -= cfg.amp * SPRING.gain;          /* 冲量：向上踢一下 */
+          } else {
+            moving = true;
+            continue;
+          }
+        }
+        for (var s = 0; s < sub; s++) {
+          var a = -SPRING.k * u.y - SPRING.d * u.v;
+          u.v += a * h;
+          u.y += u.v * h;
+        }
+        if (Math.abs(u.y) < 5e-4 && Math.abs(u.v) < 5e-4) {
+          u.y = 0; u.v = 0;
+          u.el.removeAttribute('transform');
+        } else {
+          moving = true;
+          u.el.setAttribute('transform', 'translate(0 ' + u.y.toFixed(3) + ')');
+        }
+      }
+      raf = moving ? requestAnimationFrame(tick) : 0;
+    }
+
+    return function fire() {
+      if (reduce && reduce.matches) return;        /* 减少动效：不跳 */
+      if (!svg.isConnected) return;
+      t0 = performance.now();
+      last = 0;
+      for (var i = 0; i < units.length; i++) units[i].fired = false;
+      if (!raf) raf = requestAnimationFrame(tick);
+    };
+  }
+
+  function bind(svg) {
+    if (!svg) return;
+    if (svg.__biFire) return;
+    svg.__biFire = makeHopper(svg, HOP[svg.getAttribute('data-icon')] || HOP.bars);
+  }
+
+  /* 事件委托到 document：横幅可能被主文件重渲（.fb-emoji 的 innerHTML 被换掉），
+     绑在 svg 上会在重渲后失效 —— 委托则一直有效，点击时再给新节点补 bind。 */
+  function fireFrom(target) {
+    var svg = target && target.closest ? target.closest('.fun-banner .fb-emoji .bi-iso') : null;
+    if (!svg) return;
+    if (!svg.__biFire) bind(svg);
+    if (!svg.__biFire) return;
+    svg.__biFire();
+    if (window.__bannerIso) window.__bannerIso.hops++;
   }
 
   function mount() {
@@ -25706,20 +25824,33 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     var title = document.querySelector('.fun-banner .fb-title');
     var text = title ? title.textContent : '';
     var key = pick(text);
-    if (LAST.text === text && LAST.key === key && host.querySelector('.bi-iso')) return true;
+    if (LAST.text === text && LAST.key === key && host.querySelector('.bi-iso')) {
+      bind(host.querySelector('.bi-iso'));
+      return true;
+    }
     LAST.text = text;
     LAST.key = key;
     host.innerHTML = svgFor(key);
+    bind(host.querySelector('.bi-iso'));
     return true;
   }
 
   function init() {
     mount();
+    document.addEventListener('click', function (e) { fireFrom(e.target); }, true);
     /* 每天 0 点换句 → 监听标题文本变化 */
     var title = document.querySelector('.fun-banner .fb-title');
     if (title && window.MutationObserver) {
       new MutationObserver(function () { mount(); })
         .observe(title, { childList: true, characterData: true, subtree: true });
+    }
+    /* 图标节点若被主文件重渲掉，立刻补回（零轮询） */
+    var host = document.querySelector('.fun-banner .fb-emoji');
+    if (host && window.MutationObserver && !host.__biWatch) {
+      host.__biWatch = true;
+      new MutationObserver(function () {
+        if (!host.querySelector('.bi-iso')) mount();
+      }).observe(host, { childList: true });
     }
     /* 横幅可能晚于本脚本渲染，兜一轮 */
     var t = setInterval(function () { if (mount()) clearInterval(t); }, 500);
@@ -25732,7 +25863,15 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     init();
   }
 
-  window.__bannerIso = { mount: mount, pick: pick, keys: Object.keys(ICONS) };
+  window.__bannerIso = {
+    mount: mount, pick: pick, keys: Object.keys(ICONS),
+    hop: function (svg) {
+      svg = svg || document.querySelector('.fun-banner .fb-emoji .bi-iso');
+      if (!svg) return;
+      fireFrom(svg);
+    },
+    hops: 0
+  };
 })();
 
 </script><!-- BI:JS:END -->
