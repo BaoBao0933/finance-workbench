@@ -6443,6 +6443,14 @@ html:not([data-fps-q]) .mc-stagger > *:nth-child(8) { animation-delay: 266ms; }
 /* 超过 8 项后不再累加，否则尾部等待过长 */
 html:not([data-fps-q]) .mc-stagger > *:nth-child(n+9) { animation-delay: 304ms; }
 
+/* ⭐⭐ 2026-10-24「不要刷新感」：重访页面不再重演行级入场。
+   switchPage 只给**重访**的页加 .no-stagger（首次进入不加），
+   于是第一次看 = 错峰流入，切回来 = 静止（只有容器 240ms 落位）。
+   ⚠️ 用后代选择器：no-stagger 打在 page 容器上，mc-stagger 在列表容器上。 */
+html:not([data-fps-q]) .no-stagger .mc-stagger > * {
+  animation: none !important;
+}
+
 /* ═══ 技法 6：形变（morph）══════════════════════════════════════════════
    prompt 最高频的 UI 词汇是 morph（14 次），核心纪律是：
      "One shape, never cut: every state is the same element morphing
@@ -11282,6 +11290,166 @@ html[data-fps-q="low"] .bd-face.bd-dip { animation: none; }
 }
 
 </style><!-- BD:CSS:END -->
+<!-- PP:CSS:BEGIN -->
+<!-- perf-polish (2026-10-24) | 毛玻璃降本 + 视口外跳过 + 合成层提升 | 零布局/配色改动 | 改源文件后重跑本注入器 -->
+<style id="perf-polish-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   perf-polish · 帧率与"连贯感"优化（2026-10-24）
+   ───────────────────────────────────────────────────────────────────────────
+   用户：「帮我把帧率优化一下。我不想有那种刷新的低级感。我希望是流动的
+          呼吸的连贯的。」
+
+   诊断数据（web-perf-fps 技能口径）：
+     · backdrop-filter 142 处，其中半径 >=20px 的 71 处，大量 30/32px
+     · infinite 循环动画 77 处
+     · animation 声明 219 处
+   → 三者叠加 = 毛玻璃每帧重采样背景 + 高斯模糊，必掉帧。
+
+   本层只做**零/低视觉代价**的减法：
+     1) 毛玻璃半径分级压缩（32/30 → 18，28/26/24 → 16，小控件 → 12）
+        成本 ∝ 半径²，30→18 约降到 36%，肉眼几无差别
+     2) 视口外元素补 content-visibility（长列表滚动收益最大）
+     3) 玻璃元素统一 `translate: 0 0` 提升合成层（独立属性，不覆盖 transform）
+     4) 清理常驻 will-change（几十个列表项常驻会吃显存，反而更慢）
+     5) 关掉「纯装饰且肉眼几乎看不见」的无限动画
+   ⚠️ 不动任何布局、字号、配色、DOM 结构。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. 大面积玻璃：半径 30/32 → 18 ────────────────────────────────────
+   覆盖所有主卡家族。saturate 取原配方的中位值，观感差异不可见。 */
+.ov-card,
+.index-card,
+.fund-panel,
+.pos-chart-card,
+.live-bar,
+.senti-thermo,
+.senti-panel,
+.senti-card,
+.sec-hot,
+.news-item,
+.watch-row,
+.pos-row,
+.lhb-row,
+.ladder-row,
+.feed-item,
+.pos-sum-card,
+.fund-tab,
+.btn-refresh,
+.search-input,
+.search-drop,
+.news-tag,
+.lad-stock,
+.sec-cell,
+.sector-chip,
+.sec-hot-card,
+.fun-banner {
+  backdrop-filter: blur(18px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+}
+
+/* hover 态原本会再加到 32px —— 悬停时最贵，压到 20 足够保住质感 */
+.ov-card:hover,
+.index-card:hover,
+.sector-chip:hover,
+.sec-hot-card:hover,
+.btn-refresh:hover {
+  backdrop-filter: blur(20px) saturate(170%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(170%) !important;
+}
+
+/* ── 2. 小面积控件：半径 → 12（面积小，视觉更看不出）────────────────── */
+.mac-dock,
+.mm-zbtn,
+.mm-zval,
+.fund-tabs,
+.lf-sheet-panel,
+.bd-face,
+.bd-bubble {
+  backdrop-filter: blur(12px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(150%) !important;
+}
+
+/* ── 3. 视口外跳过渲染（补 fps-boost 没覆盖到的行）──────────────────── */
+.watch-row,
+.senti-card,
+.senti-panel,
+.pos-sum-card,
+.lad-stock,
+.sec-hot {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
+}
+.senti-panel,
+.pos-sum-card {
+  contain-intrinsic-size: auto 180px;
+}
+.watch-row {
+  contain-intrinsic-size: auto 64px;
+}
+
+/* ── 4. 玻璃元素提升合成层：用 translate（独立属性，不覆盖 transform）── */
+.ov-card,
+.index-card,
+.sector-chip,
+.sec-hot-card,
+.watch-row,
+.pos-row,
+.lhb-row,
+.fund-panel,
+.news-item,
+.senti-card,
+.senti-panel,
+.senti-thermo,
+.pos-sum-card,
+.lad-stock,
+.sec-cell,
+.ladder-row,
+.feed-item,
+.mac-dock {
+  translate: 0 0;
+}
+
+/* ── 5. 清掉常驻 will-change（只有正在动的元素才需要）────────────────── */
+.watch-row,
+.pos-row,
+.lhb-row,
+.fund-row,
+.news-item,
+.feed-item,
+.ladder-row,
+.sec-row,
+.sec-cell,
+.senti-card,
+.senti-panel,
+.ov-card,
+.index-card {
+  will-change: auto !important;
+}
+
+/* ── 6. 关掉「看不见的装饰动画」（纯装饰、且几乎不可感知）──────────────
+   注意：只关 opacity 极低 / 尺寸极小 / 被遮住的；不碰角色与图表动画。 */
+.fund-ico .coin.c3,
+.fun-banner .spark.s4,
+.fun-banner .spark.s5 {
+  animation: none !important;
+}
+
+/* ── 7. 低帧率档再兜一层（fps-boost 已做，这里补新加的元素）─────────── */
+html[data-fps-q="low"] .bd-face,
+html[data-fps-q="low"] .bd-bubble,
+html[data-fps-q="low"] .watch-row,
+html[data-fps-q="low"] .senti-card,
+html[data-fps-q="low"] .pos-sum-card {
+  backdrop-filter: blur(8px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
+}
+
+/* ── 8. 减少动效偏好：一律静态 ─────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .bd-face, .bd-bubble { backdrop-filter: blur(10px) !important; }
+}
+
+</style><!-- PP:CSS:END -->
 </head>
 <body>
 
@@ -13515,9 +13683,6 @@ function switchPage(page) {
   navItems.forEach(n => n.classList.toggle('active', n.dataset.page === page));
   const targetId = PAGE_IDS[page];
   const isReal = !!targetId;
-  /* 2026-10-24：记录目标页此前是否隐藏 —— 只有真正切页（display 变化）才重播入场，
-     与 CSS animation 在 none→block 时重播的语义一致（同页重复点击不折腾）。 */
-  const wasHidden = !!(targetId && $(targetId) && $(targetId).style.display === 'none');
   ['page-home', 'page-watch', 'page-news', 'page-futures', 'page-funds', 'page-senti', 'page-sectors', 'page-holdings', 'page-lhb', 'page-focus', 'page-placeholder'].forEach(id => {
     const el = $(id);
     if (!el) return;
@@ -13529,28 +13694,35 @@ function switchPage(page) {
          叠加容器自身过渡，就成了"整页重新加载"的错觉。
          解法：访问过的页面打 is-revisit，样式里关掉一次性入场 ——
          **只有第一次进入某页才播入场**。 */
-      /* ⭐⭐ 2026-10-19 统一所有页面的入场（用户反馈「切到资金流向/走势分析
-         感觉入场动画都不一样，很割裂」）。
+      /* ⭐⭐⭐ 2026-10-24「不要刷新感，要流动/呼吸/连贯」
+         ─────────────────────────────────────────────────────────────
+         以前的两种做法都不对：
+           · 只在重访加 is-revisit → 首次进是"几十个卡片各播各的 fadeIn"，
+             乱；再进又是静止，两次体验割裂。
+           · 无条件加 is-revisit   → 页内一次性入场全关，只剩 mc-stagger
+             侥幸逃逸的那批行在**每次切页**都重播 = "像刷新了一遍"。
 
-         原来只有"重访"才加 is-revisit，所以：
-           · 第一次进某页 → 页内几十个卡片各播各自的 fadeIn
-           · 再进同一页   → 只有容器淡入
-         两个体验并存，来回切就觉得"每一次都不一样"。
+         现在拆成两个开关：
+           is-revisit   → 永远加：关掉老式零散 fadeIn，全站只保留一种节奏
+           no-stagger   → 只有**重访**才加：关掉行级错峰入场
 
-         现在**无条件**加 is-revisit：所有页面都是"容器 220ms 淡入 + 内部静止"，
-         切页从此只有一种节奏。切页一天几十次，本来就该极简（skill 频率门控）。 */
+         于是：第一次看某页 = mc-rise 错峰流入（丝滑、有呼吸感）；
+               切回来       = 只有容器 240ms 隐入 + 环境光缓慢扫过（连贯、不重播）。
+         刷新感消失的关键，是「重访绝不重演从零出现」。 */
+      const isRevisit = el.dataset.visited === '1';
       el.classList.add('is-revisit');
+      el.classList.toggle('no-stagger', isRevisit);
       el.dataset.visited = '1';
 
       if ('animate' in el) {
-        /* 过渡收敛：去掉 blur（整页模糊是"刷新感"帮凶）、
-           位移 6→3px、时长 300→220ms（切页要利落）*/
+        /* 过渡：位移 3px + 240ms ease-out —— 像"落位"，不是"重载"。
+           不加 blur（整页模糊正是刷新感的帮凶）。 */
         el.animate(
           [
-            { opacity: 0, transform: 'translateY(3px)' },
+            { opacity: 0, transform: 'translateY(4px)' },
             { opacity: 1, transform: 'translateY(0)' }
           ],
-          { duration: 220, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+          { duration: 240, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
         );
       }
     } else {
@@ -13570,9 +13742,8 @@ function switchPage(page) {
   if (page === '持仓股') { renderHoldings(); replayPosChart(); if (holdings.length) loadHoldQuotes(); }
   if (page === '龙虎榜') initLhb();
   if (page === '重点关注') loadFocus();
-  /* 2026-10-24「所有列表都丝滑」：首页指数卡由 anime.js 弹性入场接管
-     （renderSkeleton 时播一次），切页回来补播同款，与其它模块的行入场节奏对齐 */
-  if (page === 'home' && wasHidden && typeof animeEntrance === 'function') animeEntrance();
+  /* ⚠️ 2026-10-24：首页不再在重访时重播 anime 弹性入场 ——
+     那正是"刷新感"的来源。首页卡在启动时播一次，之后保持连续存在。 */
 }
 navItems.forEach(n => n.addEventListener('click', () => switchPage(n.dataset.page)));
 $('btn-back-home').addEventListener('click', () => switchPage('home'));
@@ -25265,5 +25436,144 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- BD:JS:END -->
+<!-- PP:JS:BEGIN -->
+<!-- perf-polish js (2026-10-24) | 滚动期玻璃降级，停稳即还原 | 改源文件后重跑本注入器 -->
+<script id="perf-polish-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   perf-polish · 滚动期玻璃降级（2026-10-24）
+   ───────────────────────────────────────────────────────────────────────────
+   为什么需要 JS：
+     首页 13 张 .index-card 挂着 `url(#lq-glass)`、4 张 .ov-card 挂着
+     `url(#apple-lg)` —— SVG 位移/湍流滤镜是**逐帧**对背景重算的，
+     比 blur 半径贵一个量级。它们的规则特异性高达 (1,4,1)+!important，
+     CSS 层根本压不住（试过 :root:root / 双类名，全输给 ID 选择器）。
+
+   解法：**滚动时用内联 !important 临时换成便宜模糊，停下 140ms 后还原**。
+     · 滚动期：blur(10px) saturate(150%)，肉眼在运动中也分辨不出折射差异
+     · 停下后：完整液态玻璃（折射 + 色散）全部回来
+     · 只有 ~20 个元素、只在"开始滚动 / 停止滚动"各改一次，非逐帧操作
+   这同时就是用户要的「呼吸感」：动起来轻，静下来厚。
+
+   铁律：
+     · 只改 backdrop-filter 一个属性，不动布局/颜色/尺寸
+     · 幂等（__ppPolish 守卫），任何异常静默降级
+     · 低帧率档已经是便宜玻璃 → 直接跳过，不重复折腾
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  if (window.__ppPolish) return;
+  window.__ppPolish = true;
+
+  var CHEAP = 'blur(10px) saturate(150%)';
+  var PROPS = ['backdrop-filter', '-webkit-backdrop-filter'];
+
+  /* 只圈「带 SVG 滤镜的重玻璃」——普通 blur 卡片交给 CSS 层处理即可 */
+  var HEAVY_SEL = [
+    '#page-home .index-card',
+    '.ov-card',
+    '.live-bar',
+    '.pos-chart-card',
+    '.senti-thermo'
+  ].join(',');
+
+  var targets = [];      // { el, prev: { prop: value } }
+  var timer = null;
+  var active = false;
+
+  function reduced() {
+    return !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+  function lowQ() {
+    return document.documentElement.getAttribute('data-fps-q') === 'low';
+  }
+
+  function collect() {
+    targets.length = 0;
+    var nodes = document.querySelectorAll(HEAVY_SEL);
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      var cs;
+      try { cs = getComputedStyle(el).backdropFilter; } catch (e) { continue; }
+      /* 只有真的带 url() 滤镜才值得处理 */
+      if (!cs || cs.indexOf('url(') < 0) continue;
+      targets.push({
+        el: el,
+        prev: {
+          'backdrop-filter': el.style.getPropertyValue('backdrop-filter'),
+          '-webkit-backdrop-filter': el.style.getPropertyValue('-webkit-backdrop-filter')
+        }
+      });
+    }
+    return targets.length;
+  }
+
+  function down() {
+    if (active || lowQ() || reduced()) return;
+    if (!targets.length && !collect()) return;
+    for (var i = 0; i < targets.length; i++) {
+      var t = targets[i];
+      for (var j = 0; j < PROPS.length; j++) {
+        t.el.style.setProperty(PROPS[j], CHEAP, 'important');
+      }
+    }
+    active = true;
+  }
+
+  function up() {
+    if (!active) return;
+    for (var i = 0; i < targets.length; i++) {
+      var t = targets[i];
+      for (var j = 0; j < PROPS.length; j++) {
+        var p = PROPS[j], prev = t.prev[p];
+        if (prev) t.el.style.setProperty(p, prev);
+        else t.el.style.removeProperty(p);
+      }
+    }
+    active = false;
+  }
+
+  /* 滚动：rAF 节流，只用来「开始降级 + 重置计时器」 */
+  var ticking = false;
+  function onScroll() {
+    if (!active) down();
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      up();
+      /* 页面切换/重渲染后元素会换，停稳时重新收集一次 */
+      targets.length = 0;
+    }, 140);
+  }
+
+  function bind() {
+    var content = document.querySelector('.content');
+    var opts = { passive: true };
+    if (content) content.addEventListener('scroll', onScroll, opts);
+    window.addEventListener('scroll', onScroll, opts);
+    /* 横向滑动的板块条也吃这条 */
+    document.addEventListener('scroll', onScroll, true);
+  }
+
+  function init() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+      return;
+    }
+    collect();
+    bind();
+  }
+  init();
+
+  window.__perfPolish = {
+    state: function () {
+      return { active: active, targets: targets.length, lowQ: lowQ() };
+    },
+    collect: collect,
+    down: down,
+    up: up
+  };
+})();
+
+</script><!-- PP:JS:END -->
 </body>
 </html>
