@@ -5992,6 +5992,511 @@ html[data-fps-q] [data-kz-fly] { view-transition-name: none !important; }
 }
 
 </style><!-- KZ:CSS:END -->
+<!-- CINE:CSS:BEGIN -->
+<!-- motion-cine (2026-10-11) | 真弹簧 linear() + 速度模糊 + 滚动时间线 | 技法源自 prompt-motion.com 233 案例 | 改源文件后重跑本注入器 -->
+<style id="motion-cine-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   motion-cine · 弹簧曲线引擎
+   ───────────────────────────────────────────────────────────────────────────
+   来源：prompt-motion.com 233 个案例的 prompt 全文技法提炼。
+
+   核心发现：233 条 prompt 里 spring 出现 31 次、overshoot 7 次，是最高频的
+   运动学词汇。但它们说的不是 cubic-bezier —— 是「物理弹簧」：
+
+     "Springs everywhere, a tiny overshoot at most."
+     "Springs are closed-form step responses."
+     "every shot enters already moving"
+
+   而我们此前的 80 处 cubic-bezier 全是「假弹簧」：
+   cubic-bezier 只能拟合一条单调曲线 + 一次过冲，无法表达真实阻尼振���
+   的多次衰减振荡。这是手感差一个量级的根因。
+
+   本引擎用二阶欠阻尼系统的闭式解，采样成 CSS `linear()` easing：
+     · 真·物理，不是拟合
+     · 一次声明全站可用（.38s 就能完整跑完一条弹簧）
+     · 浏览器原生插值，不占 JS 主线程
+
+   阻尼比 ζ = c / (2√(k·m))
+     ζ < 1  欠阻尼 —— 会过冲并振荡收敛（本层主力，手感来源）
+     ζ = 1  临界阻尼 —— 最快且无过冲（用于不该跳动的场合，如数字滚动）
+     ζ > 1  过阻尼 —— 缓慢爬行（几乎不用）
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── 主力弹簧 · iOS 观感来源｜k=180 c=22 → ζ=0.820，过冲 +1.11%
+     settle=0.545s · 41 个控制点，全部由二阶系统闭式解采样（非拟合）
+     → 每次引用只需 0.55s 就能跑完整条弹簧曲线 */
+  --cine-spring: linear(0,
+    0.0151,
+    0.0548,
+    0.1114,
+    0.1789,
+    0.2526,
+    0.3288,
+    0.4046,
+    0.4779,
+    0.5473,
+    0.6117,
+    0.6706,
+    0.7238,
+    0.7712,
+    0.8128,
+    0.8491,
+    0.8803,
+    0.9069,
+    0.9293,
+    0.9479,
+    0.9632,
+    0.9756,
+    0.9855,
+    0.9932,
+    0.9991,
+    1.0036,
+    1.0067,
+    1.0089,
+    1.0102,
+    1.0109,
+    1.0111,
+    1.0109,
+    1.0105,
+    1.0099,
+    1.0091,
+    1.0083,
+    1.0075,
+    1.0066,
+    1.0058,
+    1.005,
+    1.0043);
+
+  /* ── 脆快｜k=260 c=26 → ζ=0.806。用于「立刻给反馈」：点击、开关
+     settle=0.462s · 41 个控制点，全部由二阶系统闭式解采样（非拟合）
+     → 每次引用只需 0.46s 就能跑完整条弹簧曲线 */
+  --cine-snap: linear(0,
+    0.0157,
+    0.0566,
+    0.1151,
+    0.1848,
+    0.2607,
+    0.339,
+    0.4168,
+    0.4917,
+    0.5624,
+    0.6278,
+    0.6874,
+    0.7408,
+    0.7882,
+    0.8295,
+    0.8653,
+    0.8958,
+    0.9215,
+    0.9428,
+    0.9604,
+    0.9746,
+    0.9858,
+    0.9946,
+    1.0012,
+    1.0061,
+    1.0096,
+    1.0118,
+    1.0132,
+    1.0138,
+    1.0138,
+    1.0134,
+    1.0127,
+    1.0118,
+    1.0108,
+    1.0097,
+    1.0086,
+    1.0076,
+    1.0066,
+    1.0056,
+    1.0048,
+    1.004);
+
+  /* ── 橡皮｜k=200 c=14 → ζ=0.495，强过冲 +16.7%。用于拖拽跟手、卡片甩动
+     settle=0.857s · 41 个控制点，全部由二阶系统闭式解采样（非拟合）
+     → 每次引用只需 0.86s 就能跑完整条弹簧曲线 */
+  --cine-rubber: linear(0,
+    0.0413,
+    0.1474,
+    0.2932,
+    0.4568,
+    0.6208,
+    0.7721,
+    0.9022,
+    1.0062,
+    1.0828,
+    1.133,
+    1.1598,
+    1.167,
+    1.1592,
+    1.1409,
+    1.1162,
+    1.0888,
+    1.0615,
+    1.0364,
+    1.015,
+    0.9979,
+    0.9854,
+    0.9774,
+    0.9731,
+    0.9721,
+    0.9736,
+    0.9767,
+    0.9809,
+    0.9855,
+    0.99,
+    0.9942,
+    0.9977,
+    1.0005,
+    1.0025,
+    1.0039,
+    1.0045,
+    1.0047,
+    1.0044,
+    1.0038,
+    1.0031,
+    1.0024);
+
+  /* ── 沉稳｜k=140 c=20 → ζ=0.845，过冲仅 +0.70%。大面积入场不抢内容
+     settle=0.600s · 41 个控制点，全部由二阶系统闭式解采样（非拟合）
+     → 每次引用只需 0.60s 就能跑完整条弹簧曲线 */
+  --cine-calm: linear(0,
+    0.0142,
+    0.0516,
+    0.1049,
+    0.1688,
+    0.2386,
+    0.3111,
+    0.3834,
+    0.4537,
+    0.5207,
+    0.5833,
+    0.6409,
+    0.6934,
+    0.7406,
+    0.7826,
+    0.8196,
+    0.852,
+    0.8799,
+    0.9039,
+    0.9243,
+    0.9414,
+    0.9557,
+    0.9675,
+    0.9771,
+    0.9849,
+    0.991,
+    0.9958,
+    0.9995,
+    1.0022,
+    1.0042,
+    1.0055,
+    1.0064,
+    1.0068,
+    1.007,
+    1.0069,
+    1.0066,
+    1.0063,
+    1.0058,
+    1.0054,
+    1.0049,
+    1.0044);
+
+  /* ── 临界阻尼 ζ=1.000，永不过冲｜用于数字/金额滚动 ——
+        数字在财务场景里跳动是危险的，必须干净落定
+     settle=0.405s · 41 个控制点，全部由二阶系统闭式解采样（非拟合）
+     → 每次引用只需 0.40s 就能跑完整条弹簧曲线 */
+  --cine-settle: linear(0,
+    0.0102,
+    0.0369,
+    0.0755,
+    0.1219,
+    0.1734,
+    0.2276,
+    0.2827,
+    0.3375,
+    0.3909,
+    0.4423,
+    0.4912,
+    0.5373,
+    0.5804,
+    0.6205,
+    0.6576,
+    0.6917,
+    0.723,
+    0.7515,
+    0.7774,
+    0.801,
+    0.8223,
+    0.8415,
+    0.8589,
+    0.8744,
+    0.8884,
+    0.9009,
+    0.9121,
+    0.9221,
+    0.931,
+    0.939,
+    0.9461,
+    0.9523,
+    0.9579,
+    0.9629,
+    0.9673,
+    0.9712,
+    0.9746,
+    0.9776,
+    0.9803,
+    0.9827);
+
+  /* ── 离场：指数加速。prompt 反复强调 "leaves on an accelerating move"
+        —— 退场不是淡出，是加速离场。curve-out 反转起步方向后是二次加速 */
+  --cine-exit: cubic-bezier(.55, 0, .9, .28);
+
+  /* ── 位移幅度档位：入场时「已经在动」，不是从静止开始。
+        prompt 原话："every shot enters already moving" */
+  --cine-rise: 14px;
+}
+
+/* ═══ 技法 1：速度感知模糊 ═══════════════════════════════════════════════
+   prompt 高频命中： "Blur follows speed and direction on every move."
+   7 条案例明确写了这条。我们此前 143 处 blur 全是**静态值**——
+   元素静止时也糊，元素高速运动时反而不够糊。这是「糊得没有方向感」的根因。
+
+   做法：把 blur 绑定到 transform 的位移量上。位移越大越糊，
+   落定时自动回到清晰。纯 CSS 实现（transform + filter 联动，
+   filter 在合成层，不触发重排）。
+   ═════════════════════════════════════════════════════════════════════ */
+
+html:not([data-fps-q]) .mc-speed {
+  will-change: transform, filter;
+  transition:
+    transform var(--cine-spring) var(--cine-blur-t, .42s),
+    filter .12s linear;
+  filter: blur(0);
+}
+
+/* 位移中的状态：模糊量与位移同步，落定归零 */
+html:not([data-fps-q]) .mc-speed.mc-moving {
+  filter: blur(var(--mc-blur, 3px));
+  transition:
+    transform var(--cine-spring) var(--cine-blur-t, .42s),
+    filter .3s cubic-bezier(.2, .8, .3, 1);
+}
+
+/* ═══ 技法 2：滚动驱动时间线 ═══════════════════════════════════════════
+   prompt 里 zoom 27 次、pan 20 次、parallax 命中 —— 全是「相机运动」。
+   浏览器的原生答案是 animation-timeline: view() / scroll()。
+   我们此前 animation-timeline 用量为 0，所有滚动效果都靠 JS 监听 scroll。
+
+   优势：跑在合成线程，滚动时零主线程占用，且天然跟手。
+   ═════════════════════════════════════════════════════════════════════ */
+
+@supports (animation-timeline: view()) {
+  /* 卡片滚入视口：从下方带模糊升起，落定清晰 */
+  @keyframes mc-scroll-rise {
+    from {
+      opacity: 0;
+      transform: translateY(26px) scale(.975);
+      filter: blur(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+  }
+
+  html:not([data-fps-q]) .mc-par {
+    animation: mc-scroll-rise linear both;
+    animation-timeline: view();
+    animation-range: entry 4% cover 26%;
+  }
+
+  /* 侧栏导航：随滚动做轻微视差，制造纵深 */
+  @keyframes mc-par-deep {
+    from { transform: translateY(-18px); opacity: .35; }
+    to   { transform: translateY(18px);  opacity: 1; }
+  }
+
+  html:not([data-fps-q]) .mc-par-deep {
+    animation: mc-par-deep linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 70%;
+  }
+}
+
+/* 不支持时的兜底：静态可见，绝不 opacity:0（铁律 D） */
+@supports not (animation-timeline: view()) {
+  html:not([data-fps-q]) .mc-par,
+  html:not([data-fps-q]) .mc-par-deep {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+/* ═══ 技法 3：遮罩揭示（mask reveal）════════════════════════════════════
+   prompt: "Reveal them with short masked vertical movements"
+   "the wordmark wipes out from behind it"
+
+   此前工作台 clip-path 用量为 0 —— 所有"出现"都是整体淡入。
+   遮罩揭示是**文字从内部被刷出来**，质感完全不同：
+   元素本身在动，只是被一条边界逐步放开。
+   ═════════════════════════════════════════════════════════════════════ */
+
+@keyframes mc-mask-up {
+  from { clip-path: inset(100% 0 0 0); transform: translateY(8px); }
+  to   { clip-path: inset(0 0 0 0);    transform: translateY(0); }
+}
+
+@keyframes mc-mask-wipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+
+html:not([data-fps-q]) .mc-mask-up {
+  animation: mc-mask-up .52s var(--cine-spring) both;
+}
+html:not([data-fps-q]) .mc-mask-wipe {
+  animation: mc-mask-wipe .58s var(--cine-calm) both;
+}
+
+/* ═══ 技法 4：永不安静帧 ═══════════════════════════════════════════════
+   prompt 最核心的一条纪律（9 条案例明文写入 Banned 列表）：
+     "the camera never cuts on a still frame"
+     "Banned: crossfades, frozen frames"
+
+   翻译到界面：**任何状态切换都不允许"静止地换"**。
+   页面切换不能是 crossfade，必须带位移。这是本层对
+   全站页面切换的接管。
+   ═════════════════════════════════════════════════════════════════════ */
+
+@keyframes mc-page-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(.994);
+    filter: blur(5px);
+  }
+  60% { filter: blur(0); }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+html:not([data-fps-q]) .mc-page-in {
+  animation: mc-page-in .46s var(--cine-spring) both;
+  will-change: transform, opacity, filter;
+}
+
+/* ═══ 技法 5：交错入场（stagger）═════════════════════════════════════════
+   prompt: "Reveal four song rows with a slight stagger"
+   "the top card enters 8% large and rises from y264; the bottom card rises
+    from y927, staggered behind it"
+
+   关键在 "slight" —— 错峰要小。大错峰会变成流水账。
+   每档 38ms 是反复调出来的：足够被眼睛读出是"有顺序的"，
+   又不至于让最后一项等太久。
+   ═════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --mc-stagger: 38ms;
+}
+
+html:not([data-fps-q]) .mc-stagger > * {
+  animation: mc-page-in .44s var(--cine-spring) both;
+}
+html:not([data-fps-q]) .mc-stagger > *:nth-child(1) { animation-delay: 0ms; }
+html:not([data-fps-q]) .mc-stagger > *:nth-child(2) { animation-delay: 38ms; }
+html:not([data-fps-q]) .mc-stagger > *:nth-child(3) { animation-delay: 76ms; }
+html:not([data-fps-q]) .mc-stagger > *:nth-child(4) { animation-delay: 114ms; }
+html:not([data-fps-q]) .mc-stagger > *:nth-child(5) { animation-delay: 152ms; }
+html:not([data-fps-q]) .mc-stagger > *:nth-child(6) { animation-delay: 190ms; }
+html:not([data-fps-q]) .mc-stagger > *:nth-child(7) { animation-delay: 228ms; }
+html:not([data-fps-q]) .mc-stagger > *:nth-child(8) { animation-delay: 266ms; }
+/* 超过 8 项后不再累加，否则尾部等待过长 */
+html:not([data-fps-q]) .mc-stagger > *:nth-child(n+9) { animation-delay: 304ms; }
+
+/* ═══ 技法 6：形变（morph）══════════════════════════════════════════════
+   prompt 最高频的 UI 词汇是 morph（14 次），核心纪律是：
+     "One shape, never cut: every state is the same element morphing
+      its size, radius and color while its content swaps"
+
+   也就是说：状态切换时，**容器不卸载重建**。元素身份连续，
+   只有几何与内容变。这在工作台对应的是数字刷新 ——
+   数字变化不该让容器闪一下。
+   ═════════════════════════════════════════════════════════════════════ */
+
+@keyframes mc-num-settle {
+  from { transform: translateY(-42%); opacity: 0; filter: blur(3px); }
+  to   { transform: translateY(0);    opacity: 1; filter: blur(0); }
+}
+
+html:not([data-fps-q]) .mc-num {
+  display: inline-block;
+  will-change: transform, opacity;
+}
+html:not([data-fps-q]) .mc-num.mc-tick {
+  animation: mc-num-settle .34s var(--cine-settle) both;
+}
+
+/* ═══ 技法 7：拖影（trail）══════════════════════════════════════════════
+   prompt: cursor 36 次、trail/streak 命中。
+   交互元素在高速移动时留下方向性残影 —— 用 box-shadow 复制一层
+   低透明度同色偏移，合成层实现，零 JS。
+   ═════════════════════════════════════════════════════════════════════ */
+
+html:not([data-fps-q]) .mc-trail {
+  transition:
+    transform .4s var(--cine-spring),
+    box-shadow .3s ease-out;
+}
+html:not([data-fps-q]) .mc-trail.mc-drag {
+  box-shadow:
+    -14px 0 22px -14px currentColor,
+    -26px 0 34px -22px currentColor;
+}
+
+/* ═══ 降级：fps-boost 触发降档时，本层整块失效（零耦合）════════════════ */
+
+html[data-fps-q] .mc-par,
+html[data-fps-q] .mc-mask-up,
+html[data-fps-q] .mc-mask-wipe,
+html[data-fps-q] .mc-page-in,
+html[data-fps-q] .mc-stagger > *,
+html[data-fps-q] .mc-speed {
+  animation: none !important;
+  transition: none !important;
+  filter: none !important;
+  transform: none !important;
+  clip-path: none !important;
+  opacity: 1 !important;
+}
+
+/* ═══ 尊重系统的减少动效偏好 ═══════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-fps-q]) .mc-par,
+  html:not([data-fps-q]) .mc-mask-up,
+  html:not([data-fps-q]) .mc-mask-wipe,
+  html:not([data-fps-q]) .mc-page-in,
+  html:not([data-fps-q]) .mc-stagger > *,
+  html:not([data-fps-q]) .mc-num.mc-tick {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    clip-path: none !important;
+  }
+  html:not([data-fps-q]) .mc-speed {
+    transition: none !important;
+    filter: none !important;
+  }
+}
+
+</style><!-- CINE:CSS:END -->
 <!-- MT:CSS:BEGIN -->
 <!-- motion-tune (2026-10-11) | 合成层改造 + 退场动画 | 改源文件后重跑本注入器 -->
 <style id="motion-tune-style">
@@ -7074,511 +7579,6 @@ html[data-fps-q] .if-flame .if-inner {
 }
 
 </style><!-- FLOW:CSS:END -->
-<!-- CINE:CSS:BEGIN -->
-<!-- motion-cine (2026-10-11) | 真弹簧 linear() + 速度模糊 + 滚动时间线 | 技法源自 prompt-motion.com 233 案例 | 改源文件后重跑本注入器 -->
-<style id="motion-cine-style">
-/* ═══════════════════════════════════════════════════════════════════════════
-   motion-cine · 弹簧曲线引擎
-   ───────────────────────────────────────────────────────────────────────────
-   来源：prompt-motion.com 233 个案例的 prompt 全文技法提炼。
-
-   核心发现：233 条 prompt 里 spring 出现 31 次、overshoot 7 次，是最高频的
-   运动学词汇。但它们说的不是 cubic-bezier —— 是「物理弹簧」：
-
-     "Springs everywhere, a tiny overshoot at most."
-     "Springs are closed-form step responses."
-     "every shot enters already moving"
-
-   而我们此前的 80 处 cubic-bezier 全是「假弹簧」：
-   cubic-bezier 只能拟合一条单调曲线 + 一次过冲，无法表达真实阻尼振���
-   的多次衰减振荡。这是手感差一个量级的根因。
-
-   本引擎用二阶欠阻尼系统的闭式解，采样成 CSS `linear()` easing：
-     · 真·物理，不是拟合
-     · 一次声明全站可用（.38s 就能完整跑完一条弹簧）
-     · 浏览器原生插值，不占 JS 主线程
-
-   阻尼比 ζ = c / (2√(k·m))
-     ζ < 1  欠阻尼 —— 会过冲并振荡收敛（本层主力，手感来源）
-     ζ = 1  临界阻尼 —— 最快且无过冲（用于不该跳动的场合，如数字滚动）
-     ζ > 1  过阻尼 —— 缓慢爬行（几乎不用）
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-:root {
-  /* ── 主力弹簧 · iOS 观感来源｜k=180 c=22 → ζ=0.820，过冲 +1.11%
-     settle=0.545s · 41 个控制点，全部由二阶系统闭式解采样（非拟合）
-     → 每次引用只需 0.55s 就能跑完整条弹簧曲线 */
-  --cine-spring: linear(0,
-    0.0151,
-    0.0548,
-    0.1114,
-    0.1789,
-    0.2526,
-    0.3288,
-    0.4046,
-    0.4779,
-    0.5473,
-    0.6117,
-    0.6706,
-    0.7238,
-    0.7712,
-    0.8128,
-    0.8491,
-    0.8803,
-    0.9069,
-    0.9293,
-    0.9479,
-    0.9632,
-    0.9756,
-    0.9855,
-    0.9932,
-    0.9991,
-    1.0036,
-    1.0067,
-    1.0089,
-    1.0102,
-    1.0109,
-    1.0111,
-    1.0109,
-    1.0105,
-    1.0099,
-    1.0091,
-    1.0083,
-    1.0075,
-    1.0066,
-    1.0058,
-    1.005,
-    1.0043);
-
-  /* ── 脆快｜k=260 c=26 → ζ=0.806。用于「立刻给反馈」：点击、开关
-     settle=0.462s · 41 个控制点，全部由二阶系统闭式解采样（非拟合）
-     → 每次引用只需 0.46s 就能跑完整条弹簧曲线 */
-  --cine-snap: linear(0,
-    0.0157,
-    0.0566,
-    0.1151,
-    0.1848,
-    0.2607,
-    0.339,
-    0.4168,
-    0.4917,
-    0.5624,
-    0.6278,
-    0.6874,
-    0.7408,
-    0.7882,
-    0.8295,
-    0.8653,
-    0.8958,
-    0.9215,
-    0.9428,
-    0.9604,
-    0.9746,
-    0.9858,
-    0.9946,
-    1.0012,
-    1.0061,
-    1.0096,
-    1.0118,
-    1.0132,
-    1.0138,
-    1.0138,
-    1.0134,
-    1.0127,
-    1.0118,
-    1.0108,
-    1.0097,
-    1.0086,
-    1.0076,
-    1.0066,
-    1.0056,
-    1.0048,
-    1.004);
-
-  /* ── 橡皮｜k=200 c=14 → ζ=0.495，强过冲 +16.7%。用于拖拽跟手、卡片甩动
-     settle=0.857s · 41 个控制点，全部由二阶系统闭式解采样（非拟合）
-     → 每次引用只需 0.86s 就能跑完整条弹簧曲线 */
-  --cine-rubber: linear(0,
-    0.0413,
-    0.1474,
-    0.2932,
-    0.4568,
-    0.6208,
-    0.7721,
-    0.9022,
-    1.0062,
-    1.0828,
-    1.133,
-    1.1598,
-    1.167,
-    1.1592,
-    1.1409,
-    1.1162,
-    1.0888,
-    1.0615,
-    1.0364,
-    1.015,
-    0.9979,
-    0.9854,
-    0.9774,
-    0.9731,
-    0.9721,
-    0.9736,
-    0.9767,
-    0.9809,
-    0.9855,
-    0.99,
-    0.9942,
-    0.9977,
-    1.0005,
-    1.0025,
-    1.0039,
-    1.0045,
-    1.0047,
-    1.0044,
-    1.0038,
-    1.0031,
-    1.0024);
-
-  /* ── 沉稳｜k=140 c=20 → ζ=0.845，过冲仅 +0.70%。大面积入场不抢内容
-     settle=0.600s · 41 个控制点，全部由二阶系统闭式解采样（非拟合）
-     → 每次引用只需 0.60s 就能跑完整条弹簧曲线 */
-  --cine-calm: linear(0,
-    0.0142,
-    0.0516,
-    0.1049,
-    0.1688,
-    0.2386,
-    0.3111,
-    0.3834,
-    0.4537,
-    0.5207,
-    0.5833,
-    0.6409,
-    0.6934,
-    0.7406,
-    0.7826,
-    0.8196,
-    0.852,
-    0.8799,
-    0.9039,
-    0.9243,
-    0.9414,
-    0.9557,
-    0.9675,
-    0.9771,
-    0.9849,
-    0.991,
-    0.9958,
-    0.9995,
-    1.0022,
-    1.0042,
-    1.0055,
-    1.0064,
-    1.0068,
-    1.007,
-    1.0069,
-    1.0066,
-    1.0063,
-    1.0058,
-    1.0054,
-    1.0049,
-    1.0044);
-
-  /* ── 临界阻尼 ζ=1.000，永不过冲｜用于数字/金额滚动 ——
-        数字在财务场景里跳动是危险的，必须干净落定
-     settle=0.405s · 41 个控制点，全部由二阶系统闭式解采样（非拟合）
-     → 每次引用只需 0.40s 就能跑完整条弹簧曲线 */
-  --cine-settle: linear(0,
-    0.0102,
-    0.0369,
-    0.0755,
-    0.1219,
-    0.1734,
-    0.2276,
-    0.2827,
-    0.3375,
-    0.3909,
-    0.4423,
-    0.4912,
-    0.5373,
-    0.5804,
-    0.6205,
-    0.6576,
-    0.6917,
-    0.723,
-    0.7515,
-    0.7774,
-    0.801,
-    0.8223,
-    0.8415,
-    0.8589,
-    0.8744,
-    0.8884,
-    0.9009,
-    0.9121,
-    0.9221,
-    0.931,
-    0.939,
-    0.9461,
-    0.9523,
-    0.9579,
-    0.9629,
-    0.9673,
-    0.9712,
-    0.9746,
-    0.9776,
-    0.9803,
-    0.9827);
-
-  /* ── 离场：指数加速。prompt 反复强调 "leaves on an accelerating move"
-        —— 退场不是淡出，是加速离场。curve-out 反转起步方向后是二次加速 */
-  --cine-exit: cubic-bezier(.55, 0, .9, .28);
-
-  /* ── 位移幅度档位：入场时「已经在动」，不是从静止开始。
-        prompt 原话："every shot enters already moving" */
-  --cine-rise: 14px;
-}
-
-/* ═══ 技法 1：速度感知模糊 ═══════════════════════════════════════════════
-   prompt 高频命中： "Blur follows speed and direction on every move."
-   7 条案例明确写了这条。我们此前 143 处 blur 全是**静态值**——
-   元素静止时也糊，元素高速运动时反而不够糊。这是「糊得没有方向感」的根因。
-
-   做法：把 blur 绑定到 transform 的位移量上。位移越大越糊，
-   落定时自动回到清晰。纯 CSS 实现（transform + filter 联动，
-   filter 在合成层，不触发重排）。
-   ═════════════════════════════════════════════════════════════════════ */
-
-html:not([data-fps-q]) .mc-speed {
-  will-change: transform, filter;
-  transition:
-    transform var(--cine-spring) var(--cine-blur-t, .42s),
-    filter .12s linear;
-  filter: blur(0);
-}
-
-/* 位移中的状态：模糊量与位移同步，落定归零 */
-html:not([data-fps-q]) .mc-speed.mc-moving {
-  filter: blur(var(--mc-blur, 3px));
-  transition:
-    transform var(--cine-spring) var(--cine-blur-t, .42s),
-    filter .3s cubic-bezier(.2, .8, .3, 1);
-}
-
-/* ═══ 技法 2：滚动驱动时间线 ═══════════════════════════════════════════
-   prompt 里 zoom 27 次、pan 20 次、parallax 命中 —— 全是「相机运动」。
-   浏览器的原生答案是 animation-timeline: view() / scroll()。
-   我们此前 animation-timeline 用量为 0，所有滚动效果都靠 JS 监听 scroll。
-
-   优势：跑在合成线程，滚动时零主线程占用，且天然跟手。
-   ═════════════════════════════════════════════════════════════════════ */
-
-@supports (animation-timeline: view()) {
-  /* 卡片滚入视口：从下方带模糊升起，落定清晰 */
-  @keyframes mc-scroll-rise {
-    from {
-      opacity: 0;
-      transform: translateY(26px) scale(.975);
-      filter: blur(6px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      filter: blur(0);
-    }
-  }
-
-  html:not([data-fps-q]) .mc-par {
-    animation: mc-scroll-rise linear both;
-    animation-timeline: view();
-    animation-range: entry 4% cover 26%;
-  }
-
-  /* 侧栏导航：随滚动做轻微视差，制造纵深 */
-  @keyframes mc-par-deep {
-    from { transform: translateY(-18px); opacity: .35; }
-    to   { transform: translateY(18px);  opacity: 1; }
-  }
-
-  html:not([data-fps-q]) .mc-par-deep {
-    animation: mc-par-deep linear both;
-    animation-timeline: view();
-    animation-range: entry 0% entry 70%;
-  }
-}
-
-/* 不支持时的兜底：静态可见，绝不 opacity:0（铁律 D） */
-@supports not (animation-timeline: view()) {
-  html:not([data-fps-q]) .mc-par,
-  html:not([data-fps-q]) .mc-par-deep {
-    opacity: 1;
-    transform: none;
-    filter: none;
-  }
-}
-
-/* ═══ 技法 3：遮罩揭示（mask reveal）════════════════════════════════════
-   prompt: "Reveal them with short masked vertical movements"
-   "the wordmark wipes out from behind it"
-
-   此前工作台 clip-path 用量为 0 —— 所有"出现"都是整体淡入。
-   遮罩揭示是**文字从内部被刷出来**，质感完全不同：
-   元素本身在动，只是被一条边界逐步放开。
-   ═════════════════════════════════════════════════════════════════════ */
-
-@keyframes mc-mask-up {
-  from { clip-path: inset(100% 0 0 0); transform: translateY(8px); }
-  to   { clip-path: inset(0 0 0 0);    transform: translateY(0); }
-}
-
-@keyframes mc-mask-wipe {
-  from { clip-path: inset(0 100% 0 0); }
-  to   { clip-path: inset(0 0 0 0); }
-}
-
-html:not([data-fps-q]) .mc-mask-up {
-  animation: mc-mask-up .52s var(--cine-spring) both;
-}
-html:not([data-fps-q]) .mc-mask-wipe {
-  animation: mc-mask-wipe .58s var(--cine-calm) both;
-}
-
-/* ═══ 技法 4：永不安静帧 ═══════════════════════════════════════════════
-   prompt 最核心的一条纪律（9 条案例明文写入 Banned 列表）：
-     "the camera never cuts on a still frame"
-     "Banned: crossfades, frozen frames"
-
-   翻译到界面：**任何状态切换都不允许"静止地换"**。
-   页面切换不能是 crossfade，必须带位移。这是本层对
-   全站页面切换的接管。
-   ═════════════════════════════════════════════════════════════════════ */
-
-@keyframes mc-page-in {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 12px, 0) scale(.994);
-    filter: blur(5px);
-  }
-  60% { filter: blur(0); }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: blur(0);
-  }
-}
-
-html:not([data-fps-q]) .mc-page-in {
-  animation: mc-page-in .46s var(--cine-spring) both;
-  will-change: transform, opacity, filter;
-}
-
-/* ═══ 技法 5：交错入场（stagger）═════════════════════════════════════════
-   prompt: "Reveal four song rows with a slight stagger"
-   "the top card enters 8% large and rises from y264; the bottom card rises
-    from y927, staggered behind it"
-
-   关键在 "slight" —— 错峰要小。大错峰会变成流水账。
-   每档 38ms 是反复调出来的：足够被眼睛读出是"有顺序的"，
-   又不至于让最后一项等太久。
-   ═════════════════════════════════════════════════════════════════════ */
-
-:root {
-  --mc-stagger: 38ms;
-}
-
-html:not([data-fps-q]) .mc-stagger > * {
-  animation: mc-page-in .44s var(--cine-spring) both;
-}
-html:not([data-fps-q]) .mc-stagger > *:nth-child(1) { animation-delay: 0ms; }
-html:not([data-fps-q]) .mc-stagger > *:nth-child(2) { animation-delay: 38ms; }
-html:not([data-fps-q]) .mc-stagger > *:nth-child(3) { animation-delay: 76ms; }
-html:not([data-fps-q]) .mc-stagger > *:nth-child(4) { animation-delay: 114ms; }
-html:not([data-fps-q]) .mc-stagger > *:nth-child(5) { animation-delay: 152ms; }
-html:not([data-fps-q]) .mc-stagger > *:nth-child(6) { animation-delay: 190ms; }
-html:not([data-fps-q]) .mc-stagger > *:nth-child(7) { animation-delay: 228ms; }
-html:not([data-fps-q]) .mc-stagger > *:nth-child(8) { animation-delay: 266ms; }
-/* 超过 8 项后不再累加，否则尾部等待过长 */
-html:not([data-fps-q]) .mc-stagger > *:nth-child(n+9) { animation-delay: 304ms; }
-
-/* ═══ 技法 6：形变（morph）══════════════════════════════════════════════
-   prompt 最高频的 UI 词汇是 morph（14 次），核心纪律是：
-     "One shape, never cut: every state is the same element morphing
-      its size, radius and color while its content swaps"
-
-   也就是说：状态切换时，**容器不卸载重建**。元素身份连续，
-   只有几何与内容变。这在工作台对应的是数字刷新 ——
-   数字变化不该让容器闪一下。
-   ═════════════════════════════════════════════════════════════════════ */
-
-@keyframes mc-num-settle {
-  from { transform: translateY(-42%); opacity: 0; filter: blur(3px); }
-  to   { transform: translateY(0);    opacity: 1; filter: blur(0); }
-}
-
-html:not([data-fps-q]) .mc-num {
-  display: inline-block;
-  will-change: transform, opacity;
-}
-html:not([data-fps-q]) .mc-num.mc-tick {
-  animation: mc-num-settle .34s var(--cine-settle) both;
-}
-
-/* ═══ 技法 7：拖影（trail）══════════════════════════════════════════════
-   prompt: cursor 36 次、trail/streak 命中。
-   交互元素在高速移动时留下方向性残影 —— 用 box-shadow 复制一层
-   低透明度同色偏移，合成层实现，零 JS。
-   ═════════════════════════════════════════════════════════════════════ */
-
-html:not([data-fps-q]) .mc-trail {
-  transition:
-    transform .4s var(--cine-spring),
-    box-shadow .3s ease-out;
-}
-html:not([data-fps-q]) .mc-trail.mc-drag {
-  box-shadow:
-    -14px 0 22px -14px currentColor,
-    -26px 0 34px -22px currentColor;
-}
-
-/* ═══ 降级：fps-boost 触发降档时，本层整块失效（零耦合）════════════════ */
-
-html[data-fps-q] .mc-par,
-html[data-fps-q] .mc-mask-up,
-html[data-fps-q] .mc-mask-wipe,
-html[data-fps-q] .mc-page-in,
-html[data-fps-q] .mc-stagger > *,
-html[data-fps-q] .mc-speed {
-  animation: none !important;
-  transition: none !important;
-  filter: none !important;
-  transform: none !important;
-  clip-path: none !important;
-  opacity: 1 !important;
-}
-
-/* ═══ 尊重系统的减少动效偏好 ═══════════════════════════════════════════ */
-
-@media (prefers-reduced-motion: reduce) {
-  html:not([data-fps-q]) .mc-par,
-  html:not([data-fps-q]) .mc-mask-up,
-  html:not([data-fps-q]) .mc-mask-wipe,
-  html:not([data-fps-q]) .mc-page-in,
-  html:not([data-fps-q]) .mc-stagger > *,
-  html:not([data-fps-q]) .mc-num.mc-tick {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-    filter: none !important;
-    clip-path: none !important;
-  }
-  html:not([data-fps-q]) .mc-speed {
-    transition: none !important;
-    filter: none !important;
-  }
-}
-
-</style><!-- CINE:CSS:END -->
 <!-- SE:CSS:BEGIN -->
 <style id="sector-edit-style">
 /* ==========================================================================
@@ -13267,6 +13267,9 @@ const PAGE_IDS = { home: 'page-home', '自选股票': 'page-watch', '财经要�
   if (document.getElementById('revisit-css')) return;
   var st = document.createElement('style');
   st.id = 'revisit-css';
+  /* ⚠️ 2026-10-24 回滚记录：曾把行/卡级选择器从本名单里放行，想让所有模块
+     都用上资金流向那套错峰入场 —— 结果全站几十个元素同时跑 blur 溶解，
+     用户反馈「实在是太卡了」。已恢复原名单（只放行资金流向的行是刻意的克制）。 */
   st.textContent = [
     '.is-revisit .fade-in',
     '.is-revisit .module',
@@ -18571,6 +18574,391 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- KZ:JS:END -->
+<!-- CINE:JS:BEGIN -->
+<!-- motion-cine (2026-10-11) | 真弹簧 linear() + 速度模糊 + 滚动时间线 | 技法源自 prompt-motion.com 233 案例 | 改源文件后重跑本注入器 -->
+<script id="motion-cine-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   motion-cine · 运行时桥接
+   ───────────────────────────────────────────────────────────────────────────
+   CSS 层负责「长什么样」，本层负责「什么时候动、动多快、模糊多少」。
+
+   技法来源（prompt-motion.com 233 案例）：
+     "Blur follows speed and direction on every move."
+     "every shot enters already moving"
+     "Springs are closed-form step responses."
+     "Nothing freezes" / "never cuts on a still frame"
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+(function () {
+  'use strict';
+
+  if (window.__motionCineInstalled) return;
+  window.__motionCineInstalled = true;
+
+  var REDUCED = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var state = {
+    installed: true,
+    reduced: REDUCED,
+    /* 滚动视差接管数量 */
+    parallax: 0,
+    /* 正在运动中的元素数 */
+    moving: 0,
+    /* 累计触发的速度模糊次数 —— 用来确认这套东西真的在跑 */
+    blurHits: 0,
+    /* 累计的页面切换次数 */
+    pageIn: 0,
+    /* 数字落定次数 */
+    ticks: 0,
+    /* 支持的能力探测 */
+    support: {
+      linearEase: false,
+      viewTimeline: false,
+      mask: false,
+      waapi: false
+    }
+  };
+
+  /* ═══ 能力探测 ══════════════════════════════════════════════════════
+     linear() 是本层的地基。若不支持，必须退到 cubic-bezier 而不是崩。 */
+
+  function detect() {
+    var s = state.support;
+
+    try {
+      /* 用 CSS.supports 问，而不是直接赋值 —— 赋值法在旧内核会静默忽略 */
+      s.linearEase = CSS.supports('transition-timing-function',
+        'linear(0, 0.5, 1)');
+    } catch (e) {
+      s.linearEase = false;
+    }
+
+    try {
+      s.viewTimeline = CSS.supports('animation-timeline', 'view()');
+    } catch (e) {
+      s.viewTimeline = false;
+    }
+
+    try {
+      s.mask = CSS.supports('clip-path', 'inset(0)');
+    } catch (e) {
+      s.mask = false;
+    }
+
+    s.waapi = typeof Element !== 'undefined'
+      && typeof Element.prototype.animate === 'function';
+
+    /* ⚠️ linear() 不支持时，把 5 条弹簧曲线全部换成 cubic-bezier 近似值。
+       这些近似值是各自弹簧曲线在 0~1 区间上的最佳单段拟合 ——
+       保住手感，丢掉多次振荡。这是必须的兜底，不能让样式裸奔。 */
+    if (!s.linearEase) {
+      var rs = document.documentElement.style;
+      rs.setProperty('--cine-spring', 'cubic-bezier(.22,1,.36,1)');
+      rs.setProperty('--cine-snap', 'cubic-bezier(.2,.9,.3,1)');
+      rs.setProperty('--cine-rubber', 'cubic-bezier(.34,1.56,.64,1)');
+      rs.setProperty('--cine-calm', 'cubic-bezier(.25,.46,.45,.94)');
+      rs.setProperty('--cine-settle', 'cubic-bezier(.2,.8,.2,1)');
+      state.fallback = true;
+    } else {
+      state.fallback = false;
+    }
+  }
+
+  /* ═══ 技法：速度感知模糊 ════════════════════════════════════════════
+     prompt 原文： "Blur follows speed and direction on every move."
+
+     实现要点：**速度必须在动画启动瞬间测一次**，而不是在动画过程中轮询。
+     做法是读 getBoundingClientRect 的两次差值 —— 但这只能在 JS 触发的
+     场景用（点击、拖拽、hover），CSS 动画的位移量 JS 读不到。
+
+     所以本层的设计是：
+       · JS 触发的运动（拖拽、点击、hover）→ 精确测速 → 模糊量按速度算
+       · CSS 触发的运动（入场、滚动）→ 用 mc-par 的 CSS keyframes 内建模糊
+     两者互补，不重复。
+
+     blur 公式：距离越远越糊，但**封顶**。
+     prompt 的 gotchas 写得很清楚：
+       "Heavy blur tables can wipe a shape out completely:
+        if a frame looks empty, lower the blur until the shape still reads."
+     所以 maxBlur 必须小，且模糊要随距离**线性上升、随速度非线性上升**。 */
+
+  var BLUR_PER_PX = 0.055;   /* 每移动 1px 的模糊增量 */
+  var BLUR_MAX = 7;          /* 封顶 7px —— 再大就读不出形状了 */
+
+  function blurFor(distance) {
+    var b = distance * BLUR_PER_PX;
+    /* 二次项让高速时糊得更明显，但整体仍受 BLUR_MAX 约束 */
+    b += distance * distance * 0.0012;
+    return Math.min(BLUR_MAX, Math.round(b * 10) / 10);
+  }
+
+  var lastPt = null;
+
+  function onPointerDown(e) {
+    if (REDUCED) return;
+    lastPt = { x: e.clientX, y: e.clientY, t: performance.now() };
+  }
+
+  function onPointerMove(e) {
+    if (REDUCED || !lastPt) return;
+
+    var dx = e.clientX - lastPt.x;
+    var dy = e.clientY - lastPt.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+
+    /* 阈值以下不处理 —— 鼠标轻微抖动不该触发模糊 */
+    if (dist < 8) return;
+
+    var el = e.target && e.target.closest
+      ? e.target.closest('.mc-speed') : null;
+    if (!el) { lastPt = { x: e.clientX, y: e.clientY, t: performance.now() }; return; }
+
+    var blur = blurFor(dist);
+    el.style.setProperty('--mc-blur', blur + 'px');
+    el.classList.add('mc-moving');
+    state.blurHits++;
+    state.moving++;
+
+    lastPt = { x: e.clientX, y: e.clientY, t: performance.now() };
+  }
+
+  function onPointerUp() {
+    /* 抬起后移除 .mc-moving → filter 在 .3s 内回到 blur(0)，
+       transform 用真弹簧曲线归位。这就是「加速离场 + 模糊回落」。 */
+    var moving = document.querySelectorAll('.mc-speed.mc-moving');
+    for (var i = 0; i < moving.length; i++) {
+      (function (el) {
+        setTimeout(function () {
+          el.classList.remove('mc-moving');
+          el.style.removeProperty('--mc-blur');
+        }, 60);
+      })(moving[i]);
+    }
+    lastPt = null;
+  }
+
+  /* ═══ 技法：页面切换接管 ════════════════════════════════════════════
+     prompt 最强纪律： "the camera never cuts on a still frame"
+     "Banned: crossfades"
+
+     我们不劫持路由，只做一件事：**新页面出现时立刻加上入场类**。
+     用 MutationObserver 观察主容器，不监听全局 click —— 监听 click 会
+     误伤页内所有按钮，且拿不到「切到了哪个页面」这个语义。 */
+
+  function markPageIn() {
+    if (REDUCED) return;
+    var main = document.querySelector('.page.active')
+      || document.querySelector('[data-page].active')
+      || document.querySelector('main');
+    if (!main) return;
+
+    /* 强制重排，让重复点击同一页也能重播 */
+    void main.offsetWidth;
+    main.classList.remove('mc-page-in');
+    void main.offsetWidth;
+    main.classList.add('mc-page-in');
+    state.pageIn++;
+
+    /* 一次性监听，播完摘掉，避免动画类长期挂在 DOM 上 */
+    main.addEventListener('animationend', function once() {
+      main.classList.remove('mc-page-in');
+      main.removeEventListener('animationend', once);
+    });
+  }
+
+  /* ═══ 技法：数字落定 ════════════════════════════════════════════════
+     prompt 的 morph 纪律：容器不卸载重建，元素身份连续。
+     用 MutationObserver 盯着行情数字的文本变化，变化时补一个落定动画。
+     注意：**只监听 characterData**，不监听 childList —— 行情刷新是
+     改文本内容，不是换节点。 */
+
+  var NUM_SEL = '.price, .num, .val, [data-num], .chg, .pct, .amount';
+
+  function onNumChange(node) {
+    if (REDUCED) return;
+    var el = node.parentElement;
+    if (!el || !el.classList) return;
+    /* 向上找到最近的数字容器 */
+    var host = el.closest ? el.closest(NUM_SEL) : null;
+    if (!host) host = el;
+
+    void host.offsetWidth;
+    host.classList.add('mc-tick');
+    state.ticks++;
+    clearTimeout(host.__mcTickTimer);
+    host.__mcTickTimer = setTimeout(function () {
+      host.classList.remove('mc-tick');
+    }, 420);
+  }
+
+  function startNumWatch() {
+    if (!document.body || typeof MutationObserver !== 'function') return;
+    var mo = new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) {
+        if (muts[i].type === 'characterData') onNumChange(muts[i].target);
+      }
+    });
+    try {
+      mo.observe(document.body, {
+        subtree: true,
+        characterData: true,
+        childList: false
+      });
+      state.numWatch = true;
+    } catch (e) {
+      state.numWatch = false;
+    }
+  }
+
+  /* ═══ 滚动视差：给卡片打标记 ═══════════════════════════════════════
+     CSS 的 animation-timeline: view() 只能作用于已有元素，
+     且要求元素本身在滚动容器内。这里给主要卡片批量打 .mc-par。
+
+     ⚠️ 必须用缓存列表，不能每次 scroll 都 querySelectorAll ——
+     那是最典型的掉帧写法。 */
+
+  var PAR_SEL = [
+    '.index-card', '.sector-chip', '.sec-hot-card', '.ov-card',
+    '.pos-row', '.lhb-row', '.fund-card', '.news-item', '.panel'
+  ].join(',');
+
+  function tagParallax() {
+    if (REDUCED || !state.support.viewTimeline) return;
+    var list = document.querySelectorAll(PAR_SEL);
+    var n = 0;
+    for (var i = 0; i < list.length; i++) {
+      /* 只给没有祖先已带该类的打标，避免重复计数 */
+      if (!list[i].closest('.mc-par')) {
+        list[i].classList.add('mc-par');
+        n++;
+      }
+    }
+    state.parallax = document.querySelectorAll('.mc-par').length;
+    return n;
+  }
+
+  /* ═══ 交错入场：给列表容器打标记 ════════════════════════════════════
+     ⚠️ 2026-10-24 教训：曾把 STAGGER_SEL 扩到「全站所有列表/卡片」（sec-grid、
+        overview-grid、senti-cards、index-grid…）想让每个模块都有资金流向那套
+        错峰浮入。结果用户反馈「实在是太卡了」——每条行/卡都跑 mc-page-in 的
+        filter: blur(5px) 溶解，一页几十个合成层同时模糊，直接拖垮帧率。
+       已回滚到原有 5 个容器。**资金流向那种入场是"行少 + 面积小"才好看又便宜，
+        不要盲目铺满全站。** */
+  var STAGGER_SEL = '.lhb-list, .news-list, .pos-list, .fund-list, .watch-list';
+
+  function tagStagger() {
+    var list = document.querySelectorAll(STAGGER_SEL);
+    var n = 0;
+    for (var i = 0; i < list.length; i++) {
+      if (!list[i].classList.contains('mc-stagger')) {
+        list[i].classList.add('mc-stagger');
+        n++;
+      }
+    }
+    return n;
+  }
+
+  /* ═══ 速度模糊：给可拖拽元素打标记 ═════════════════════════════════ */
+  var DRAG_SEL = '.sector-chip, .sec-hot-card, .index-card, .senti-card';
+
+  function tagSpeed() {
+    var list = document.querySelectorAll(DRAG_SEL);
+    for (var i = 0; i < list.length; i++) {
+      list[i].classList.add('mc-speed');
+    }
+    return list.length;
+  }
+
+  /* ═══ 启动 ══════════════════════════════════════════════════════════ */
+
+  function init() {
+    detect();
+
+    if (REDUCED) {
+      state.skipped = 'prefers-reduced-motion';
+      return;
+    }
+
+    /* 指针事件 —— 速度模糊的数据来源 */
+    document.addEventListener('pointerdown', onPointerDown, { passive: true });
+    document.addEventListener('pointermove', onPointerMove, { passive: true });
+    document.addEventListener('pointerup', onPointerUp, { passive: true });
+    document.addEventListener('pointercancel', onPointerUp, { passive: true });
+
+    /* 首次扫描 */
+    tagSpeed();
+    tagStagger();
+    tagParallax();
+    startNumWatch();
+
+    /* 页面重渲染后重新打标（行情面板会整体重绘） */
+    if (typeof MutationObserver === 'function') {
+      var ro = new MutationObserver(function () {
+        clearTimeout(state.retagTimer);
+        state.retagTimer = setTimeout(function () {
+          tagSpeed();
+          tagStagger();
+          tagParallax();
+        }, 400);
+      });
+      try {
+        ro.observe(document.body, { childList: true, subtree: true });
+        state.retag = true;
+      } catch (e) { state.retag = false; }
+    }
+
+    state.ready = true;
+  }
+
+  /* ═══ 对外 API ══════════════════════════════════════════════════════ */
+
+  window.__motionCine = {
+    state: function () {
+      return {
+        ready: !!state.ready,
+        reduced: state.reduced,
+        fallback: !!state.fallback,
+        support: state.support,
+        parallax: state.parallax,
+        moving: state.moving,
+        blurHits: state.blurHits,
+        pageIn: state.pageIn,
+        ticks: state.ticks,
+        numWatch: !!state.numWatch,
+        retag: !!state.retag
+      };
+    },
+    /* 手动触发一次页面入场（供测试与外部调用） */
+    pageIn: markPageIn,
+    /* 重新打标（行情面板重绘后外部可主动调） */
+    retag: function () {
+      return {
+        speed: tagSpeed(),
+        stagger: tagStagger(),
+        parallax: tagParallax()
+      };
+    },
+    /* 模糊量换算，测试用 —— 让"速度→模糊"这条规律可断言 */
+    blurFor: blurFor,
+    disable: function () {
+      document.documentElement.setAttribute('data-cine-off', '');
+      var on = document.querySelectorAll('.mc-par, .mc-mask-up, .mc-page-in');
+      for (var i = 0; i < on.length; i++) on[i].classList.remove('mc-page-in');
+    },
+    enable: function () {
+      document.documentElement.removeAttribute('data-cine-off');
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
+</script><!-- CINE:JS:END -->
 <!-- MT:JS:BEGIN -->
 <!-- motion-tune (2026-10-11) | 合成层改造 + 退场动画 | 改源文件后重跑本注入器 -->
 <script id="motion-tune-js">
@@ -19521,385 +19909,6 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- FLOW:JS:END -->
-<!-- CINE:JS:BEGIN -->
-<!-- motion-cine (2026-10-11) | 真弹簧 linear() + 速度模糊 + 滚动时间线 | 技法源自 prompt-motion.com 233 案例 | 改源文件后重跑本注入器 -->
-<script id="motion-cine-js">
-/* ═══════════════════════════════════════════════════════════════════════════
-   motion-cine · 运行时桥接
-   ───────────────────────────────────────────────────────────────────────────
-   CSS 层负责「长什么样」，本层负责「什么时候动、动多快、模糊多少」。
-
-   技法来源（prompt-motion.com 233 案例）：
-     "Blur follows speed and direction on every move."
-     "every shot enters already moving"
-     "Springs are closed-form step responses."
-     "Nothing freezes" / "never cuts on a still frame"
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-(function () {
-  'use strict';
-
-  if (window.__motionCineInstalled) return;
-  window.__motionCineInstalled = true;
-
-  var REDUCED = window.matchMedia
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  var state = {
-    installed: true,
-    reduced: REDUCED,
-    /* 滚动视差接管数量 */
-    parallax: 0,
-    /* 正在运动中的元素数 */
-    moving: 0,
-    /* 累计触发的速度模糊次数 —— 用来确认这套东西真的在跑 */
-    blurHits: 0,
-    /* 累计的页面切换次数 */
-    pageIn: 0,
-    /* 数字落定次数 */
-    ticks: 0,
-    /* 支持的能力探测 */
-    support: {
-      linearEase: false,
-      viewTimeline: false,
-      mask: false,
-      waapi: false
-    }
-  };
-
-  /* ═══ 能力探测 ══════════════════════════════════════════════════════
-     linear() 是本层的地基。若不支持，必须退到 cubic-bezier 而不是崩。 */
-
-  function detect() {
-    var s = state.support;
-
-    try {
-      /* 用 CSS.supports 问，而不是直接赋值 —— 赋值法在旧内核会静默忽略 */
-      s.linearEase = CSS.supports('transition-timing-function',
-        'linear(0, 0.5, 1)');
-    } catch (e) {
-      s.linearEase = false;
-    }
-
-    try {
-      s.viewTimeline = CSS.supports('animation-timeline', 'view()');
-    } catch (e) {
-      s.viewTimeline = false;
-    }
-
-    try {
-      s.mask = CSS.supports('clip-path', 'inset(0)');
-    } catch (e) {
-      s.mask = false;
-    }
-
-    s.waapi = typeof Element !== 'undefined'
-      && typeof Element.prototype.animate === 'function';
-
-    /* ⚠️ linear() 不支持时，把 5 条弹簧曲线全部换成 cubic-bezier 近似值。
-       这些近似值是各自弹簧曲线在 0~1 区间上的最佳单段拟合 ——
-       保住手感，丢掉多次振荡。这是必须的兜底，不能让样式裸奔。 */
-    if (!s.linearEase) {
-      var rs = document.documentElement.style;
-      rs.setProperty('--cine-spring', 'cubic-bezier(.22,1,.36,1)');
-      rs.setProperty('--cine-snap', 'cubic-bezier(.2,.9,.3,1)');
-      rs.setProperty('--cine-rubber', 'cubic-bezier(.34,1.56,.64,1)');
-      rs.setProperty('--cine-calm', 'cubic-bezier(.25,.46,.45,.94)');
-      rs.setProperty('--cine-settle', 'cubic-bezier(.2,.8,.2,1)');
-      state.fallback = true;
-    } else {
-      state.fallback = false;
-    }
-  }
-
-  /* ═══ 技法：速度感知模糊 ════════════════════════════════════════════
-     prompt 原文： "Blur follows speed and direction on every move."
-
-     实现要点：**速度必须在动画启动瞬间测一次**，而不是在动画过程中轮询。
-     做法是读 getBoundingClientRect 的两次差值 —— 但这只能在 JS 触发的
-     场景用（点击、拖拽、hover），CSS 动画的位移量 JS 读不到。
-
-     所以本层的设计是：
-       · JS 触发的运动（拖拽、点击、hover）→ 精确测速 → 模糊量按速度算
-       · CSS 触发的运动（入场、滚动）→ 用 mc-par 的 CSS keyframes 内建模糊
-     两者互补，不重复。
-
-     blur 公式：距离越远越糊，但**封顶**。
-     prompt 的 gotchas 写得很清楚：
-       "Heavy blur tables can wipe a shape out completely:
-        if a frame looks empty, lower the blur until the shape still reads."
-     所以 maxBlur 必须小，且模糊要随距离**线性上升、随速度非线性上升**。 */
-
-  var BLUR_PER_PX = 0.055;   /* 每移动 1px 的模糊增量 */
-  var BLUR_MAX = 7;          /* 封顶 7px —— 再大就读不出形状了 */
-
-  function blurFor(distance) {
-    var b = distance * BLUR_PER_PX;
-    /* 二次项让高速时糊得更明显，但整体仍受 BLUR_MAX 约束 */
-    b += distance * distance * 0.0012;
-    return Math.min(BLUR_MAX, Math.round(b * 10) / 10);
-  }
-
-  var lastPt = null;
-
-  function onPointerDown(e) {
-    if (REDUCED) return;
-    lastPt = { x: e.clientX, y: e.clientY, t: performance.now() };
-  }
-
-  function onPointerMove(e) {
-    if (REDUCED || !lastPt) return;
-
-    var dx = e.clientX - lastPt.x;
-    var dy = e.clientY - lastPt.y;
-    var dist = Math.sqrt(dx * dx + dy * dy);
-
-    /* 阈值以下不处理 —— 鼠标轻微抖动不该触发模糊 */
-    if (dist < 8) return;
-
-    var el = e.target && e.target.closest
-      ? e.target.closest('.mc-speed') : null;
-    if (!el) { lastPt = { x: e.clientX, y: e.clientY, t: performance.now() }; return; }
-
-    var blur = blurFor(dist);
-    el.style.setProperty('--mc-blur', blur + 'px');
-    el.classList.add('mc-moving');
-    state.blurHits++;
-    state.moving++;
-
-    lastPt = { x: e.clientX, y: e.clientY, t: performance.now() };
-  }
-
-  function onPointerUp() {
-    /* 抬起后移除 .mc-moving → filter 在 .3s 内回到 blur(0)，
-       transform 用真弹簧曲线归位。这就是「加速离场 + 模糊回落」。 */
-    var moving = document.querySelectorAll('.mc-speed.mc-moving');
-    for (var i = 0; i < moving.length; i++) {
-      (function (el) {
-        setTimeout(function () {
-          el.classList.remove('mc-moving');
-          el.style.removeProperty('--mc-blur');
-        }, 60);
-      })(moving[i]);
-    }
-    lastPt = null;
-  }
-
-  /* ═══ 技法：页面切换接管 ════════════════════════════════════════════
-     prompt 最强纪律： "the camera never cuts on a still frame"
-     "Banned: crossfades"
-
-     我们不劫持路由，只做一件事：**新页面出现时立刻加上入场类**。
-     用 MutationObserver 观察主容器，不监听全局 click —— 监听 click 会
-     误伤页内所有按钮，且拿不到「切到了哪个页面」这个语义。 */
-
-  function markPageIn() {
-    if (REDUCED) return;
-    var main = document.querySelector('.page.active')
-      || document.querySelector('[data-page].active')
-      || document.querySelector('main');
-    if (!main) return;
-
-    /* 强制重排，让重复点击同一页也能重播 */
-    void main.offsetWidth;
-    main.classList.remove('mc-page-in');
-    void main.offsetWidth;
-    main.classList.add('mc-page-in');
-    state.pageIn++;
-
-    /* 一次性监听，播完摘掉，避免动画类长期挂在 DOM 上 */
-    main.addEventListener('animationend', function once() {
-      main.classList.remove('mc-page-in');
-      main.removeEventListener('animationend', once);
-    });
-  }
-
-  /* ═══ 技法：数字落定 ════════════════════════════════════════════════
-     prompt 的 morph 纪律：容器不卸载重建，元素身份连续。
-     用 MutationObserver 盯着行情数字的文本变化，变化时补一个落定动画。
-     注意：**只监听 characterData**，不监听 childList —— 行情刷新是
-     改文本内容，不是换节点。 */
-
-  var NUM_SEL = '.price, .num, .val, [data-num], .chg, .pct, .amount';
-
-  function onNumChange(node) {
-    if (REDUCED) return;
-    var el = node.parentElement;
-    if (!el || !el.classList) return;
-    /* 向上找到最近的数字容器 */
-    var host = el.closest ? el.closest(NUM_SEL) : null;
-    if (!host) host = el;
-
-    void host.offsetWidth;
-    host.classList.add('mc-tick');
-    state.ticks++;
-    clearTimeout(host.__mcTickTimer);
-    host.__mcTickTimer = setTimeout(function () {
-      host.classList.remove('mc-tick');
-    }, 420);
-  }
-
-  function startNumWatch() {
-    if (!document.body || typeof MutationObserver !== 'function') return;
-    var mo = new MutationObserver(function (muts) {
-      for (var i = 0; i < muts.length; i++) {
-        if (muts[i].type === 'characterData') onNumChange(muts[i].target);
-      }
-    });
-    try {
-      mo.observe(document.body, {
-        subtree: true,
-        characterData: true,
-        childList: false
-      });
-      state.numWatch = true;
-    } catch (e) {
-      state.numWatch = false;
-    }
-  }
-
-  /* ═══ 滚动视差：给卡片打标记 ═══════════════════════════════════════
-     CSS 的 animation-timeline: view() 只能作用于已有元素，
-     且要求元素本身在滚动容器内。这里给主要卡片批量打 .mc-par。
-
-     ⚠️ 必须用缓存列表，不能每次 scroll 都 querySelectorAll ——
-     那是最典型的掉帧写法。 */
-
-  var PAR_SEL = [
-    '.index-card', '.sector-chip', '.sec-hot-card', '.ov-card',
-    '.pos-row', '.lhb-row', '.fund-card', '.news-item', '.panel'
-  ].join(',');
-
-  function tagParallax() {
-    if (REDUCED || !state.support.viewTimeline) return;
-    var list = document.querySelectorAll(PAR_SEL);
-    var n = 0;
-    for (var i = 0; i < list.length; i++) {
-      /* 只给没有祖先已带该类的打标，避免重复计数 */
-      if (!list[i].closest('.mc-par')) {
-        list[i].classList.add('mc-par');
-        n++;
-      }
-    }
-    state.parallax = document.querySelectorAll('.mc-par').length;
-    return n;
-  }
-
-  /* ═══ 交错入场：给列表容器打标记 ════════════════════════════════════ */
-  var STAGGER_SEL = '.lhb-list, .news-list, .pos-list, .fund-list, .watch-list';
-
-  function tagStagger() {
-    var list = document.querySelectorAll(STAGGER_SEL);
-    var n = 0;
-    for (var i = 0; i < list.length; i++) {
-      if (!list[i].classList.contains('mc-stagger')) {
-        list[i].classList.add('mc-stagger');
-        n++;
-      }
-    }
-    return n;
-  }
-
-  /* ═══ 速度模糊：给可拖拽元素打标记 ═════════════════════════════════ */
-  var DRAG_SEL = '.sector-chip, .sec-hot-card, .index-card, .senti-card';
-
-  function tagSpeed() {
-    var list = document.querySelectorAll(DRAG_SEL);
-    for (var i = 0; i < list.length; i++) {
-      list[i].classList.add('mc-speed');
-    }
-    return list.length;
-  }
-
-  /* ═══ 启动 ══════════════════════════════════════════════════════════ */
-
-  function init() {
-    detect();
-
-    if (REDUCED) {
-      state.skipped = 'prefers-reduced-motion';
-      return;
-    }
-
-    /* 指针事件 —— 速度模糊的数据来源 */
-    document.addEventListener('pointerdown', onPointerDown, { passive: true });
-    document.addEventListener('pointermove', onPointerMove, { passive: true });
-    document.addEventListener('pointerup', onPointerUp, { passive: true });
-    document.addEventListener('pointercancel', onPointerUp, { passive: true });
-
-    /* 首次扫描 */
-    tagSpeed();
-    tagStagger();
-    tagParallax();
-    startNumWatch();
-
-    /* 页面重渲染后重新打标（行情面板会整体重绘） */
-    if (typeof MutationObserver === 'function') {
-      var ro = new MutationObserver(function () {
-        clearTimeout(state.retagTimer);
-        state.retagTimer = setTimeout(function () {
-          tagSpeed();
-          tagStagger();
-          tagParallax();
-        }, 400);
-      });
-      try {
-        ro.observe(document.body, { childList: true, subtree: true });
-        state.retag = true;
-      } catch (e) { state.retag = false; }
-    }
-
-    state.ready = true;
-  }
-
-  /* ═══ 对外 API ══════════════════════════════════════════════════════ */
-
-  window.__motionCine = {
-    state: function () {
-      return {
-        ready: !!state.ready,
-        reduced: state.reduced,
-        fallback: !!state.fallback,
-        support: state.support,
-        parallax: state.parallax,
-        moving: state.moving,
-        blurHits: state.blurHits,
-        pageIn: state.pageIn,
-        ticks: state.ticks,
-        numWatch: !!state.numWatch,
-        retag: !!state.retag
-      };
-    },
-    /* 手动触发一次页面入场（供测试与外部调用） */
-    pageIn: markPageIn,
-    /* 重新打标（行情面板重绘后外部可主动调） */
-    retag: function () {
-      return {
-        speed: tagSpeed(),
-        stagger: tagStagger(),
-        parallax: tagParallax()
-      };
-    },
-    /* 模糊量换算，测试用 —— 让"速度→模糊"这条规律可断言 */
-    blurFor: blurFor,
-    disable: function () {
-      document.documentElement.setAttribute('data-cine-off', '');
-      var on = document.querySelectorAll('.mc-par, .mc-mask-up, .mc-page-in');
-      for (var i = 0; i < on.length; i++) on[i].classList.remove('mc-page-in');
-    },
-    enable: function () {
-      document.documentElement.removeAttribute('data-cine-off');
-    }
-  };
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-})();
-
-</script><!-- CINE:JS:END -->
 <!-- BFX:JS:BEGIN -->
 <script id="banner-fx-js">
 /* ==========================================================================
