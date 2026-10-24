@@ -11796,6 +11796,109 @@ html[data-fps-q="low"] .fun-banner .fb-emoji:has(.bi-iso) {
 }
 
 </style><!-- UT:CSS:END -->
+<!-- HI:CSS:BEGIN -->
+<!-- home-iso (2026-10-24) | 主页 5 枚 2.5D 图标：三柱/托盘金币/上升楼梯/下降楼梯/立方体 | 点击逐个弹跳 + 跟随大盘情绪 | 改源文件后重跑本注入器 -->
+<style id="home-iso-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   home-iso · 主页 2.5D 小图标（2026-10-24）
+   ───────────────────────────────────────────────────────────────────────────
+   用户：「把静态 EMOJI 和图标一个一个换成差不多的 2.5D 动画…参考我横幅做的
+          2.5D 动画，加上交互和情绪，特别是主页那几个动态小图标先换。」
+
+   第一批（主页 5 个）：
+     deal   两市成交额     → 三根上升柱（金）
+     north  南向资金净流入  → 托盘 + 两枚叠币（蓝 + 金）
+     up     板块涨幅榜首   → 三级上升楼梯（红）
+     down   板块跌幅榜首   → 三级下降楼梯（绿）
+     cube   市场概览标题   → 等距立方体（绿，22px）
+
+   共同语言（和 banner-iso 一致）：
+     · 30° 等距投影，三面明暗（顶亮 / 左中 / 右暗）
+     · 点击 = 每个 .hi-u 单元按 data-step 逐个受一次冲量，再欠阻尼弹簧回落
+     · 情绪 = 观察 #mascot-deco 的 is-happy / is-shy（和右上角狗、右下角小搭档同一套信号）
+     · 只写 transform，不碰 filter / 布局；settled 即停
+
+   ⚠️ 替换的是 .ov-icon 里的 <svg>，原 SVG 在 JS 失败时仍是兜底（不 pre-hide）。
+   ⚠️ 点击**不** stopPropagation —— 卡片本身有"点击查看成分股"，别抢它的活。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.hi-iso {
+  display: block;
+  width: 38px;
+  height: 38px;
+  overflow: visible;
+  pointer-events: none;      /* 点击交给 .ov-icon 容器，热区才是整个方块 */
+}
+
+/* 22px 的模块标题图标：容器就是 22，别再撑大 */
+.m-ico .hi-iso {
+  width: 22px;
+  height: 22px;
+}
+
+/* 容器：整块可点，hover 微抬 */
+.ov-icon:has(.hi-iso) {
+  cursor: pointer;
+  transition: transform .32s cubic-bezier(.22, 1, .36, 1),
+              box-shadow .32s ease;
+}
+.ov-icon:has(.hi-iso):hover {
+  transform: translateY(-1.5px) scale(1.04);
+  box-shadow: 0 4px 10px rgba(120, 88, 44, .16);
+}
+.ov-icon:has(.hi-iso):active {
+  transform: translateY(0) scale(.97);
+}
+
+/* 单元：位移由 JS 写 transform 属性，这里只声明变换盒，
+   避免百分比轴心按 viewBox 算导致甩飞 */
+.hi-u {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+/* ── 情绪 ────────────────────────────────────────────────────────────────
+   涨 → 整体轻抬 1.3px + 提亮；跌 → 下沉 1px + 变淡。
+   只作用于容器，不动单元（单元的 transform 由 JS 每帧覆写）。 */
+.ov-icon.hi-happy:has(.hi-iso) .hi-iso,
+.m-ico.hi-happy .hi-iso {
+  transform: translateY(-1.3px);
+  filter: brightness(1.06) saturate(1.08);
+}
+.ov-icon.hi-shy:has(.hi-iso) .hi-iso,
+.m-ico.hi-shy .hi-iso {
+  transform: translateY(1px);
+  filter: brightness(.9) saturate(.85);
+}
+.ov-icon .hi-iso,
+.m-ico .hi-iso {
+  transition: transform .5s cubic-bezier(.22, 1, .36, 1), filter .5s ease;
+}
+
+/* 模块标题的立方体：原来那个 emoji 是 7s 转一圈，2.5D 转起来会拖影，
+   改成极缓的上下浮沉（3.2s ±0.8px），保留"活着"的感觉 */
+.m-ico:has(.hi-iso) .hi-iso {
+  animation: hi-bob 3.2s ease-in-out infinite;
+}
+@keyframes hi-bob {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 0 -0.8px; }
+}
+
+/* ── 降级 ───────────────────────────────────────────────────────────────── */
+html[data-fps-q="low"] .m-ico:has(.hi-iso) .hi-iso,
+html[data-fps-q="low"] .ov-icon:has(.hi-iso) {
+  animation: none !important;
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-ico:has(.hi-iso) .hi-iso { animation: none !important; }
+  .ov-icon:has(.hi-iso):hover,
+  .ov-icon:has(.hi-iso):active { transform: none; }
+  .ov-icon .hi-iso, .m-ico .hi-iso { transition: none !important; }
+}
+
+</style><!-- HI:CSS:END -->
 </head>
 <body>
 
@@ -26788,5 +26891,228 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
 })();
 
 </script><!-- UT:JS:END -->
+<!-- HI:JS:BEGIN -->
+<!-- home-iso (2026-10-24) | 主页 5 枚 2.5D 图标：三柱/托盘金币/上升楼梯/下降楼梯/立方体 | 点击逐个弹跳 + 跟随大盘情绪 | 改源文件后重跑本注入器 -->
+<script id="home-iso-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   home-iso · 主页 2.5D 图标（2026-10-24）
+   ───────────────────────────────────────────────────────────────────────────
+   用户：「把静态 EMOJI 和图标一个一个换成差不多的 2.5D 动画…参考我横幅做的
+          2.5D 动画，加上交互和情绪，特别是主页那几个动态小图标先换。」
+
+   五枚（等距几何由 Python 算好后固化，30° 投影 sx=(x−y)·cos30, sy=(x+y)·sin30−z）：
+     deal   两市成交额     → 三根上升柱（金）
+     north  南向资金净流入  → 托盘 + 两枚叠币（蓝托 + 金）
+     up     板块涨幅榜首   → 三级上升楼梯（红）
+     down   板块跌幅榜首   → 三级下降楼梯（绿）
+     cube   市场概览标题   → 等距立方体（绿，22px）
+
+   交互按 anatomy · motion.md 的配方（和 banner-iso 同源）：
+     点击 → 每个 .hi-u 单元收到**一次冲量**，由欠阻尼弹簧自然回落
+            （k=150 d=8.5，240Hz 子步，回落带一点余震）
+     单元按 data-step 错相：三柱左→右、楼梯低→高、托盘→金币
+     单 rAF 循环，settled 就停；离屏停；reduced-motion 不跳
+
+   情绪：观察 #mascot-deco 的 is-happy / is-shy（和右上角狗、右下角小搭档
+         共用同一套大盘信号，零耦合），给容器加 .hi-happy / .hi-shy。
+
+   ⚠️ 只替换图标容器的 innerHTML，JS 失败时原 SVG 还在（天然兜底）。
+   ⚠️ 点击**不** stopPropagation —— .ov-card 自己有"点击查看成分股"。
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  if (window.__hiInstalled) return;
+  window.__hiInstalled = true;
+
+  var ICONS = {
+    deal: '<g class="hi-u" data-step="0"><polygon points="21.72,22.68 13.16,27.62 13.16,17.74 21.72,12.80" fill="#a86a28"/><polygon points="13.16,27.62 4.60,22.68 4.60,12.80 13.16,17.74" fill="#d99a4e"/><polygon points="13.16,7.86 21.72,12.80 13.16,17.74 4.60,12.80" fill="#ffd9a0"/></g><g class="hi-u" data-step="1"><polygon points="32.56,28.94 24.00,33.88 24.00,17.96 32.56,13.02" fill="#a86a28"/><polygon points="24.00,33.88 15.44,28.94 15.44,13.02 24.00,17.96" fill="#d99a4e"/><polygon points="24.00,8.08 32.56,13.02 24.00,17.96 15.44,13.02" fill="#ffd9a0"/></g><g class="hi-u" data-step="2"><polygon points="43.40,35.20 34.84,40.14 34.84,18.18 43.40,13.24" fill="#a86a28"/><polygon points="34.84,40.14 26.28,35.20 26.28,13.24 34.84,18.18" fill="#d99a4e"/><polygon points="34.84,8.30 43.40,13.24 34.84,18.18 26.28,13.24" fill="#ffd9a0"/></g>',
+    north: '<g class="hi-u" data-step="0"><polygon points="24.00,14.48 43.40,25.69 24.00,36.89 4.60,25.69" fill="#8fb6d4"/><polygon points="43.40,29.53 24.00,40.73 24.00,36.89 43.40,25.69" fill="#4e7794"/><polygon points="24.00,40.73 4.60,29.53 4.60,25.69 24.00,36.89" fill="#6f9dc0"/><ellipse cx="35.20" cy="25.69" rx="7.68" ry="4.44" fill="#2b4d66" opacity=".55"/></g><g class="hi-u hi-coin" data-step="1"><path d="M27.88 22.70 A7.32 4.22 0 0 0 42.52 22.70 L42.52 25.05 A7.32 4.22 0 0 1 27.88 25.05 Z" fill="#ab7534"/><ellipse cx="35.20" cy="22.70" rx="7.32" ry="4.22" fill="#f5c887"/><ellipse cx="35.20" cy="22.70" rx="4.02" ry="2.32" fill="none" stroke="#8a5a24" stroke-width=".5" opacity=".55"/></g><g class="hi-u hi-coin" data-step="1"><path d="M27.88 20.35 A7.32 4.22 0 0 0 42.52 20.35 L42.52 22.70 A7.32 4.22 0 0 1 27.88 22.70 Z" fill="#c08a44"/><ellipse cx="35.20" cy="20.35" rx="7.32" ry="4.22" fill="#ffe0ae"/><ellipse cx="35.20" cy="20.35" rx="4.02" ry="2.32" fill="none" stroke="#8a5a24" stroke-width=".5" opacity=".55"/></g>',
+    up: '<g class="hi-u" data-step="0"><polygon points="24.00,23.38 14.30,28.98 14.30,21.51 24.00,15.91" fill="#b8453a"/><polygon points="14.30,28.98 4.60,23.38 4.60,15.91 14.30,21.51" fill="#e8705e"/><polygon points="14.30,10.31 24.00,15.91 14.30,21.51 4.60,15.91" fill="#ffb9a8"/></g><g class="hi-u" data-step="1"><polygon points="33.70,28.98 24.00,34.58 24.00,20.27 33.70,14.67" fill="#b8453a"/><polygon points="24.00,34.58 14.30,28.98 14.30,14.67 24.00,20.27" fill="#e8705e"/><polygon points="24.00,9.07 33.70,14.67 24.00,20.27 14.30,14.67" fill="#ffb9a8"/></g><g class="hi-u" data-step="2"><polygon points="43.40,34.58 33.70,40.18 33.70,19.02 43.40,13.42" fill="#b8453a"/><polygon points="33.70,40.18 24.00,34.58 24.00,13.42 33.70,19.02" fill="#e8705e"/><polygon points="33.70,7.82 43.40,13.42 33.70,19.02 24.00,13.42" fill="#ffb9a8"/></g>',
+    down: '<g class="hi-u" data-step="0"><polygon points="24.00,28.43 15.36,33.42 15.36,14.58 24.00,9.59" fill="#157a55"/><polygon points="15.36,33.42 6.72,28.43 6.72,9.59 15.36,14.58" fill="#45b98a"/><polygon points="15.36,4.60 24.00,9.59 15.36,14.58 6.72,9.59" fill="#aee8cc"/></g><g class="hi-u" data-step="1"><polygon points="32.64,33.42 24.00,38.41 24.00,25.66 32.64,20.67" fill="#157a55"/><polygon points="24.00,38.41 15.36,33.42 15.36,20.67 24.00,25.66" fill="#45b98a"/><polygon points="24.00,15.69 32.64,20.67 24.00,25.66 15.36,20.67" fill="#aee8cc"/></g><g class="hi-u" data-step="2"><polygon points="41.28,38.41 32.64,43.40 32.64,36.75 41.28,31.76" fill="#157a55"/><polygon points="32.64,43.40 24.00,38.41 24.00,31.76 32.64,36.75" fill="#45b98a"/><polygon points="32.64,26.77 41.28,31.76 32.64,36.75 24.00,31.76" fill="#aee8cc"/></g>',
+    cube: '<g class="hi-u" data-step="0"><polygon points="40.80,33.70 24.00,43.40 24.00,24.00 40.80,14.30" fill="#157a55"/><polygon points="24.00,43.40 7.20,33.70 7.20,14.30 24.00,24.00" fill="#45b98a"/><polygon points="24.00,4.60 40.80,14.30 24.00,24.00 7.20,14.30" fill="#aee8cc"/></g>'
+  };
+
+  /* 每枚的弹跳参数：amp 是局部坐标位移（视觉 = amp × 外层缩放） */
+  var HOP = {
+    deal:  { amp: 5.2, gap: 80 },
+    north: { amp: 4.8, gap: 96 },
+    up:    { amp: 5.0, gap: 78 },
+    down:  { amp: 5.0, gap: 78 },
+    cube:  { amp: 4.2, gap: 0 }
+  };
+
+  var K_SPRING = 150, D_SPRING = 8.5, GAIN = 22;
+  var reduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  var MOOD = '';
+
+  function svgFor(key) {
+    return '<svg class="hi-iso" viewBox="0 0 48 48" aria-hidden="true" data-hi="' + key + '">'
+      + (ICONS[key] || ICONS.cube) + '</svg>';
+  }
+
+  /* ── 一次冲量 + 欠阻尼弹簧（anatomy · motion.md）──────────────────── */
+  function makeHopper(svg, cfg) {
+    var nodes = svg.querySelectorAll('.hi-u'), units = [];
+    for (var i = 0; i < nodes.length; i++) {
+      units.push({
+        el: nodes[i],
+        step: parseInt(nodes[i].getAttribute('data-step') || '0', 10),
+        y: 0, v: 0, fired: false
+      });
+    }
+    var raf = 0, last = 0, t0 = 0;
+
+    function tick(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 1 / 60;
+      last = now;
+      var moving = false;
+      var sub = Math.max(1, Math.ceil(dt * 240)), h = dt / sub;
+
+      for (var i = 0; i < units.length; i++) {
+        var u = units[i];
+        if (!u.fired) {
+          if (now - t0 >= u.step * cfg.gap) {
+            u.fired = true;
+            u.v -= cfg.amp * GAIN;      /* 冲量：向上踢一下 */
+          } else {
+            moving = true;
+            continue;
+          }
+        }
+        for (var s = 0; s < sub; s++) {
+          var a = -K_SPRING * u.y - D_SPRING * u.v;
+          u.v += a * h;
+          u.y += u.v * h;
+        }
+        if (Math.abs(u.y) < 5e-4 && Math.abs(u.v) < 5e-4) {
+          u.y = 0; u.v = 0;
+          u.el.removeAttribute('transform');
+        } else {
+          moving = true;
+          u.el.setAttribute('transform', 'translate(0 ' + u.y.toFixed(3) + ')');
+        }
+      }
+      raf = moving ? requestAnimationFrame(tick) : 0;
+    }
+
+    return function fire() {
+      if (reduce && reduce.matches) return;
+      if (!svg.isConnected) return;
+      t0 = performance.now();
+      last = 0;
+      for (var i = 0; i < units.length; i++) units[i].fired = false;
+      if (!raf) raf = requestAnimationFrame(tick);
+    };
+  }
+
+  function bind(svg) {
+    if (!svg || svg.__hiFire) return;
+    var key = svg.getAttribute('data-hi') || 'cube';
+    svg.__hiFire = makeHopper(svg, HOP[key] || HOP.cube);
+  }
+
+  /* 事件委托到 document：图标容器可能被主文件重渲 */
+  function fireFrom(target) {
+    var icon = target && target.closest ? target.closest('.ov-icon, .m-ico') : null;
+    if (!icon) return;
+    var svg = icon.querySelector('.hi-iso');
+    if (!svg) return;
+    if (!svg.__hiFire) bind(svg);
+    if (svg.__hiFire) svg.__hiFire();
+    if (window.__homeIso) window.__homeIso.hops++;
+  }
+
+  /* ── 挂载 ─────────────────────────────────────────────────────────── */
+  function pickKey(text) {
+    if (/成交额|成交量|两市/.test(text)) return 'deal';
+    if (/南向|北向|资金/.test(text)) return 'north';
+    if (/涨幅|领涨/.test(text)) return 'up';
+    if (/跌幅|领跌/.test(text)) return 'down';
+    return '';
+  }
+
+  function mountCards() {
+    var cards = document.querySelectorAll('.ov-card'), n = 0;
+    for (var i = 0; i < cards.length; i++) {
+      var lab = cards[i].querySelector('.ov-label');
+      var icon = cards[i].querySelector('.ov-icon');
+      if (!lab || !icon) continue;
+      if (icon.querySelector('.hi-iso')) { n++; continue; }
+      var key = pickKey(lab.textContent || '');
+      if (!key) continue;
+      icon.innerHTML = svgFor(key);
+      bind(icon.querySelector('.hi-iso'));
+      n++;
+    }
+    return n;
+  }
+
+  /* 市场概览标题前的那个旋转 emoji → 等距立方体 */
+  function mountModule() {
+    var host = document.querySelector('#page-home .m-ico');
+    if (!host) return false;
+    if (host.querySelector('.hi-iso')) return true;
+    /* 只换带 img 的（线条 SVG 图标不动） */
+    if (!host.querySelector('img')) return false;
+    host.innerHTML = svgFor('cube');
+    bind(host.querySelector('.hi-iso'));
+    return true;
+  }
+
+  /* ── 情绪联动：跟右上角狗同一套信号 ─────────────────────────────── */
+  function applyMood(mood) {
+    if (mood === MOOD) return;
+    MOOD = mood;
+    var els = document.querySelectorAll('.ov-icon, #page-home .m-ico');
+    for (var i = 0; i < els.length; i++) {
+      els[i].classList.remove('hi-happy', 'hi-shy');
+      if (mood === 'happy') els[i].classList.add('hi-happy');
+      else if (mood === 'shy') els[i].classList.add('hi-shy');
+    }
+  }
+
+  function watchMood() {
+    var deco = document.getElementById('mascot-deco');
+    if (!deco) return;
+    function read() {
+      if (deco.classList.contains('is-happy')) applyMood('happy');
+      else if (deco.classList.contains('is-shy')) applyMood('shy');
+      else applyMood('');
+    }
+    read();
+    if (window.MutationObserver) {
+      new MutationObserver(read).observe(deco, { attributes: true, attributeFilter: ['class'] });
+    }
+  }
+
+  function init() {
+    mountCards();
+    mountModule();
+    watchMood();
+    document.addEventListener('click', function (e) { fireFrom(e.target); }, true);
+
+    /* 首屏后数据刷新可能重建卡片 → 低频补挂（12 次封顶，不常驻轮询） */
+    var tries = 0;
+    var t = setInterval(function () {
+      mountCards(); mountModule();
+      if (++tries >= 12) clearInterval(t);
+    }, 700);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  window.__homeIso = {
+    mount: function () { mountCards(); mountModule(); },
+    keys: Object.keys(ICONS),
+    state: function () { return { mood: MOOD, hops: this.hops || 0 }; },
+    hops: 0
+  };
+})();
+
+</script><!-- HI:JS:END -->
 </body>
 </html>
