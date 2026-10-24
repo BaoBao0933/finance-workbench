@@ -11460,21 +11460,10 @@ html[data-fps-q="low"] .bd-face.bd-dip { animation: none; }
 <!-- banner-iso (2026-10-24) | 横幅等距柱组图标 + 呼吸动画 | 纯 transform/opacity | 改源文件后重跑本注入器 -->
 <style id="banner-iso-style">
 /* ═══════════════════════════════════════════════════════════════════════════
-   banner-iso · 横幅 2.5D 图标（2026-10-24）
+   banner-iso · 横幅 2.5D 图标样式（2026-10-24）
    ───────────────────────────────────────────────────────────────────────────
-   用户：「横幅这里这个图标有点廉价感。不够高级。看看能不能用我刚装的 SKILL
-          做一点 2.5D 动画放上去试试呢」
-
-   做法（anatomy 技能的等距几何）：
-     · 30° 等距投影：sx=(x−y)·cos30, sy=(x+y)·sin30−z
-     · 三块柱体 + 一块薄底座，每个盒体三个面（顶 / 右 / 左）三档明暗
-     · 明暗层级：顶面最亮 #ffd8a3 → 左面 #e8a35c → 右面 #c47b36
-     · 底座压暗（#5a4a3c / #3b312a / #312923），让柱子"立"在台上
-   动画（只用 transform / opacity，GPU 合成，零模糊）：
-     · 整体极慢浮沉 5.6s ±1.2px
-     · 三根柱子错相呼吸 4.2s（0 / .35s / .7s）—— 像行情在轻轻起伏
-   ⚠️ 不引入 WebGL / 滤镜，44px 尺寸下只保留高对比轮廓。
-   ⚠️ 原生 emoji 作为 JS 失败时的兜底保留。
+   用户要求：不要阴影；多几个 2.5D 图标（柱组/火箭/小狗/金币）按标语每天换。
+   立体感与明暗全部在 SVG 里（顶面亮 / 左面中 / 右面暗），**不靠阴影、不靠滤镜**。
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .bi-iso {
@@ -11484,50 +11473,32 @@ html[data-fps-q="low"] .bd-face.bd-dip { animation: none; }
   overflow: visible;
 }
 
-/* 整体浮沉：盖掉横幅原来的 floaty（幅度太大、频太快，显得廉价） */
+/* 整体浮沉：5.6s ±1.6px，只动 transform（盖掉原来幅度大、频率快的 floaty） */
 .fun-banner .fb-emoji:has(.bi-iso) {
   width: 48px;
   height: 48px;
   animation: bi-float 5.6s ease-in-out infinite;
 }
-.fun-banner .fb-emoji .bi-iso { filter: drop-shadow(0 5px 10px rgba(0,0,0,.35)); }
 @keyframes bi-float {
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-1.6px); }
 }
 
-/* 柱体错相呼吸 —— 三根柱子各有相位，像活着的行情 */
-.bi-bar {
-  animation: bi-breathe 4.2s ease-in-out infinite;
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-}
-.bi-bar:nth-of-type(1) { animation-delay: 0s; }
-.bi-bar:nth-of-type(2) { animation-delay: .35s; }
-.bi-bar:nth-of-type(3) { animation-delay: .7s; }
-@keyframes bi-breathe {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-0.7px); }
+/* 换图标时的一次性淡入（不进循环） */
+.bi-iso { animation: bi-in .34s cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes bi-in {
+  from { opacity: 0; transform: translateY(3px) scale(.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* 顶面高光轻微呼吸（只改透明度，不动几何） */
-.bi-glow {
-  animation: bi-glow 5.2s ease-in-out infinite;
-}
-@keyframes bi-glow {
-  0%, 100% { opacity: .10; }
-  50%      { opacity: .22; }
-}
-
-/* 降级：低帧率档 / 减少动效 —— 全部静止，图标本身照常显示 */
+/* 降级：低帧率档 / 减少动效 → 完全静止，图标照常显示 */
 html[data-fps-q="low"] .fun-banner .fb-emoji:has(.bi-iso),
-html[data-fps-q="low"] .bi-bar,
-html[data-fps-q="low"] .bi-glow {
+html[data-fps-q="low"] .bi-iso {
   animation: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .fun-banner .fb-emoji:has(.bi-iso),
-  .bi-bar, .bi-glow { animation: none !important; }
+  .bi-iso { animation: none !important; }
 }
 
 </style><!-- BI:CSS:END -->
@@ -25676,54 +25647,83 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 <!-- banner-iso (2026-10-24) | 横幅等距柱组图标 + 呼吸动画 | 纯 transform/opacity | 改源文件后重跑本注入器 -->
 <script id="banner-iso-js">
 /* ═══════════════════════════════════════════════════════════════════════════
-   banner-iso · 用等距 SVG 替换横幅里的扁平 emoji（2026-10-24）
+   banner-iso · 横幅 2.5D 等距图标（2026-10-24）
    ───────────────────────────────────────────────────────────────────────────
-   为什么用 JS 替换而不是直接改 HTML：
-     · 原图标是一段 6KB 的 base64 <img>，直接改要动大段 base64，风险高
-     · JS 替换天然可回退：脚本失败 / 被禁用时，原来的 emoji 还在
+   用户：「多生成几个 2.5D 的柱子啊。小火箭或者小狗之类的可爱的又跟投资相关的。
+          可以根据标语每天替换」
+
+   四枚等距小物（anatomy 技能的 30° 投影：sx=(x−y)·cos30, sy=(x+y)·sin30−z）：
+     bars   柱组   —— 行情/持仓/市场类寄语（默认）
+     rocket 火箭   —— 牛市/大涨/贪婪/赚翻
+     dog    小狗   —— 幽默/心情/回本/信仰
+     coin   金币   —— 钱/现金/利润/价值/价格
+   统一材质：顶面 #ffd8a3 / 左面 #e8a35c / 右面 #c47b36（狗用地色系）
+   切换方式：读 .fb-title 的当日寄语 → 关键词命中 → 换图标；
+             横幅每天 0 点换句时，MutationObserver 自动跟着换。
+   ⚠️ 全部是静态 SVG 路径，动画只有 transform/opacity，无阴影、无滤镜。
+   ⚠️ emoji 仍作为 JS 失败时的兜底保留。
    ═══════════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
   if (window.__biInstalled) return;
   window.__biInstalled = true;
 
-  /* 等距柱组：三面明暗（无底座，靠投影落地 —— 底座在深色横幅上会糊成一坨） */
-  function iso() {
-    var d = '#ffd8a3', l = '#e8a35c', r = '#c47b36';
-    return ''
-      + '<svg class="bi-iso" viewBox="0 0 48 48" role="img" aria-label="行情柱状图">'
-      + '<defs><radialGradient id="bi-sh" cx="50%" cy="50%" r="50%">'
-      + '<stop offset="0%" stop-color="#000" stop-opacity=".42"/>'
-      + '<stop offset="70%" stop-color="#000" stop-opacity=".14"/>'
-      + '<stop offset="100%" stop-color="#000" stop-opacity="0"/>'
-      + '</radialGradient></defs>'
-      + '<ellipse cx="24" cy="42.4" rx="17" ry="4" fill="url(#bi-sh)"/>'
-      /* 柱 1（最矮） */
-      + '<g class="bi-bar"><polygon points="11.95,4.89 21.30,10.28 11.95,15.68 2.60,10.28" fill="' + d + '"/><polygon points="21.30,22.28 11.95,27.68 11.95,15.68 21.30,10.28" fill="' + r + '"/><polygon points="11.95,27.68 2.60,22.28 2.60,10.28 11.95,15.68" fill="' + l + '"/></g>'
-      /* 柱 2 */
-      + '<g class="bi-bar"><polygon points="24.00,4.65 33.35,10.04 24.00,15.44 14.65,10.04" fill="' + d + '"/><polygon points="33.35,29.24 24.00,34.64 24.00,15.44 33.35,10.04" fill="' + r + '"/><polygon points="24.00,34.64 14.65,29.24 14.65,10.04 24.00,15.44" fill="' + l + '"/></g>'
-      /* 柱 3（最高） */
-      + '<g class="bi-bar"><polygon points="36.05,4.41 45.40,9.81 36.05,15.20 26.70,9.81" fill="' + d + '"/><polygon points="45.40,36.19 36.05,41.59 36.05,15.20 45.40,9.81" fill="' + r + '"/><polygon points="36.05,41.59 26.70,36.19 26.70,9.81 36.05,15.20" fill="' + l + '"/></g>'
-      /* 顶面光泽（呼吸）：与最高柱顶面同形，只叠一层极淡的白 —— 像光扫过 */
-      + '<polygon class="bi-glow" points="36.05,4.41 45.40,9.81 36.05,15.20 26.70,9.81" fill="#fff6e6" opacity=".14"/>'
-      + '</svg>';
+  var ICONS = {
+    bars: '<g transform="translate(12.17 18.00) scale(1.1771)"><polygon points="0,-10 7.79,-5.5 0,-1 -7.79,-5.5" fill="#ffd8a3"/><polygon points="7.79,4.5 0,9 0,-1 7.79,-5.5" fill="#c47b36"/><polygon points="0,9 -7.79,4.5 -7.79,-5.5 0,-1" fill="#e8a35c"/><polygon points="10.05,-10.2 17.84,-5.7 10.05,-1.2 2.25,-5.7" fill="#ffd8a3"/><polygon points="17.84,10.3 10.05,14.8 10.05,-1.2 17.84,-5.7" fill="#c47b36"/><polygon points="10.05,14.8 2.25,10.3 2.25,-5.7 10.05,-1.2" fill="#e8a35c"/><polygon points="20.09,-10.4 27.89,-5.9 20.09,-1.4 12.3,-5.9" fill="#ffd8a3"/><polygon points="27.89,16.1 20.09,20.6 20.09,-1.4 27.89,-5.9" fill="#c47b36"/><polygon points="20.09,20.6 12.3,16.1 12.3,-5.9 20.09,-1.4" fill="#e8a35c"/></g>',
+    rocket: '<g transform="translate(24.00 33.42) scale(1.4841)"><polygon points="0,-3 4.33,-0.5 0,2 -4.33,-0.5" fill="#ffb37a"/><polygon points="4.33,4.5 0,7 0,2 4.33,-0.5" fill="#b3562a"/><polygon points="0,7 -4.33,4.5 -4.33,-0.5 0,2" fill="#e07e42"/><polygon points="-4.85,-12.8 -1.73,-11 -6.06,-8.5 -9.18,-10.3" fill="#e8a35c"/><polygon points="-1.73,-1 -6.06,1.5 -6.06,-8.5 -1.73,-11" fill="#9d5b2c"/><polygon points="-6.06,1.5 -9.18,-0.3 -9.18,-10.3 -6.06,-8.5" fill="#c98242"/><polygon points="6.06,-6.5 9.18,-4.7 4.85,-2.2 1.73,-4" fill="#e8a35c"/><polygon points="9.18,5.3 4.85,7.8 4.85,-2.2 9.18,-4.7" fill="#9d5b2c"/><polygon points="4.85,7.8 1.73,6 1.73,-4 4.85,-2.2" fill="#c98242"/><polygon points="0,-17 7.79,-12.5 0,-8 -7.79,-12.5" fill="#ffd8a3"/><polygon points="7.79,-0.5 0,4 0,-8 7.79,-12.5" fill="#c47b36"/><polygon points="0,4 -7.79,-0.5 -7.79,-12.5 0,-8" fill="#e8a35c"/><polygon points="7.79,-12.5 0,-8 0,-20.5" fill="#ffe9c8"/><polygon points="0,-8 -7.79,-12.5 0,-20.5" fill="#f2d0a0"/></g>',
+    dog: '<g transform="translate(23.54 26.27) scale(1.3376)"><polygon points="0,-13 12.12,-6 0,1 -12.12,-6" fill="#ffd8a3"/><polygon points="12.12,7 0,14 0,1 12.12,-6" fill="#c47b36"/><polygon points="0,14 -12.12,7 -12.12,-6 0,1" fill="#e8a35c"/><polygon points="-9.96,0.75 -2.17,5.25 -6.06,7.5 -13.86,3" fill="#fffaf2"/><polygon points="-2.17,11.25 -6.06,13.5 -6.06,7.5 -2.17,5.25" fill="#e8dcc9"/><polygon points="-6.06,13.5 -13.86,9 -13.86,3 -6.06,7.5" fill="#f8f0e2"/><polygon points="-6.58,-17.4 -2.08,-14.8 -9.01,-10.8 -13.51,-13.4" fill="#e3ac75"/><polygon points="-2.08,-1.8 -9.01,2.2 -9.01,-10.8 -2.08,-14.8" fill="#a96f38"/><polygon points="-9.01,2.2 -13.51,-0.4 -13.51,-13.4 -9.01,-10.8" fill="#c8894f"/><polygon points="10.05,-7.8 14.55,-5.2 7.62,-1.2 3.12,-3.8" fill="#e3ac75"/><polygon points="14.55,7.8 7.62,11.8 7.62,-1.2 14.55,-5.2" fill="#a96f38"/><polygon points="7.62,11.8 3.12,9.2 3.12,-3.8 7.62,-1.2" fill="#c8894f"/><polygon points="-9.02,-2.59 -6.95,-1.39 -6.95,1.41 -9.02,0.21" fill="#4a3426"/><polygon points="-5.21,-0.39 -3.14,0.81 -3.14,3.61 -5.21,2.41" fill="#4a3426"/><polygon points="-6.95,4.41 -5.21,5.41 -5.21,7.41 -6.95,6.41" fill="#4a3426"/></g>',
+    coin: '<g transform="translate(24.00 31.35) scale(2.4496)"><path d="M-8.5729 -0 A8.5729 4.9497 0 0 0 8.5729 3 A8.5729 4.9497 0 0 1 -8.5729 -0 Z" fill="#b3762f"/><ellipse cx="0" cy="-0" rx="8.5729" ry="4.9497" fill="#f7c07a"/><ellipse cx="0" cy="-0" rx="5.14374" ry="2.96982" fill="none" stroke="#d59a4e" stroke-width=".8"/><path d="M-8.5729 -3 A8.5729 4.9497 0 0 0 8.5729 0 A8.5729 4.9497 0 0 1 -8.5729 -3 Z" fill="#b3762f"/><ellipse cx="0" cy="-3" rx="8.5729" ry="4.9497" fill="#f7c07a"/><ellipse cx="0" cy="-3" rx="5.14374" ry="2.96982" fill="none" stroke="#d59a4e" stroke-width=".8"/><path d="M-8.5729 -6 A8.5729 4.9497 0 0 0 8.5729 -3 A8.5729 4.9497 0 0 1 -8.5729 -6 Z" fill="#b3762f"/><ellipse cx="0" cy="-6" rx="8.5729" ry="4.9497" fill="#f7c07a"/><ellipse cx="0" cy="-6" rx="5.14374" ry="2.96982" fill="none" stroke="#d59a4e" stroke-width=".8"/></g>'
+  };
+
+  /* 关键词 → 图标（顺序即优先级） */
+  var RULES = [
+    { re: /(牛市|大涨|疯涨|长虹|起飞|赚翻|贪婪|疯狂|追高|暴富)/, key: 'rocket' },
+    { re: /(幽默|笑话|心情|回本|认命|信仰|祈祷|躺|稳着|绿)/, key: 'dog' },
+    { re: /(现金|金钱|钱|利润|收益|账|财富|价值|价格|贵|便宜|本金|复利)/, key: 'coin' },
+    { re: /(股|投资|持仓|买入|市场|仓位|交易|趋势|周期|波动|风险)/, key: 'bars' }
+  ];
+
+  var LAST = { text: '', key: '' };
+
+  function pick(text) {
+    for (var i = 0; i < RULES.length; i++) {
+      if (RULES[i].re.test(text)) return RULES[i].key;
+    }
+    /* 没命中：按当天日期在四种里轮换，保证每天有变化 */
+    var now = new Date();
+    var day = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 864e5);
+    return ['bars', 'coin', 'rocket', 'dog'][day % 4];
+  }
+
+  function svgFor(key) {
+    return '<svg class="bi-iso" viewBox="0 0 48 48" role="img" aria-label="行情图标" data-icon="' + key + '">'
+      + (ICONS[key] || ICONS.bars) + '</svg>';
   }
 
   function mount() {
     var host = document.querySelector('.fun-banner .fb-emoji');
-    if (!host || host.querySelector('.bi-iso')) return false;
-    /* 保留原节点做兜底，只把内容换成 SVG */
-    host.innerHTML = iso();
+    if (!host) return false;
+    var title = document.querySelector('.fun-banner .fb-title');
+    var text = title ? title.textContent : '';
+    var key = pick(text);
+    if (LAST.text === text && LAST.key === key && host.querySelector('.bi-iso')) return true;
+    LAST.text = text;
+    LAST.key = key;
+    host.innerHTML = svgFor(key);
     return true;
   }
 
   function init() {
-    if (mount()) return;
-    /* 横幅有可能晚于本脚本渲染，兜一次 */
-    var t = setInterval(function () {
-      if (mount()) clearInterval(t);
-    }, 400);
-    setTimeout(function () { clearInterval(t); }, 6000);
+    mount();
+    /* 每天 0 点换句 → 监听标题文本变化 */
+    var title = document.querySelector('.fun-banner .fb-title');
+    if (title && window.MutationObserver) {
+      new MutationObserver(function () { mount(); })
+        .observe(title, { childList: true, characterData: true, subtree: true });
+    }
+    /* 横幅可能晚于本脚本渲染，兜一轮 */
+    var t = setInterval(function () { if (mount()) clearInterval(t); }, 500);
+    setTimeout(function () { clearInterval(t); }, 8000);
   }
 
   if (document.readyState === 'loading') {
@@ -25732,7 +25732,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     init();
   }
 
-  window.__bannerIso = { mount: mount, svg: iso };
+  window.__bannerIso = { mount: mount, pick: pick, keys: Object.keys(ICONS) };
 })();
 
 </script><!-- BI:JS:END -->
