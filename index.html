@@ -25678,21 +25678,18 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 <!-- banner-iso (2026-10-24) | 横幅等距柱组图标 + 呼吸动画 | 纯 transform/opacity | 改源文件后重跑本注入器 -->
 <script id="banner-iso-js">
 /* ═══════════════════════════════════════════════════════════════════════════
-   banner-iso · 横幅 2.5D 等距图标（2026-10-24）
+   banner-iso · 横幅 2.5D 图标（2026-10-24）
    ───────────────────────────────────────────────────────────────────────────
-   四枚等距小物（30° 投影：sx=(x−y)·cos30, sy=(x+y)·sin30−z）：
-     bars   柱组 / rocket 火箭 / dog 小狗 / coin 金币
-   统一材质：顶面 #ffd8a3 / 左面 #e8a35c / 右面 #c47b36（狗用地色系）
+   四枚图标按当日标语切换：bars 柱组 / rocket 火箭 / dog 小狗 / coin 金币
 
-   ⭐ 交互按 anatomy 技能的 motion 配方实现（references/motion.md）：
-      · 点击 = 给每个 .bi-u 单元一次**冲量**，由欠阻尼弹簧自然回落
-        （不是关键帧：会有一点点过冲和余震，像真的被手指弹了一下）
-      · 各单元按 data-step 错相起跳 → 金币一枚一枚、柱子一根一根
-      · 单个 rAF 循环，settled 就停；离屏停；reduced-motion 直接不动
-      · 冲量单位是局部坐标（会被外层 scale 放大），所以逐图标给不同幅度
+   ⭐ 点击动法按「物体的物理」分三种（不是一套动画套所有）：
+     stagger —— 柱组、金币：每个部件按 data-step 依次被踢起，各自弹簧回落
+     thrust  —— 火箭：尾焰先向下喷，40ms 后把整体顶上去；回落时尾焰收回去
+     flip    —— 小狗：两只耳朵绕耳根向外翻开，头轻轻抬一下
 
-   ⚠️ 静态 SVG 路径；动画只写 transform 属性，不碰 filter/布局。
-   ⚠️ emoji 仍作为 JS 失败时的兜底保留。
+   ⚠️ 造型两种：柱组/金币是严格等距；火箭/小狗是正面 2.5D 贴片
+      （圆角形状 + 统一厚度偏移），44px 下正面才认得出。
+   ⚠️ 动画只写 transform，不碰 filter / 布局；settled 即停。
    ═══════════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -25701,9 +25698,8 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
   var ICONS = {
     bars: '<g transform="translate(12.28 18.05) scale(1.1659)"><g class="bi-u" data-step="0"><polygon points="0,-10 7.79,-5.5 0,-1 -7.79,-5.5" fill="#ffd8a3"/><polygon points="7.79,4.5 0,9 0,-1 7.79,-5.5" fill="#c47b36"/><polygon points="0,9 -7.79,4.5 -7.79,-5.5 0,-1" fill="#e8a35c"/></g><g class="bi-u" data-step="1"><polygon points="10.05,-10.2 17.84,-5.7 10.05,-1.2 2.25,-5.7" fill="#ffd8a3"/><polygon points="17.84,10.3 10.05,14.8 10.05,-1.2 17.84,-5.7" fill="#c47b36"/><polygon points="10.05,14.8 2.25,10.3 2.25,-5.7 10.05,-1.2" fill="#e8a35c"/></g><g class="bi-u" data-step="2"><polygon points="20.09,-10.4 27.89,-5.9 20.09,-1.4 12.3,-5.9" fill="#ffd8a3"/><polygon points="27.89,16.1 20.09,20.6 20.09,-1.4 27.89,-5.9" fill="#c47b36"/><polygon points="20.09,20.6 12.3,16.1 12.3,-5.9 20.09,-1.4" fill="#e8a35c"/></g></g>',
-    rocket: '<g transform="translate(0 -0.6)"><g class="bi-u" data-step="0"><polygon points="17.5,27.2 17.5,37.2 8.5,37.2" fill="#a86a34"/><polygon points="30.5,27.2 30.5,37.2 39.5,37.2" fill="#a86a34"/><polygon points="17.5,25 17.5,35 8.5,35" fill="#d99a5e"/><polygon points="30.5,25 30.5,35 39.5,35" fill="#d99a5e"/></g><g class="bi-u" data-step="1"><polygon points="19.5,37.2 28.5,37.2 26,47 22,47" fill="#b0460f"/><polygon points="19.5,35 28.5,35 26,44.8 22,44.8" fill="#ff9d55"/><polygon points="21.2,35 26.8,35 24.9,40.6 23.1,40.6" fill="#ffe0b0"/></g><g class="bi-u" data-step="2"><rect x="17.5" y="13.2" width="13" height="24" rx="5" fill="#c08a4e"/><polygon points="17.5,13.2 24,4.7 30.5,13.2" fill="#d9a768"/><rect x="17.5" y="11" width="13" height="24" rx="5" fill="#f0c48a"/><polygon points="17.5,11 24,2.5 30.5,11" fill="#ffe2b4"/><circle cx="24" cy="18.5" r="3.3" fill="#8a5a28"/><circle cx="24" cy="18.5" r="2.4" fill="#ffe9c8"/><circle cx="23.2" cy="17.7" r="0.9" fill="rgba(255,255,255,.85)"/></g></g>',
-    dog: '<g transform="translate(0.11 -2.92) scale(0.9953)"><g transform="translate(0 -1.2)"><g class="bi-u" data-step="1"><rect x="2.5" y="19.1" width="11" height="24" rx="5.5" fill="#b57c44"/><rect x="2.5" y="16.5" width="11" height="24" rx="5.5" fill="#e0a873"/><rect x="5.3" y="20" width="5.4" height="16" rx="2.7" fill="rgba(122,74,34,.22)"/></g><g class="bi-u" data-step="1"><rect x="34.5" y="19.1" width="11" height="24" rx="5.5" fill="#b57c44"/><rect x="34.5" y="16.5" width="11" height="24" rx="5.5" fill="#e0a873"/><rect x="37.3" y="20" width="5.4" height="16" rx="2.7" fill="rgba(122,74,34,.22)"/></g><g class="bi-u" data-step="0"><rect x="9" y="13.6" width="30" height="28" rx="11.5" fill="#d8c6a6"/><rect x="9" y="11" width="30" height="28" rx="11.5" fill="#f7efe2"/></g><g class="bi-u" data-step="2"><rect x="14.5" y="27.7" width="19" height="14" rx="6.5" fill="#e6d8c2"/><rect x="14.5" y="25.5" width="19" height="14" rx="6.5" fill="#fffaf2"/><circle cx="18.6" cy="21.4" r="2.5" fill="#4a3426"/><circle cx="29.4" cy="21.4" r="2.5" fill="#4a3426"/><circle cx="19.4" cy="20.5" r="0.85" fill="rgba(255,255,255,.8)"/><circle cx="30.2" cy="20.5" r="0.85" fill="rgba(255,255,255,.8)"/><rect x="21" y="29" width="6" height="4.6" rx="2.3" fill="#4a3426"/></g></g></g>',
-    coin: '<g transform="translate(24.00 27.41) scale(2.1334)"><g class="bi-u" data-step="0"><path d="M-8.5729 -0 A8.5729 4.9497 0 0 0 8.5729 -0 L8.5729 3.2 A8.5729 4.9497 0 0 1 -8.5729 3.2 Z" fill="#a86e34"/><ellipse cx="0" cy="-0" rx="8.5729" ry="4.9497" fill="#f0ba78"/><ellipse cx="0" cy="-0" rx="8.3229" ry="4.8197" fill="none" stroke="#8f5d2a" stroke-width=".55" opacity=".85"/><ellipse cx="0" cy="-0" rx="5.14374" ry="2.96982" fill="none" stroke="#cf975a" stroke-width=".7"/></g><g class="bi-u" data-step="1"><path d="M-8.5729 -3.2 A8.5729 4.9497 0 0 0 8.5729 -3.2 L8.5729 0 A8.5729 4.9497 0 0 1 -8.5729 0 Z" fill="#b0763a"/><ellipse cx="0" cy="-3.2" rx="8.5729" ry="4.9497" fill="#f7c384"/><ellipse cx="0" cy="-3.2" rx="8.3229" ry="4.8197" fill="none" stroke="#94622d" stroke-width=".55" opacity=".85"/><ellipse cx="0" cy="-3.2" rx="5.14374" ry="2.96982" fill="none" stroke="#d89f61" stroke-width=".7"/></g><g class="bi-u" data-step="2"><path d="M-8.5729 -6.4 A8.5729 4.9497 0 0 0 8.5729 -6.4 L8.5729 -3.2 A8.5729 4.9497 0 0 1 -8.5729 -3.2 Z" fill="#bf8442"/><ellipse cx="0" cy="-6.4" rx="8.5729" ry="4.9497" fill="#fdd39a"/><ellipse cx="0" cy="-6.4" rx="8.3229" ry="4.8197" fill="none" stroke="#9a6730" stroke-width=".55" opacity=".85"/><ellipse cx="0" cy="-6.4" rx="5.14374" ry="2.96982" fill="none" stroke="#e0aa6c" stroke-width=".7"/><text class="bi-coin-sym" transform="matrix(1 0 0 0.74 0 -6.4)" text-anchor="middle" dominant-baseline="central" font-size="7.8" font-weight="700" paint-order="stroke" stroke="#ffe9c6" stroke-width="0.5" stroke-linejoin="round" fill="#a2672a">$</text></g></g>',
+    rocket: '<g transform="translate(0 -0.6)"><g class="bi-u" data-step="0"><polygon points="17.5,27.2 17.5,37.2 8.5,37.2" fill="#a86a34"/><polygon points="30.5,27.2 30.5,37.2 39.5,37.2" fill="#a86a34"/><polygon points="17.5,25 17.5,35 8.5,35" fill="#d99a5e"/><polygon points="30.5,25 30.5,35 39.5,35" fill="#d99a5e"/></g><g class="bi-u" data-part="flame" data-step="1"><polygon points="19.5,37.2 28.5,37.2 26,47 22,47" fill="#b0460f"/><polygon points="19.5,35 28.5,35 26,44.8 22,44.8" fill="#ff9d55"/><polygon points="21.2,35 26.8,35 24.9,40.6 23.1,40.6" fill="#ffe0b0"/></g><g class="bi-u" data-step="2"><rect x="17.5" y="13.2" width="13" height="24" rx="5" fill="#c08a4e"/><polygon points="17.5,13.2 24,4.7 30.5,13.2" fill="#d9a768"/><rect x="17.5" y="11" width="13" height="24" rx="5" fill="#f0c48a"/><polygon points="17.5,11 24,2.5 30.5,11" fill="#ffe2b4"/><circle cx="24" cy="18.5" r="3.3" fill="#8a5a28"/><circle cx="24" cy="18.5" r="2.4" fill="#ffe9c8"/><circle cx="23.2" cy="17.7" r="0.9" fill="rgba(255,255,255,.85)"/></g></g>',
+    dog: '<g transform="translate(0.11 -2.92) scale(0.9953)"><g transform="translate(0 -1.2)"><g class="bi-u" data-part="ear-l" data-step="1"><rect x="2.5" y="19.1" width="11" height="24" rx="5.5" fill="#b57c44"/><rect x="2.5" y="16.5" width="11" height="24" rx="5.5" fill="#e0a873"/><rect x="5.3" y="20" width="5.4" height="16" rx="2.7" fill="rgba(122,74,34,.22)"/></g><g class="bi-u" data-part="ear-r" data-step="1"><rect x="34.5" y="19.1" width="11" height="24" rx="5.5" fill="#b57c44"/><rect x="34.5" y="16.5" width="11" height="24" rx="5.5" fill="#e0a873"/><rect x="37.3" y="20" width="5.4" height="16" rx="2.7" fill="rgba(122,74,34,.22)"/></g><g class="bi-u" data-part="head" data-step="0"><rect x="9" y="13.6" width="30" height="28" rx="11.5" fill="#d8c6a6"/><rect x="9" y="11" width="30" height="28" rx="11.5" fill="#f7efe2"/></g><g class="bi-u" data-part="face" data-step="2"><rect x="14.5" y="27.7" width="19" height="14" rx="6.5" fill="#e6d8c2"/><rect x="14.5" y="25.5" width="19" height="14" rx="6.5" fill="#fffaf2"/><circle cx="18.6" cy="21.4" r="2.5" fill="#4a3426"/><circle cx="29.4" cy="21.4" r="2.5" fill="#4a3426"/><circle cx="19.4" cy="20.5" r="0.85" fill="rgba(255,255,255,.8)"/><circle cx="30.2" cy="20.5" r="0.85" fill="rgba(255,255,255,.8)"/><rect x="21" y="29" width="6" height="4.6" rx="2.3" fill="#4a3426"/></g></g></g>',
     coin: '<g transform="translate(24.00 27.41) scale(2.1334)"><g class="bi-u" data-step="0"><path d="M-8.5729 -0 A8.5729 4.9497 0 0 0 8.5729 -0 L8.5729 3.2 A8.5729 4.9497 0 0 1 -8.5729 3.2 Z" fill="#a86e34"/><ellipse cx="0" cy="-0" rx="8.5729" ry="4.9497" fill="#f0ba78"/><ellipse cx="0" cy="-0" rx="8.3229" ry="4.8197" fill="none" stroke="#8f5d2a" stroke-width=".55" opacity=".85"/><ellipse cx="0" cy="-0" rx="5.14374" ry="2.96982" fill="none" stroke="#cf975a" stroke-width=".7"/></g><g class="bi-u" data-step="1"><path d="M-8.5729 -3.2 A8.5729 4.9497 0 0 0 8.5729 -3.2 L8.5729 0 A8.5729 4.9497 0 0 1 -8.5729 0 Z" fill="#b0763a"/><ellipse cx="0" cy="-3.2" rx="8.5729" ry="4.9497" fill="#f7c384"/><ellipse cx="0" cy="-3.2" rx="8.3229" ry="4.8197" fill="none" stroke="#94622d" stroke-width=".55" opacity=".85"/><ellipse cx="0" cy="-3.2" rx="5.14374" ry="2.96982" fill="none" stroke="#d89f61" stroke-width=".7"/></g><g class="bi-u" data-step="2"><path d="M-8.5729 -6.4 A8.5729 4.9497 0 0 0 8.5729 -6.4 L8.5729 -3.2 A8.5729 4.9497 0 0 1 -8.5729 -3.2 Z" fill="#bf8442"/><ellipse cx="0" cy="-6.4" rx="8.5729" ry="4.9497" fill="#fdd39a"/><ellipse cx="0" cy="-6.4" rx="8.3229" ry="4.8197" fill="none" stroke="#9a6730" stroke-width=".55" opacity=".85"/><ellipse cx="0" cy="-6.4" rx="5.14374" ry="2.96982" fill="none" stroke="#e0aa6c" stroke-width=".7"/><text class="bi-coin-sym" transform="matrix(1 0 0 0.74 0 -6.4)" text-anchor="middle" dominant-baseline="central" font-size="7.8" font-weight="700" paint-order="stroke" stroke="#ffe9c6" stroke-width="0.5" stroke-linejoin="round" fill="#a2672a">$</text></g></g>'
   };
 
@@ -25715,17 +25711,16 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     { re: /(股|投资|持仓|买入|市场|仓位|交易|趋势|周期|波动|风险)/, key: 'bars' }
   ];
 
-  /* 弹簧：k=150 时 ω≈12.2，d=8.5 给 ζ≈0.35 —— 欠阻尼，跳起后自然回落带一点余震。
-     冲量 = amp × 22 时峰值位移约等于 amp（局部坐标单位）。 */
-  var SPRING = { k: 150, d: 8.5, gain: 22 };
-
-  /* amp：局部坐标下的跳起高度；gap：相邻单元的起跳间隔（毫秒） */
+  /* 每一枚的动法（amp 是局部坐标，视觉位移 = amp × 外层 scale） */
   var HOP = {
-    bars:   { amp: 4.7, gap: 84 },     /* ×1.166 ≈ 5.5px */
-    coin:   { amp: 2.8, gap: 96 },     /* ×2.133 ≈ 6.0px */
-    rocket: { amp: 5.5, gap: 80 },     /* ×1.000 ≈ 5.5px */
-    dog:    { amp: 5.5, gap: 86 }      /* ×0.995 ≈ 5.5px */
+    bars:   { mode: 'stagger', amp: 4.7, gap: 84 },
+    coin:   { mode: 'stagger', amp: 2.8, gap: 96 },
+    rocket: { mode: 'thrust',  amp: 5.5, delay: 0.05, stretch: 0.95 },
+    dog:    { mode: 'flip',    amp: 2.4, swing: 54 }
   };
+
+  var K_LIFT = 150, D_LIFT = 8.5;     /* 主体：欠阻尼，跳起带回弹 */
+  var K_FAST = 320, D_FAST = 20;      /* 尾焰/耳朵：跟得紧，带一点黏 */
 
   var LAST = { text: '', key: '' };
   var reduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
@@ -25734,7 +25729,6 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     for (var i = 0; i < RULES.length; i++) {
       if (RULES[i].re.test(text)) return RULES[i].key;
     }
-    /* 没命中：按当天日期在四种里轮换，保证每天有变化 */
     var now = new Date();
     var day = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 864e5);
     return ['bars', 'coin', 'rocket', 'dog'][day % 4];
@@ -25742,88 +25736,183 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
   function svgFor(key) {
     return '<svg class="bi-iso" viewBox="0 0 48 48" role="img" aria-label="行情图标" data-icon="' + key + '">'
-      /* 透明热区：整个 48×48 都能点，不只是画到的地方 */
       + '<rect class="bi-hit" x="0" y="0" width="48" height="48" fill="transparent"/>'
       + (ICONS[key] || ICONS.bars) + '</svg>';
   }
 
-  /* ── 弹跳：一次冲量 + 欠阻尼弹簧（anatomy · motion.md）────────────────── */
+  /* ── 弹簧与包络（anatomy · motion.md）─────────────────────────────── */
+  function smooth(a, b, x) {
+    var t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  }
+  /* 一次性事件：起得快、落得慢 */
+  function burst(age, rise, fall) {
+    if (age < 0) return 0;
+    if (age < rise) return smooth(0, rise, age);
+    return Math.exp(-(age - rise) / fall);
+  }
+  /* 半隐式欧拉，240Hz 子步；返回 true 表示已静止 */
+  function spring(s, target, dt, k, d) {
+    var sub = Math.max(1, Math.ceil(dt * 240)), h = dt / sub;
+    for (var i = 0; i < sub; i++) {
+      var a = -k * (s.y - target) - d * s.v;
+      s.v += a * h;
+      s.y += s.v * h;
+    }
+    if (Math.abs(s.y - target) < 5e-4 && Math.abs(s.v) < 5e-4) {
+      s.y = target; s.v = 0; return true;
+    }
+    return false;
+  }
+  function tx(y) { return 'translate(0 ' + y.toFixed(3) + ')'; }
+  function isZero(v) { return Math.abs(v) < 1e-3; }
+
   function unitsOf(svg) {
-    if (svg.__biUnits) return svg.__biUnits;
-    var nodes = svg.querySelectorAll('.bi-u');
-    var list = [];
+    var nodes = svg.querySelectorAll('.bi-u'), list = [];
     for (var i = 0; i < nodes.length; i++) {
       list.push({
         el: nodes[i],
+        part: nodes[i].getAttribute('data-part') || '',
         step: parseInt(nodes[i].getAttribute('data-step') || '0', 10),
         y: 0, v: 0, fired: false
       });
     }
-    svg.__biUnits = list;
     return list;
   }
 
-  function makeHopper(svg, cfg) {
-    var units = unitsOf(svg);
+  /* ── A. 逐个弹跳（柱组 / 金币）────────────────────────────────────── */
+  function makeStagger(svg, cfg) {
+    var us = unitsOf(svg), raf = 0, last = 0, t0 = 0;
+    function tick(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 1 / 60;
+      last = now;
+      var moving = false;
+      for (var i = 0; i < us.length; i++) {
+        var u = us[i];
+        if (!u.fired) {
+          if (now - t0 >= u.step * cfg.gap) { u.fired = true; u.v -= cfg.amp * 22; }
+          else { moving = true; continue; }
+        }
+        if (!spring(u, 0, dt, K_LIFT, D_LIFT)) moving = true;
+        if (u.y === 0) u.el.removeAttribute('transform');
+        else { u.el.setAttribute('transform', tx(u.y)); moving = true; }
+      }
+      raf = moving ? requestAnimationFrame(tick) : 0;
+    }
+    return function fire() {
+      t0 = performance.now(); last = 0;
+      for (var i = 0; i < us.length; i++) us[i].fired = false;
+      if (!raf) raf = requestAnimationFrame(tick);
+    };
+  }
+
+  /* ── B. 尾焰喷、整体升空（火箭）────────────────────────────────────
+     推力是向上的：先把尾焰拉长往下喷，几十毫秒后整体被顶起来，
+     回落时尾焰慢慢收回去。不是一个零件一个零件地跳。            */
+  function makeThrust(svg, cfg) {
+    var us = unitsOf(svg), flame = null;
+    for (var i = 0; i < us.length; i++) if (us[i].part === 'flame') flame = us[i];
+    if (!flame) return makeStagger(svg, { amp: cfg.amp, gap: 80 });
+
+    var lift = { y: 0, v: 0 }, tail = { y: 0, v: 0 };
+    var raf = 0, last = 0, t0 = 0, kicked = false;
+
+    function tick(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 1 / 60;
+      last = now;
+      var age = (now - t0) / 1000;
+
+      /* 尾焰先喷 → 再给主体推力 */
+      if (!kicked && age >= cfg.delay) { kicked = true; lift.v -= cfg.amp * 22; }
+
+      var env = burst(age, 0.06, 0.17);
+      var tailDone = spring(tail, env, dt, K_FAST, 18);
+      var liftDone = spring(lift, 0, dt, K_LIFT, D_LIFT);
+
+      var sy = 1 + tail.y * cfg.stretch;
+      for (var i = 0; i < us.length; i++) {
+        var u = us[i];
+        if (u === flame) {
+          /* 以尾焰顶端（局部 y=35）为原点向下拉长 */
+          u.el.setAttribute('transform',
+            tx(lift.y) + ' translate(0 35) scale(1 ' + sy.toFixed(3) + ') translate(0 -35)');
+        } else if (isZero(lift.y)) {
+          u.el.removeAttribute('transform');
+        } else {
+          u.el.setAttribute('transform', tx(lift.y));
+        }
+      }
+      raf = (tailDone && liftDone) ? 0 : requestAnimationFrame(tick);
+    }
+    return function fire() {
+      t0 = performance.now(); last = 0; kicked = false;
+      lift.y = 0; lift.v = 0; tail.y = 0; tail.v = 0;
+      if (!raf) raf = requestAnimationFrame(tick);
+    };
+  }
+
+  /* ── C. 翻耳朵（小狗）──────────────────────────────────────────────
+     耳朵绕耳根向外翻开，头轻轻抬一点；两只耳同时，不是排队跳。      */
+  function makeFlip(svg, cfg) {
+    var us = unitsOf(svg), head = null, face = null, eL = null, eR = null;
+    for (var i = 0; i < us.length; i++) {
+      var p = us[i].part;
+      if (p === 'head') head = us[i];
+      else if (p === 'face') face = us[i];
+      else if (p === 'ear-l') eL = us[i];
+      else if (p === 'ear-r') eR = us[i];
+    }
+    if (!eL || !eR) return makeStagger(svg, { amp: 2.4, gap: 86 });
+
+    var hy = { y: 0, v: 0 }, aL = { y: 0, v: 0 }, aR = { y: 0, v: 0 };
     var raf = 0, last = 0, t0 = 0;
 
     function tick(now) {
       var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 1 / 60;
       last = now;
-      var moving = false;
-      var sub = Math.max(1, Math.ceil(dt * 240));   /* 240Hz 子步，弹簧才稳 */
-      var h = dt / sub;
+      var age = (now - t0) / 1000;
+      var env = burst(age, 0.09, 0.21);
 
-      for (var i = 0; i < units.length; i++) {
-        var u = units[i];
-        if (!u.fired) {
-          if (now - t0 >= u.step * cfg.gap) {
-            u.fired = true;
-            u.v -= cfg.amp * SPRING.gain;          /* 冲量：向上踢一下 */
-          } else {
-            moving = true;
-            continue;
-          }
-        }
-        for (var s = 0; s < sub; s++) {
-          var a = -SPRING.k * u.y - SPRING.d * u.v;
-          u.v += a * h;
-          u.y += u.v * h;
-        }
-        if (Math.abs(u.y) < 5e-4 && Math.abs(u.v) < 5e-4) {
-          u.y = 0; u.v = 0;
-          u.el.removeAttribute('transform');
-        } else {
-          moving = true;
-          u.el.setAttribute('transform', 'translate(0 ' + u.y.toFixed(3) + ')');
-        }
-      }
-      raf = moving ? requestAnimationFrame(tick) : 0;
+      /* 左耳向外是负角、右耳向外是正角（轴心 = 各自耳根） */
+      var dL = spring(aL, -cfg.swing * env, dt, K_FAST, D_FAST);
+      var dR = spring(aR, cfg.swing * env, dt, K_FAST, D_FAST);
+      var dH = spring(hy, 0, dt, K_LIFT, D_LIFT);
+
+      var hyT = isZero(hy.y) ? '' : tx(hy.y);
+      eL.el.setAttribute('transform', hyT + ' rotate(' + aL.y.toFixed(2) + ' 8 16.5)');
+      eR.el.setAttribute('transform', hyT + ' rotate(' + aR.y.toFixed(2) + ' 40 16.5)');
+      [head, face].forEach(function (u) {
+        if (!u) return;
+        if (isZero(hy.y)) u.el.removeAttribute('transform');
+        else u.el.setAttribute('transform', hyT);
+      });
+      raf = (dL && dR && dH) ? 0 : requestAnimationFrame(tick);
     }
-
     return function fire() {
-      if (reduce && reduce.matches) return;        /* 减少动效：不跳 */
-      if (!svg.isConnected) return;
-      t0 = performance.now();
-      last = 0;
-      for (var i = 0; i < units.length; i++) units[i].fired = false;
+      t0 = performance.now(); last = 0;
+      hy.v -= cfg.amp * 22;
+      aL.y = 0; aL.v = 0; aR.y = 0; aR.v = 0;
       if (!raf) raf = requestAnimationFrame(tick);
     };
   }
 
-  function bind(svg) {
-    if (!svg) return;
-    if (svg.__biFire) return;
-    svg.__biFire = makeHopper(svg, HOP[svg.getAttribute('data-icon')] || HOP.bars);
+  function createHopper(svg, cfg) {
+    if (cfg.mode === 'thrust') return makeThrust(svg, cfg);
+    if (cfg.mode === 'flip') return makeFlip(svg, cfg);
+    return makeStagger(svg, cfg);
   }
 
-  /* 事件委托到 document：横幅可能被主文件重渲（.fb-emoji 的 innerHTML 被换掉），
-     绑在 svg 上会在重渲后失效 —— 委托则一直有效，点击时再给新节点补 bind。 */
+  function bind(svg) {
+    if (!svg || svg.__biFire) return;
+    svg.__biFire = createHopper(svg, HOP[svg.getAttribute('data-icon')] || HOP.bars);
+  }
+
+  /* 事件委托：横幅会被主文件重渲，绑在节点上会失效 */
   function fireFrom(target) {
     var svg = target && target.closest ? target.closest('.fun-banner .fb-emoji .bi-iso') : null;
     if (!svg) return;
-    if (!svg.__biFire) bind(svg);
-    if (!svg.__biFire) return;
+    if (reduce && reduce.matches) return;
+    bind(svg);
     svg.__biFire();
     if (window.__bannerIso) window.__bannerIso.hops++;
   }
@@ -25848,21 +25937,18 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   function init() {
     mount();
     document.addEventListener('click', function (e) { fireFrom(e.target); }, true);
-    /* 每天 0 点换句 → 监听标题文本变化 */
+
     var title = document.querySelector('.fun-banner .fb-title');
     if (title && window.MutationObserver) {
       new MutationObserver(function () { mount(); })
         .observe(title, { childList: true, characterData: true, subtree: true });
     }
-    /* 图标节点若被主文件重渲掉，立刻补回（零轮询） */
     var host = document.querySelector('.fun-banner .fb-emoji');
     if (host && window.MutationObserver && !host.__biWatch) {
       host.__biWatch = true;
-      new MutationObserver(function () {
-        if (!host.querySelector('.bi-iso')) mount();
-      }).observe(host, { childList: true });
+      new MutationObserver(function () { if (!host.querySelector('.bi-iso')) mount(); })
+        .observe(host, { childList: true });
     }
-    /* 横幅可能晚于本脚本渲染，兜一轮 */
     var t = setInterval(function () { if (mount()) clearInterval(t); }, 500);
     setTimeout(function () { clearInterval(t); }, 8000);
   }
@@ -25877,8 +25963,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     mount: mount, pick: pick, keys: Object.keys(ICONS),
     hop: function (svg) {
       svg = svg || document.querySelector('.fun-banner .fb-emoji .bi-iso');
-      if (!svg) return;
-      fireFrom(svg);
+      if (svg) fireFrom(svg);
     },
     hops: 0
   };
