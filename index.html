@@ -11493,6 +11493,15 @@ html[data-fps-q="low"] .bd-face.bd-dip { animation: none; }
 /* 透明热区：让整块 48×48 都可点，而不是只有画到形状的地方 */
 .bi-hit { pointer-events: all; }
 
+/* 币面压印的 $：字体放这里（SVG 属性里带空格的字体名要引号，会截断 JS 字符串） */
+.bi-coin-sym {
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+}
+
+
 /* 整体浮沉：5.6s ±1.6px，只动 transform */
 .fun-banner .fb-emoji:has(.bi-iso) {
   width: 48px;
@@ -25694,7 +25703,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     bars: '<g transform="translate(12.28 18.05) scale(1.1659)"><g class="bi-u" data-step="0"><polygon points="0,-10 7.79,-5.5 0,-1 -7.79,-5.5" fill="#ffd8a3"/><polygon points="7.79,4.5 0,9 0,-1 7.79,-5.5" fill="#c47b36"/><polygon points="0,9 -7.79,4.5 -7.79,-5.5 0,-1" fill="#e8a35c"/></g><g class="bi-u" data-step="1"><polygon points="10.05,-10.2 17.84,-5.7 10.05,-1.2 2.25,-5.7" fill="#ffd8a3"/><polygon points="17.84,10.3 10.05,14.8 10.05,-1.2 17.84,-5.7" fill="#c47b36"/><polygon points="10.05,14.8 2.25,10.3 2.25,-5.7 10.05,-1.2" fill="#e8a35c"/></g><g class="bi-u" data-step="2"><polygon points="20.09,-10.4 27.89,-5.9 20.09,-1.4 12.3,-5.9" fill="#ffd8a3"/><polygon points="27.89,16.1 20.09,20.6 20.09,-1.4 27.89,-5.9" fill="#c47b36"/><polygon points="20.09,20.6 12.3,16.1 12.3,-5.9 20.09,-1.4" fill="#e8a35c"/></g></g>',
     rocket: '<g transform="translate(24.00 33.33) scale(1.4700)"><g class="bi-u" data-step="0"><polygon points="0,-3 4.33,-0.5 0,2 -4.33,-0.5" fill="#ffb37a"/><polygon points="4.33,4.5 0,7 0,2 4.33,-0.5" fill="#b3562a"/><polygon points="0,7 -4.33,4.5 -4.33,-0.5 0,2" fill="#e07e42"/></g><g class="bi-u" data-step="1"><polygon points="-4.85,-12.8 -1.73,-11 -6.06,-8.5 -9.18,-10.3" fill="#e8a35c"/><polygon points="-1.73,-1 -6.06,1.5 -6.06,-8.5 -1.73,-11" fill="#9d5b2c"/><polygon points="-6.06,1.5 -9.18,-0.3 -9.18,-10.3 -6.06,-8.5" fill="#c98242"/></g><g class="bi-u" data-step="1"><polygon points="6.06,-6.5 9.18,-4.7 4.85,-2.2 1.73,-4" fill="#e8a35c"/><polygon points="9.18,5.3 4.85,7.8 4.85,-2.2 9.18,-4.7" fill="#9d5b2c"/><polygon points="4.85,7.8 1.73,6 1.73,-4 4.85,-2.2" fill="#c98242"/></g><g class="bi-u" data-step="2"><polygon points="0,-17 7.79,-12.5 0,-8 -7.79,-12.5" fill="#ffd8a3"/><polygon points="7.79,-0.5 0,4 0,-8 7.79,-12.5" fill="#c47b36"/><polygon points="0,4 -7.79,-0.5 -7.79,-12.5 0,-8" fill="#e8a35c"/><polygon points="7.79,-12.5 0,-8 0,-20.5" fill="#ffe9c8"/><polygon points="0,-8 -7.79,-12.5 0,-20.5" fill="#f2d0a0"/></g></g>',
     dog: '<g transform="translate(23.54 26.25) scale(1.3248)"><g class="bi-u" data-step="0"><polygon points="0,-13 12.12,-6 0,1 -12.12,-6" fill="#ffd8a3"/><polygon points="12.12,7 0,14 0,1 12.12,-6" fill="#c47b36"/><polygon points="0,14 -12.12,7 -12.12,-6 0,1" fill="#e8a35c"/></g><g class="bi-u" data-step="1"><polygon points="-9.96,0.75 -2.17,5.25 -6.06,7.5 -13.86,3" fill="#fffaf2"/><polygon points="-2.17,11.25 -6.06,13.5 -6.06,7.5 -2.17,5.25" fill="#e8dcc9"/><polygon points="-6.06,13.5 -13.86,9 -13.86,3 -6.06,7.5" fill="#f8f0e2"/><polygon points="-9.02,-2.59 -6.95,-1.39 -6.95,1.41 -9.02,0.21" fill="#4a3426"/><polygon points="-5.21,-0.39 -3.14,0.81 -3.14,3.61 -5.21,2.41" fill="#4a3426"/><polygon points="-6.95,4.41 -5.21,5.41 -5.21,7.41 -6.95,6.41" fill="#4a3426"/></g><g class="bi-u" data-step="2"><polygon points="-6.58,-17.4 -2.08,-14.8 -9.01,-10.8 -13.51,-13.4" fill="#e3ac75"/><polygon points="-2.08,-1.8 -9.01,2.2 -9.01,-10.8 -2.08,-14.8" fill="#a96f38"/><polygon points="-9.01,2.2 -13.51,-0.4 -13.51,-13.4 -9.01,-10.8" fill="#c8894f"/></g><g class="bi-u" data-step="2"><polygon points="10.05,-7.8 14.55,-5.2 7.62,-1.2 3.12,-3.8" fill="#e3ac75"/><polygon points="14.55,7.8 7.62,11.8 7.62,-1.2 14.55,-5.2" fill="#a96f38"/><polygon points="7.62,11.8 3.12,9.2 3.12,-3.8 7.62,-1.2" fill="#c8894f"/></g></g>',
-    coin: '<g transform="translate(24.00 27.41) scale(2.1334)"><g class="bi-u" data-step="0"><path d="M-8.5729 -0 A8.5729 4.9497 0 0 0 8.5729 -0 L8.5729 3.2 A8.5729 4.9497 0 0 1 -8.5729 3.2 Z" fill="#a86e34"/><ellipse cx="0" cy="-0" rx="8.5729" ry="4.9497" fill="#f0ba78"/><ellipse cx="0" cy="-0" rx="8.3229" ry="4.8197" fill="none" stroke="#8f5d2a" stroke-width=".45" opacity=".7"/><ellipse cx="0" cy="-0" rx="5.14374" ry="2.96982" fill="none" stroke="#cf975a" stroke-width=".7"/></g><g class="bi-u" data-step="1"><path d="M-8.5729 -3.2 A8.5729 4.9497 0 0 0 8.5729 -3.2 L8.5729 0 A8.5729 4.9497 0 0 1 -8.5729 0 Z" fill="#b0763a"/><ellipse cx="0" cy="-3.2" rx="8.5729" ry="4.9497" fill="#f7c384"/><ellipse cx="0" cy="-3.2" rx="8.3229" ry="4.8197" fill="none" stroke="#94622d" stroke-width=".45" opacity=".7"/><ellipse cx="0" cy="-3.2" rx="5.14374" ry="2.96982" fill="none" stroke="#d89f61" stroke-width=".7"/></g><g class="bi-u" data-step="2"><path d="M-8.5729 -6.4 A8.5729 4.9497 0 0 0 8.5729 -6.4 L8.5729 -3.2 A8.5729 4.9497 0 0 1 -8.5729 -3.2 Z" fill="#bf8442"/><ellipse cx="0" cy="-6.4" rx="8.5729" ry="4.9497" fill="#fdd39a"/><ellipse cx="0" cy="-6.4" rx="8.3229" ry="4.8197" fill="none" stroke="#9a6730" stroke-width=".45" opacity=".7"/><ellipse cx="0" cy="-6.4" rx="5.14374" ry="2.96982" fill="none" stroke="#e0aa6c" stroke-width=".7"/></g></g>'
+    coin: '<g transform="translate(24.00 27.41) scale(2.1334)"><g class="bi-u" data-step="0"><path d="M-8.5729 -0 A8.5729 4.9497 0 0 0 8.5729 -0 L8.5729 3.2 A8.5729 4.9497 0 0 1 -8.5729 3.2 Z" fill="#a86e34"/><ellipse cx="0" cy="-0" rx="8.5729" ry="4.9497" fill="#f0ba78"/><ellipse cx="0" cy="-0" rx="8.3229" ry="4.8197" fill="none" stroke="#8f5d2a" stroke-width=".55" opacity=".85"/><ellipse cx="0" cy="-0" rx="5.14374" ry="2.96982" fill="none" stroke="#cf975a" stroke-width=".7"/></g><g class="bi-u" data-step="1"><path d="M-8.5729 -3.2 A8.5729 4.9497 0 0 0 8.5729 -3.2 L8.5729 0 A8.5729 4.9497 0 0 1 -8.5729 0 Z" fill="#b0763a"/><ellipse cx="0" cy="-3.2" rx="8.5729" ry="4.9497" fill="#f7c384"/><ellipse cx="0" cy="-3.2" rx="8.3229" ry="4.8197" fill="none" stroke="#94622d" stroke-width=".55" opacity=".85"/><ellipse cx="0" cy="-3.2" rx="5.14374" ry="2.96982" fill="none" stroke="#d89f61" stroke-width=".7"/></g><g class="bi-u" data-step="2"><path d="M-8.5729 -6.4 A8.5729 4.9497 0 0 0 8.5729 -6.4 L8.5729 -3.2 A8.5729 4.9497 0 0 1 -8.5729 -3.2 Z" fill="#bf8442"/><ellipse cx="0" cy="-6.4" rx="8.5729" ry="4.9497" fill="#fdd39a"/><ellipse cx="0" cy="-6.4" rx="8.3229" ry="4.8197" fill="none" stroke="#9a6730" stroke-width=".55" opacity=".85"/><ellipse cx="0" cy="-6.4" rx="5.14374" ry="2.96982" fill="none" stroke="#e0aa6c" stroke-width=".7"/><text class="bi-coin-sym" transform="matrix(1 0 0 0.74 0 -6.4)" text-anchor="middle" dominant-baseline="central" font-size="7.8" font-weight="700" paint-order="stroke" stroke="#ffe9c6" stroke-width="0.5" stroke-linejoin="round" fill="#a2672a">$</text></g></g>'
   };
 
   /* 关键词 → 图标（顺序即优先级） */
@@ -25711,10 +25720,10 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 
   /* amp：局部坐标下的跳起高度；gap：相邻单元的起跳间隔（毫秒） */
   var HOP = {
-    bars:   { amp: 3.0, gap: 84 },
-    coin:   { amp: 2.0, gap: 96 },
-    rocket: { amp: 2.3, gap: 80 },
-    dog:    { amp: 2.5, gap: 86 }
+    bars:   { amp: 3.9, gap: 84 },     /* 视觉 ≈4.6px */
+    coin:   { amp: 2.8, gap: 96 },     /* 视觉 ≈6.0px */
+    rocket: { amp: 3.0, gap: 80 },     /* 视觉 ≈4.4px */
+    dog:    { amp: 3.2, gap: 86 }      /* 视觉 ≈4.2px */
   };
 
   var LAST = { text: '', key: '' };
