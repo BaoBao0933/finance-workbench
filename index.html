@@ -11150,146 +11150,6 @@ html[data-fps-q] #page-home .index-card {
 }
 
 </style><!-- LQ:CSS:END -->
-<!-- BD:CSS:BEGIN -->
-<!-- buddy-dog (2026-10-24) | 看盘小搭档：安静的卡通狗 + 时段问候/情绪联动 | 无常驻动画 | 改源文件后重跑本注入器 -->
-<style id="buddy-dog-style">
-/* ═══════════════════════════════════════════════════════════════════════════
-   buddy-dog · 看盘小搭档（2026-10-24）
-   ───────────────────────────────────────────────────────────────────────────
-   需求（用户原话）：「看盘小搭档可以弄，参考我的狗头来弄。不要太抢眼。」
-
-   设计铁律 —— **安静优先**：
-     · 默认就一只小图，无气泡、无常驻动画、无无限循环
-     · 气泡只在「时段问候 / 用户点击 / 情绪档位变化」时出现，5-6 秒自动收
-     · 尺寸小（52px），半透明起步，hover 才提亮
-     · 不挡内容：右下角 fixed，窄屏直接不显示
-   形象：奶油脸 + 焦糖垂耳的卡通狗（与侧栏 logo / mascot/export 头像同款）。
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-.bd-buddy {
-  position: fixed;
-  right: 20px;
-  bottom: max(26px, env(safe-area-inset-bottom));
-  z-index: 8800;              /* 低于 dock(9000)，不抢层 */
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-  pointer-events: none;        /* 只有狗和气泡吃事件 */
-  user-select: none;
-}
-
-/* ── 玻璃气泡：与工作台同族材质，小而轻 ───────────────────────────── */
-.bd-bubble {
-  pointer-events: auto;
-  max-width: 232px;
-  padding: 10px 14px;
-  border-radius: 14px;
-  font-size: 12.5px;
-  line-height: 1.65;
-  color: var(--text-main, #eef0f2);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .14) 0%, rgba(255, 255, 255, .04) 100%),
-    rgba(46, 52, 66, .58);
-  border: 1px solid rgba(255, 255, 255, .16);
-  backdrop-filter: blur(18px) saturate(150%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, .22), inset 0 1px 0 rgba(255, 255, 255, .18);
-
-  /* 默认收起：内容可见性由 JS 控制 display，不用 opacity:0 常驻（铁律 D） */
-  display: none;
-  opacity: 1;
-  transform-origin: 88% 100%;
-}
-.bd-bubble.show {
-  display: block;
-  animation: bd-pop .26s cubic-bezier(.34, 1.35, .64, 1) both;
-}
-@keyframes bd-pop {
-  from { opacity: 0; transform: translateY(6px) scale(.92); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-:root[data-theme="light"] .bd-bubble {
-  color: #3a332c;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .82) 0%, rgba(255, 252, 246, .66) 100%),
-    rgba(255, 248, 238, .72);
-  border-color: rgba(255, 255, 255, .9);
-  box-shadow: 0 10px 24px rgba(150, 108, 82, .16), inset 0 1px 0 rgba(255, 255, 255, .95);
-}
-
-/* ── 狗头按钮：安静的小图，hover 才活一点 ─────────────────────────── */
-.bd-face {
-  pointer-events: auto;
-  width: 52px;
-  height: 52px;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, .22);
-  border-radius: 50%;
-  cursor: pointer;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, .04) 100%),
-    rgba(70, 82, 108, .34);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, .20), inset 0 1px 0 rgba(255, 255, 255, .22);
-  display: grid;
-  place-items: center;
-  opacity: .88;
-  transition: opacity .25s ease, transform .25s cubic-bezier(.22, 1, .36, 1);
-  overflow: hidden;
-}
-.bd-face:hover { opacity: 1; transform: translateY(-2px); }
-.bd-face:active { transform: scale(.95); }
-.bd-face svg { width: 40px; height: 40px; display: block; }
-
-:root[data-theme="light"] .bd-face {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .8) 0%, rgba(255, 250, 242, .6) 100%),
-    rgba(255, 246, 234, .7);
-  border-color: rgba(255, 255, 255, .92);
-  box-shadow: 0 8px 18px rgba(150, 108, 82, .18), inset 0 1px 0 rgba(255, 255, 255, .95);
-}
-
-/* ── 情绪联动：一次性微反应（绝不无限循环）─────────────────────────
-   涨（is-happy）→ 轻轻跳一下；跌（is-shy）→ 缩一下耳朵。
-   只播一次 520ms，靠 animation 起停，不做常驻 transform（防覆盖 hover）。 */
-.bd-face.bd-hop { animation: bd-hop .52s cubic-bezier(.34, 1.45, .64, 1) both; }
-@keyframes bd-hop {
-  0%   { transform: translateY(0) scale(1); }
-  38%  { transform: translateY(-7px) scale(1.05); }
-  70%  { transform: translateY(1px) scale(.98); }
-  100% { transform: translateY(0) scale(1); }
-}
-.bd-face.bd-dip { animation: bd-dip .52s cubic-bezier(.34, 1.3, .64, 1) both; }
-@keyframes bd-dip {
-  0%   { transform: translateY(0) scale(1); }
-  40%  { transform: translateY(3px) scale(.94); }
-  100% { transform: translateY(0) scale(1); }
-}
-
-/* 耳朵随情绪微动（SVG 内部组，独立于按钮 transform，不打架） */
-.bd-face .bd-ear { transform-origin: 50% 12%; transition: transform .45s cubic-bezier(.22, 1, .36, 1); }
-.bd-face.is-happy .bd-ear-l { transform: rotate(-7deg); }
-.bd-face.is-happy .bd-ear-r { transform: rotate(7deg); }
-.bd-face.is-shy .bd-ear-l { transform: rotate(5deg) translateY(2px); }
-.bd-face.is-shy .bd-ear-r { transform: rotate(-5deg) translateY(2px); }
-
-/* ── 降级：低帧率档 / 减少动效 / 窄屏 —— 只留静态小图或整个收起 ── */
-html[data-fps-q="low"] .bd-bubble.show { animation: none; }
-html[data-fps-q="low"] .bd-face.bd-hop,
-html[data-fps-q="low"] .bd-face.bd-dip { animation: none; }
-@media (prefers-reduced-motion: reduce) {
-  .bd-bubble.show { animation: none; }
-  .bd-face, .bd-face .bd-ear { transition: none; }
-  .bd-face.bd-hop, .bd-face.bd-dip { animation: none; }
-}
-@media (max-width: 600px) {
-  .bd-buddy { display: none; }   /* 窄屏不占地方，跟 mascot-deco 同策略 */
-}
-
-</style><!-- BD:CSS:END -->
 <!-- PP:CSS:BEGIN -->
 <!-- perf-polish (2026-10-24) | 毛玻璃降本 + 视口外跳过 + 合成层提升 | 零布局/配色改动 | 改源文件后重跑本注入器 -->
 <style id="perf-polish-style">
@@ -11450,6 +11310,152 @@ html[data-fps-q="low"] .pos-sum-card {
 }
 
 </style><!-- PP:CSS:END -->
+<!-- BD:CSS:BEGIN -->
+<!-- buddy-dog (2026-10-24) | 看盘小搭档：安静的卡通狗 + 时段问候/情绪联动 | 无常驻动画 | 改源文件后重跑本注入器 -->
+<style id="buddy-dog-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   buddy-dog · 看盘小搭档（2026-10-24）
+   ───────────────────────────────────────────────────────────────────────────
+   需求（用户原话）：「看盘小搭档可以弄，参考我的狗头来弄。不要太抢眼。」
+
+   设计铁律 —— **安静优先**：
+     · 默认就一只小图，无气泡、无常驻动画、无无限循环
+     · 气泡只在「时段问候 / 用户点击 / 情绪档位变化」时出现，5-6 秒自动收
+     · 尺寸小（52px），半透明起步，hover 才提亮
+     · 不挡内容：右下角 fixed，窄屏直接不显示
+   形象：奶油脸 + 焦糖垂耳的卡通狗（与侧栏 logo / mascot/export 头像同款）。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.bd-buddy {
+  position: fixed;
+  right: 20px;
+  bottom: max(26px, env(safe-area-inset-bottom));
+  z-index: 8800;              /* 低于 dock(9000)，不抢层 */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;        /* 只有狗和气泡吃事件 */
+  user-select: none;
+}
+
+/* ── 玻璃气泡：与工作台同族材质，小而轻 ───────────────────────────── */
+.bd-bubble {
+  pointer-events: auto;
+  max-width: 232px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--text-main, #eef0f2);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .14) 0%, rgba(255, 255, 255, .04) 100%),
+    rgba(46, 52, 66, .58);
+  border: 1px solid rgba(255, 255, 255, .16);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .22), inset 0 1px 0 rgba(255, 255, 255, .18);
+
+  /* 默认收起：内容可见性由 JS 控制 display，不用 opacity:0 常驻（铁律 D） */
+  display: none;
+  opacity: 1;
+  transform-origin: 88% 100%;
+}
+.bd-bubble.show {
+  display: block;
+  animation: bd-pop .26s cubic-bezier(.34, 1.35, .64, 1) both;
+}
+@keyframes bd-pop {
+  from { opacity: 0; transform: translateY(6px) scale(.92); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+:root[data-theme="light"] .bd-bubble {
+  color: #3a332c;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .82) 0%, rgba(255, 252, 246, .66) 100%),
+    rgba(255, 248, 238, .72);
+  border-color: rgba(255, 255, 255, .9);
+  box-shadow: 0 10px 24px rgba(150, 108, 82, .16), inset 0 1px 0 rgba(255, 255, 255, .95);
+}
+
+/* ── 狗头按钮：安静的小图，hover 才活一点 ─────────────────────────── */
+.bd-face {
+  pointer-events: auto;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .22);
+  border-radius: 50%;
+  cursor: pointer;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, .04) 100%),
+    rgba(70, 82, 108, .34);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .20), inset 0 1px 0 rgba(255, 255, 255, .22);
+  display: grid;
+  place-items: center;
+  opacity: .88;
+  transition: opacity .25s ease, transform .25s cubic-bezier(.22, 1, .36, 1);
+  overflow: hidden;
+}
+.bd-face:hover { opacity: 1; transform: translateY(-2px); }
+.bd-face:active { transform: scale(.95); }
+.bd-face svg { width: 40px; height: 40px; display: block; }
+
+:root[data-theme="light"] .bd-face {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .8) 0%, rgba(255, 250, 242, .6) 100%),
+    rgba(255, 246, 234, .7);
+  border-color: rgba(255, 255, 255, .92);
+  box-shadow: 0 8px 18px rgba(150, 108, 82, .18), inset 0 1px 0 rgba(255, 255, 255, .95);
+}
+
+/* ── 情绪联动：一次性微反应（绝不无限循环）─────────────────────────
+   涨（is-happy）→ 轻轻跳一下；跌（is-shy）→ 缩一下耳朵。
+   只播一次 520ms，靠 animation 起停，不做常驻 transform（防覆盖 hover）。 */
+.bd-face.bd-hop { animation: bd-hop .52s cubic-bezier(.34, 1.45, .64, 1) both; }
+@keyframes bd-hop {
+  0%   { transform: translateY(0) scale(1); }
+  38%  { transform: translateY(-7px) scale(1.05); }
+  70%  { transform: translateY(1px) scale(.98); }
+  100% { transform: translateY(0) scale(1); }
+}
+.bd-face.bd-dip { animation: bd-dip .52s cubic-bezier(.34, 1.3, .64, 1) both; }
+@keyframes bd-dip {
+  0%   { transform: translateY(0) scale(1); }
+  40%  { transform: translateY(3px) scale(.94); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* 耳朵随情绪微动（SVG 内部组，独立于按钮 transform，不打架）
+   ⭐ 2026-10-24：耳朵改成大垂耳后，必须用 fill-box 让轴心落在**耳朵自身**顶部，
+   否则百分比按 viewBox 计算，旋转会把耳朵甩出画面。 */
+.bd-face .bd-ear {
+  transform-box: fill-box;
+  transform-origin: 50% 6%;
+  transition: transform .45s cubic-bezier(.22, 1, .36, 1);
+}
+.bd-face.is-happy .bd-ear-l { transform: rotate(-5deg); }
+.bd-face.is-happy .bd-ear-r { transform: rotate(5deg); }
+.bd-face.is-shy .bd-ear-l { transform: rotate(4deg) translateY(2px); }
+.bd-face.is-shy .bd-ear-r { transform: rotate(-4deg) translateY(2px); }
+
+/* ── 降级：低帧率档 / 减少动效 / 窄屏 —— 只留静态小图或整个收起 ── */
+html[data-fps-q="low"] .bd-bubble.show { animation: none; }
+html[data-fps-q="low"] .bd-face.bd-hop,
+html[data-fps-q="low"] .bd-face.bd-dip { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .bd-bubble.show { animation: none; }
+  .bd-face, .bd-face .bd-ear { transition: none; }
+  .bd-face.bd-hop, .bd-face.bd-dip { animation: none; }
+}
+@media (max-width: 600px) {
+  .bd-buddy { display: none; }   /* 窄屏不占地方，跟 mascot-deco 同策略 */
+}
+
+</style><!-- BD:CSS:END -->
 </head>
 <body>
 
@@ -25244,6 +25250,145 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- LQ:JS:END -->
+<!-- PP:JS:BEGIN -->
+<!-- perf-polish js (2026-10-24) | 滚动期玻璃降级，停稳即还原 | 改源文件后重跑本注入器 -->
+<script id="perf-polish-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   perf-polish · 滚动期玻璃降级（2026-10-24）
+   ───────────────────────────────────────────────────────────────────────────
+   为什么需要 JS：
+     首页 13 张 .index-card 挂着 `url(#lq-glass)`、4 张 .ov-card 挂着
+     `url(#apple-lg)` —— SVG 位移/湍流滤镜是**逐帧**对背景重算的，
+     比 blur 半径贵一个量级。它们的规则特异性高达 (1,4,1)+!important，
+     CSS 层根本压不住（试过 :root:root / 双类名，全输给 ID 选择器）。
+
+   解法：**滚动时用内联 !important 临时换成便宜模糊，停下 140ms 后还原**。
+     · 滚动期：blur(10px) saturate(150%)，肉眼在运动中也分辨不出折射差异
+     · 停下后：完整液态玻璃（折射 + 色散）全部回来
+     · 只有 ~20 个元素、只在"开始滚动 / 停止滚动"各改一次，非逐帧操作
+   这同时就是用户要的「呼吸感」：动起来轻，静下来厚。
+
+   铁律：
+     · 只改 backdrop-filter 一个属性，不动布局/颜色/尺寸
+     · 幂等（__ppPolish 守卫），任何异常静默降级
+     · 低帧率档已经是便宜玻璃 → 直接跳过，不重复折腾
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  if (window.__ppPolish) return;
+  window.__ppPolish = true;
+
+  var CHEAP = 'blur(10px) saturate(150%)';
+  var PROPS = ['backdrop-filter', '-webkit-backdrop-filter'];
+
+  /* 只圈「带 SVG 滤镜的重玻璃」——普通 blur 卡片交给 CSS 层处理即可 */
+  var HEAVY_SEL = [
+    '#page-home .index-card',
+    '.ov-card',
+    '.live-bar',
+    '.pos-chart-card',
+    '.senti-thermo'
+  ].join(',');
+
+  var targets = [];      // { el, prev: { prop: value } }
+  var timer = null;
+  var active = false;
+
+  function reduced() {
+    return !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+  function lowQ() {
+    return document.documentElement.getAttribute('data-fps-q') === 'low';
+  }
+
+  function collect() {
+    targets.length = 0;
+    var nodes = document.querySelectorAll(HEAVY_SEL);
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      var cs;
+      try { cs = getComputedStyle(el).backdropFilter; } catch (e) { continue; }
+      /* 只有真的带 url() 滤镜才值得处理 */
+      if (!cs || cs.indexOf('url(') < 0) continue;
+      targets.push({
+        el: el,
+        prev: {
+          'backdrop-filter': el.style.getPropertyValue('backdrop-filter'),
+          '-webkit-backdrop-filter': el.style.getPropertyValue('-webkit-backdrop-filter')
+        }
+      });
+    }
+    return targets.length;
+  }
+
+  function down() {
+    if (active || lowQ() || reduced()) return;
+    if (!targets.length && !collect()) return;
+    for (var i = 0; i < targets.length; i++) {
+      var t = targets[i];
+      for (var j = 0; j < PROPS.length; j++) {
+        t.el.style.setProperty(PROPS[j], CHEAP, 'important');
+      }
+    }
+    active = true;
+  }
+
+  function up() {
+    if (!active) return;
+    for (var i = 0; i < targets.length; i++) {
+      var t = targets[i];
+      for (var j = 0; j < PROPS.length; j++) {
+        var p = PROPS[j], prev = t.prev[p];
+        if (prev) t.el.style.setProperty(p, prev);
+        else t.el.style.removeProperty(p);
+      }
+    }
+    active = false;
+  }
+
+  /* 滚动：rAF 节流，只用来「开始降级 + 重置计时器」 */
+  var ticking = false;
+  function onScroll() {
+    if (!active) down();
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      up();
+      /* 页面切换/重渲染后元素会换，停稳时重新收集一次 */
+      targets.length = 0;
+    }, 140);
+  }
+
+  function bind() {
+    var content = document.querySelector('.content');
+    var opts = { passive: true };
+    if (content) content.addEventListener('scroll', onScroll, opts);
+    window.addEventListener('scroll', onScroll, opts);
+    /* 横向滑动的板块条也吃这条 */
+    document.addEventListener('scroll', onScroll, true);
+  }
+
+  function init() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+      return;
+    }
+    collect();
+    bind();
+  }
+  init();
+
+  window.__perfPolish = {
+    state: function () {
+      return { active: active, targets: targets.length, lowQ: lowQ() };
+    },
+    collect: collect,
+    down: down,
+    up: up
+  };
+})();
+
+</script><!-- PP:JS:END -->
 <!-- BD:JS:BEGIN -->
 <!-- buddy-dog (2026-10-24) | 看盘小搭档：安静的卡通狗 + 时段问候/情绪联动 | 无常驻动画 | 改源文件后重跑本注入器 -->
 <script id="buddy-dog-js">
@@ -25280,12 +25425,27 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
     return document.documentElement.getAttribute('data-fps-q') === 'low';
   }
 
-  /* ── 形象：卡通狗 SVG（奶油脸 #f7efe2 + 焦糖耳 #d2854a）────────────── */
+  /* ── 形象：卡通狗 SVG（奶油脸 #f7efe2 + 杏色大垂耳 #d9a978）──────────
+     ⭐ 2026-10-24 用户两次反馈：「耳朵不够大不够长，要像我的狗头那样。」
+     对照真实照片（奶油色可卡颇）：耳朵是**浅杏色大垂耳**，从头顶两侧垂下来，
+     宽度接近头宽一半，耳垂落到下颌以下。
+     几何（viewBox 96）：脸 ellipse cx48 cy52 rx30 ry28（y 24~80）。
+     耳朵起点 y=16（高出头顶 8px，像从头顶长出），外缘外扩到 x=2/94，
+     耳垂底 y=90（低于下颌 10px），内缘贴着脸的轮廓收回 —— 这样才读成「垂」，
+     而不是贴在脸边的两个半圆。 */
   function dogSvg() {
     return ''
       + '<svg viewBox="0 0 96 96" aria-hidden="true">'
-      + '<g class="bd-ear bd-ear-l"><path d="M26 30 C10 26 6 44 12 58 C16 68 28 66 32 56 Z" fill="#d2854a"/></g>'
-      + '<g class="bd-ear bd-ear-r"><path d="M70 30 C86 26 90 44 84 58 C80 68 68 66 64 56 Z" fill="#d2854a"/></g>'
+      /* 整体缩到 92% 并居中 —— 大垂耳外缘在 x=2/94，不缩会被圆形按钮切出直边 */
+      + '<g transform="translate(48 50) scale(.92) translate(-48 -50)">'
+      + '<g class="bd-ear bd-ear-l">'
+      + '<path d="M35 20 C19 14 4 27 2 49 C0 70 5 90 19 90 C29 90 32 79 30 66 C27 48 29 29 37 22 Z" fill="#d9a978"/>'
+      + '<ellipse cx="17" cy="80" rx="14" ry="13" fill="#d9a978"/>'
+      + '</g>'
+      + '<g class="bd-ear bd-ear-r">'
+      + '<path d="M61 20 C77 14 92 27 94 49 C96 70 91 90 77 90 C67 90 64 79 66 66 C69 48 67 29 59 22 Z" fill="#d9a978"/>'
+      + '<ellipse cx="79" cy="80" rx="14" ry="13" fill="#d9a978"/>'
+      + '</g>'
       + '<ellipse cx="48" cy="52" rx="30" ry="28" fill="#f7efe2"/>'
       + '<ellipse cx="48" cy="60" rx="14" ry="11" fill="#fffaf2"/>'
       + '<circle cx="37" cy="48" r="3.6" fill="#4a3426"/>'
@@ -25296,6 +25456,7 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
       + '<path class="bd-mouth" d="M42 65 Q48 70 54 65" fill="none" stroke="#4a3426" stroke-width="2.2" stroke-linecap="round"/>'
       + '<ellipse cx="27" cy="57" rx="4.5" ry="3" fill="#f0b8a2" opacity=".55"/>'
       + '<ellipse cx="69" cy="57" rx="4.5" ry="3" fill="#f0b8a2" opacity=".55"/>'
+      + '</g>'
       + '</svg>';
   }
 
@@ -25436,144 +25597,5 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- BD:JS:END -->
-<!-- PP:JS:BEGIN -->
-<!-- perf-polish js (2026-10-24) | 滚动期玻璃降级，停稳即还原 | 改源文件后重跑本注入器 -->
-<script id="perf-polish-js">
-/* ═══════════════════════════════════════════════════════════════════════════
-   perf-polish · 滚动期玻璃降级（2026-10-24）
-   ───────────────────────────────────────────────────────────────────────────
-   为什么需要 JS：
-     首页 13 张 .index-card 挂着 `url(#lq-glass)`、4 张 .ov-card 挂着
-     `url(#apple-lg)` —— SVG 位移/湍流滤镜是**逐帧**对背景重算的，
-     比 blur 半径贵一个量级。它们的规则特异性高达 (1,4,1)+!important，
-     CSS 层根本压不住（试过 :root:root / 双类名，全输给 ID 选择器）。
-
-   解法：**滚动时用内联 !important 临时换成便宜模糊，停下 140ms 后还原**。
-     · 滚动期：blur(10px) saturate(150%)，肉眼在运动中也分辨不出折射差异
-     · 停下后：完整液态玻璃（折射 + 色散）全部回来
-     · 只有 ~20 个元素、只在"开始滚动 / 停止滚动"各改一次，非逐帧操作
-   这同时就是用户要的「呼吸感」：动起来轻，静下来厚。
-
-   铁律：
-     · 只改 backdrop-filter 一个属性，不动布局/颜色/尺寸
-     · 幂等（__ppPolish 守卫），任何异常静默降级
-     · 低帧率档已经是便宜玻璃 → 直接跳过，不重复折腾
-   ═══════════════════════════════════════════════════════════════════════════ */
-(function () {
-  'use strict';
-  if (window.__ppPolish) return;
-  window.__ppPolish = true;
-
-  var CHEAP = 'blur(10px) saturate(150%)';
-  var PROPS = ['backdrop-filter', '-webkit-backdrop-filter'];
-
-  /* 只圈「带 SVG 滤镜的重玻璃」——普通 blur 卡片交给 CSS 层处理即可 */
-  var HEAVY_SEL = [
-    '#page-home .index-card',
-    '.ov-card',
-    '.live-bar',
-    '.pos-chart-card',
-    '.senti-thermo'
-  ].join(',');
-
-  var targets = [];      // { el, prev: { prop: value } }
-  var timer = null;
-  var active = false;
-
-  function reduced() {
-    return !!(window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  }
-  function lowQ() {
-    return document.documentElement.getAttribute('data-fps-q') === 'low';
-  }
-
-  function collect() {
-    targets.length = 0;
-    var nodes = document.querySelectorAll(HEAVY_SEL);
-    for (var i = 0; i < nodes.length; i++) {
-      var el = nodes[i];
-      var cs;
-      try { cs = getComputedStyle(el).backdropFilter; } catch (e) { continue; }
-      /* 只有真的带 url() 滤镜才值得处理 */
-      if (!cs || cs.indexOf('url(') < 0) continue;
-      targets.push({
-        el: el,
-        prev: {
-          'backdrop-filter': el.style.getPropertyValue('backdrop-filter'),
-          '-webkit-backdrop-filter': el.style.getPropertyValue('-webkit-backdrop-filter')
-        }
-      });
-    }
-    return targets.length;
-  }
-
-  function down() {
-    if (active || lowQ() || reduced()) return;
-    if (!targets.length && !collect()) return;
-    for (var i = 0; i < targets.length; i++) {
-      var t = targets[i];
-      for (var j = 0; j < PROPS.length; j++) {
-        t.el.style.setProperty(PROPS[j], CHEAP, 'important');
-      }
-    }
-    active = true;
-  }
-
-  function up() {
-    if (!active) return;
-    for (var i = 0; i < targets.length; i++) {
-      var t = targets[i];
-      for (var j = 0; j < PROPS.length; j++) {
-        var p = PROPS[j], prev = t.prev[p];
-        if (prev) t.el.style.setProperty(p, prev);
-        else t.el.style.removeProperty(p);
-      }
-    }
-    active = false;
-  }
-
-  /* 滚动：rAF 节流，只用来「开始降级 + 重置计时器」 */
-  var ticking = false;
-  function onScroll() {
-    if (!active) down();
-    clearTimeout(timer);
-    timer = setTimeout(function () {
-      up();
-      /* 页面切换/重渲染后元素会换，停稳时重新收集一次 */
-      targets.length = 0;
-    }, 140);
-  }
-
-  function bind() {
-    var content = document.querySelector('.content');
-    var opts = { passive: true };
-    if (content) content.addEventListener('scroll', onScroll, opts);
-    window.addEventListener('scroll', onScroll, opts);
-    /* 横向滑动的板块条也吃这条 */
-    document.addEventListener('scroll', onScroll, true);
-  }
-
-  function init() {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init);
-      return;
-    }
-    collect();
-    bind();
-  }
-  init();
-
-  window.__perfPolish = {
-    state: function () {
-      return { active: active, targets: targets.length, lowQ: lowQ() };
-    },
-    collect: collect,
-    down: down,
-    up: up
-  };
-})();
-
-</script><!-- PP:JS:END -->
 </body>
 </html>
