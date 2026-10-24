@@ -11456,6 +11456,81 @@ html[data-fps-q="low"] .bd-face.bd-dip { animation: none; }
 }
 
 </style><!-- BD:CSS:END -->
+<!-- BI:CSS:BEGIN -->
+<!-- banner-iso (2026-10-24) | 横幅等距柱组图标 + 呼吸动画 | 纯 transform/opacity | 改源文件后重跑本注入器 -->
+<style id="banner-iso-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   banner-iso · 横幅 2.5D 图标（2026-10-24）
+   ───────────────────────────────────────────────────────────────────────────
+   用户：「横幅这里这个图标有点廉价感。不够高级。看看能不能用我刚装的 SKILL
+          做一点 2.5D 动画放上去试试呢」
+
+   做法（anatomy 技能的等距几何）：
+     · 30° 等距投影：sx=(x−y)·cos30, sy=(x+y)·sin30−z
+     · 三块柱体 + 一块薄底座，每个盒体三个面（顶 / 右 / 左）三档明暗
+     · 明暗层级：顶面最亮 #ffd8a3 → 左面 #e8a35c → 右面 #c47b36
+     · 底座压暗（#5a4a3c / #3b312a / #312923），让柱子"立"在台上
+   动画（只用 transform / opacity，GPU 合成，零模糊）：
+     · 整体极慢浮沉 5.6s ±1.2px
+     · 三根柱子错相呼吸 4.2s（0 / .35s / .7s）—— 像行情在轻轻起伏
+   ⚠️ 不引入 WebGL / 滤镜，44px 尺寸下只保留高对比轮廓。
+   ⚠️ 原生 emoji 作为 JS 失败时的兜底保留。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.bi-iso {
+  width: 48px;
+  height: 48px;
+  display: block;
+  overflow: visible;
+}
+
+/* 整体浮沉：盖掉横幅原来的 floaty（幅度太大、频太快，显得廉价） */
+.fun-banner .fb-emoji:has(.bi-iso) {
+  width: 48px;
+  height: 48px;
+  animation: bi-float 5.6s ease-in-out infinite;
+}
+.fun-banner .fb-emoji .bi-iso { filter: drop-shadow(0 5px 10px rgba(0,0,0,.35)); }
+@keyframes bi-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-1.6px); }
+}
+
+/* 柱体错相呼吸 —— 三根柱子各有相位，像活着的行情 */
+.bi-bar {
+  animation: bi-breathe 4.2s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.bi-bar:nth-of-type(1) { animation-delay: 0s; }
+.bi-bar:nth-of-type(2) { animation-delay: .35s; }
+.bi-bar:nth-of-type(3) { animation-delay: .7s; }
+@keyframes bi-breathe {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-0.7px); }
+}
+
+/* 顶面高光轻微呼吸（只改透明度，不动几何） */
+.bi-glow {
+  animation: bi-glow 5.2s ease-in-out infinite;
+}
+@keyframes bi-glow {
+  0%, 100% { opacity: .10; }
+  50%      { opacity: .22; }
+}
+
+/* 降级：低帧率档 / 减少动效 —— 全部静止，图标本身照常显示 */
+html[data-fps-q="low"] .fun-banner .fb-emoji:has(.bi-iso),
+html[data-fps-q="low"] .bi-bar,
+html[data-fps-q="low"] .bi-glow {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fun-banner .fb-emoji:has(.bi-iso),
+  .bi-bar, .bi-glow { animation: none !important; }
+}
+
+</style><!-- BI:CSS:END -->
 </head>
 <body>
 
@@ -25597,5 +25672,69 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- BD:JS:END -->
+<!-- BI:JS:BEGIN -->
+<!-- banner-iso (2026-10-24) | 横幅等距柱组图标 + 呼吸动画 | 纯 transform/opacity | 改源文件后重跑本注入器 -->
+<script id="banner-iso-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   banner-iso · 用等距 SVG 替换横幅里的扁平 emoji（2026-10-24）
+   ───────────────────────────────────────────────────────────────────────────
+   为什么用 JS 替换而不是直接改 HTML：
+     · 原图标是一段 6KB 的 base64 <img>，直接改要动大段 base64，风险高
+     · JS 替换天然可回退：脚本失败 / 被禁用时，原来的 emoji 还在
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  if (window.__biInstalled) return;
+  window.__biInstalled = true;
+
+  /* 等距柱组：三面明暗（无底座，靠投影落地 —— 底座在深色横幅上会糊成一坨） */
+  function iso() {
+    var d = '#ffd8a3', l = '#e8a35c', r = '#c47b36';
+    return ''
+      + '<svg class="bi-iso" viewBox="0 0 48 48" role="img" aria-label="行情柱状图">'
+      + '<defs><radialGradient id="bi-sh" cx="50%" cy="50%" r="50%">'
+      + '<stop offset="0%" stop-color="#000" stop-opacity=".42"/>'
+      + '<stop offset="70%" stop-color="#000" stop-opacity=".14"/>'
+      + '<stop offset="100%" stop-color="#000" stop-opacity="0"/>'
+      + '</radialGradient></defs>'
+      + '<ellipse cx="24" cy="42.4" rx="17" ry="4" fill="url(#bi-sh)"/>'
+      /* 柱 1（最矮） */
+      + '<g class="bi-bar"><polygon points="11.95,4.89 21.30,10.28 11.95,15.68 2.60,10.28" fill="' + d + '"/><polygon points="21.30,22.28 11.95,27.68 11.95,15.68 21.30,10.28" fill="' + r + '"/><polygon points="11.95,27.68 2.60,22.28 2.60,10.28 11.95,15.68" fill="' + l + '"/></g>'
+      /* 柱 2 */
+      + '<g class="bi-bar"><polygon points="24.00,4.65 33.35,10.04 24.00,15.44 14.65,10.04" fill="' + d + '"/><polygon points="33.35,29.24 24.00,34.64 24.00,15.44 33.35,10.04" fill="' + r + '"/><polygon points="24.00,34.64 14.65,29.24 14.65,10.04 24.00,15.44" fill="' + l + '"/></g>'
+      /* 柱 3（最高） */
+      + '<g class="bi-bar"><polygon points="36.05,4.41 45.40,9.81 36.05,15.20 26.70,9.81" fill="' + d + '"/><polygon points="45.40,36.19 36.05,41.59 36.05,15.20 45.40,9.81" fill="' + r + '"/><polygon points="36.05,41.59 26.70,36.19 26.70,9.81 36.05,15.20" fill="' + l + '"/></g>'
+      /* 顶面光泽（呼吸）：与最高柱顶面同形，只叠一层极淡的白 —— 像光扫过 */
+      + '<polygon class="bi-glow" points="36.05,4.41 45.40,9.81 36.05,15.20 26.70,9.81" fill="#fff6e6" opacity=".14"/>'
+      + '</svg>';
+  }
+
+  function mount() {
+    var host = document.querySelector('.fun-banner .fb-emoji');
+    if (!host || host.querySelector('.bi-iso')) return false;
+    /* 保留原节点做兜底，只把内容换成 SVG */
+    host.innerHTML = iso();
+    return true;
+  }
+
+  function init() {
+    if (mount()) return;
+    /* 横幅有可能晚于本脚本渲染，兜一次 */
+    var t = setInterval(function () {
+      if (mount()) clearInterval(t);
+    }, 400);
+    setTimeout(function () { clearInterval(t); }, 6000);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  window.__bannerIso = { mount: mount, svg: iso };
+})();
+
+</script><!-- BI:JS:END -->
 </body>
 </html>
