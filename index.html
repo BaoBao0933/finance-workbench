@@ -6405,8 +6405,32 @@ html:not([data-fps-q]) .mc-page-in {
   --mc-stagger: 38ms;
 }
 
+/* ⭐⭐ 2026-10-24「所有列表都要资金流向那种丝滑」
+   ─────────────────────────────────────────────────────────────────────
+   原来的 mc-page-in 每条都带 filter: blur(5px) 溶解 —— 小面积列表扛得住，
+   铺到全站（sec-grid 几十格 / senti-cards / index-grid）就是几十个合成层
+   同时做高斯模糊，帧率直接崩（用户实测「太卡」）。
+   新曲线 mc-rise：**只动 opacity + transform**，全部走 GPU 合成，
+   零重绘、零模糊，视觉上仍是「错峰浮起 + 淡入」，但成本几乎为零。
+   填充用 backwards 而不是 both —— 动画结束后释放 transform，
+   否则会压住卡片自己的 hover 上浮（铁律 G）。
+   ───────────────────────────────────────────────────────────────────── */
+@keyframes mc-rise {
+  from { opacity: 0; transform: translate3d(0, 10px, 0) scale(.998); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
 html:not([data-fps-q]) .mc-stagger > * {
-  animation: mc-page-in .44s var(--cine-spring) both;
+  animation: mc-rise .42s var(--cine-spring) backwards;
+}
+/* ⚠️ 不写常驻 will-change：列表项动辄几十个，常驻会把它们全部提升为合成层，
+   反而吃显存。动画运行期间浏览器本来就会自动提升，结束即释放。 */
+/* ⚠️ .index-card / .ov-card 身上还挂着 motion-depth 的 22s 环境扫光
+   （同特异性、且在文件更后面）。这里用更高特异性把两条动画合并，
+   否则入场会被扫光顶掉（实测 animationName 变成 depth-sweep）。 */
+html:not([data-fps-q]) .mc-stagger > :is(.index-card, .ov-card) {
+  animation: mc-rise .42s var(--cine-spring) backwards,
+             depth-sweep 22s ease-in-out infinite;
 }
 html:not([data-fps-q]) .mc-stagger > *:nth-child(1) { animation-delay: 0ms; }
 html:not([data-fps-q]) .mc-stagger > *:nth-child(2) { animation-delay: 38ms; }
@@ -13267,29 +13291,22 @@ const PAGE_IDS = { home: 'page-home', '自选股票': 'page-watch', '财经要�
   if (document.getElementById('revisit-css')) return;
   var st = document.createElement('style');
   st.id = 'revisit-css';
-  /* ⚠️ 2026-10-24 回滚记录：曾把行/卡级选择器从本名单里放行，想让所有模块
-     都用上资金流向那套错峰入场 —— 结果全站几十个元素同时跑 blur 溶解，
-     用户反馈「实在是太卡了」。已恢复原名单（只放行资金流向的行是刻意的克制）。 */
+  /* ⭐⭐ 2026-10-24「所有列表都那么丝滑」：
+     行/卡级元素从这里**放行**，交给 motion-cine 的 .mc-stagger 统一做入场
+     （mc-rise：纯 opacity/transform，零模糊、GPU 合成，全站同跑也不掉帧）。
+     名单只保留「容器级」——面板/整块本身不跟着行一起重播：
+       .fade-in .module .fund-panel .senti-panel .senti-thermo .pos-chart-card
+     ⚠️ 首页 #index-areas 的卡由 anime.js 接管（anime-ready 强制 animation:none），
+        这里补 scoped 兜底，防止 anime 缺席时 CSS fadeIn 每次切页重播。 */
   st.textContent = [
     '.is-revisit .fade-in',
     '.is-revisit .module',
-    '.is-revisit .ov-card',
-    '.is-revisit .senti-card',
+    '.is-revisit .fund-panel',
     '.is-revisit .senti-panel',
     '.is-revisit .senti-thermo',
-    '.is-revisit .fund-panel',
-    '.is-revisit .pos-sum-card',
     '.is-revisit .pos-chart-card',
-    '.is-revisit .news-item',
-    '.is-revisit .watch-row',
-    '.is-revisit .lhb-row',
-    '.is-revisit .ladder-row',
-    '.is-revisit .sec-cell',
-    '.is-revisit .sec-row',
-    '.is-revisit .sec-hot-card',
-    '.is-revisit .sector-chip',
-    '.is-revisit .index-card',
-    '.is-revisit .feed-item'
+    '.is-revisit #index-areas .index-card',
+    '.is-revisit #index-areas .ir-head'
   ].join(',') + '{animation:none!important}';
   document.head.appendChild(st);
 })();
@@ -13498,6 +13515,9 @@ function switchPage(page) {
   navItems.forEach(n => n.classList.toggle('active', n.dataset.page === page));
   const targetId = PAGE_IDS[page];
   const isReal = !!targetId;
+  /* 2026-10-24：记录目标页此前是否隐藏 —— 只有真正切页（display 变化）才重播入场，
+     与 CSS animation 在 none→block 时重播的语义一致（同页重复点击不折腾）。 */
+  const wasHidden = !!(targetId && $(targetId) && $(targetId).style.display === 'none');
   ['page-home', 'page-watch', 'page-news', 'page-futures', 'page-funds', 'page-senti', 'page-sectors', 'page-holdings', 'page-lhb', 'page-focus', 'page-placeholder'].forEach(id => {
     const el = $(id);
     if (!el) return;
@@ -13550,6 +13570,9 @@ function switchPage(page) {
   if (page === '持仓股') { renderHoldings(); replayPosChart(); if (holdings.length) loadHoldQuotes(); }
   if (page === '龙虎榜') initLhb();
   if (page === '重点关注') loadFocus();
+  /* 2026-10-24「所有列表都丝滑」：首页指数卡由 anime.js 弹性入场接管
+     （renderSkeleton 时播一次），切页回来补播同款，与其它模块的行入场节奏对齐 */
+  if (page === 'home' && wasHidden && typeof animeEntrance === 'function') animeEntrance();
 }
 navItems.forEach(n => n.addEventListener('click', () => switchPage(n.dataset.page)));
 $('btn-back-home').addEventListener('click', () => switchPage('home'));
@@ -18839,13 +18862,20 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   }
 
   /* ═══ 交错入场：给列表容器打标记 ════════════════════════════════════
-     ⚠️ 2026-10-24 教训：曾把 STAGGER_SEL 扩到「全站所有列表/卡片」（sec-grid、
-        overview-grid、senti-cards、index-grid…）想让每个模块都有资金流向那套
-        错峰浮入。结果用户反馈「实在是太卡了」——每条行/卡都跑 mc-page-in 的
-        filter: blur(5px) 溶解，一页几十个合成层同时模糊，直接拖垮帧率。
-       已回滚到原有 5 个容器。**资金流向那种入场是"行少 + 面积小"才好看又便宜，
-        不要盲目铺满全站。** */
-  var STAGGER_SEL = '.lhb-list, .news-list, .pos-list, .fund-list, .watch-list';
+     ⭐ 2026-10-24 用户：「所有列表都那么丝滑」。
+     资金流向那套错峰浮入（.mc-stagger）现在铺满全站列表与卡片网格：
+       行列表  .fund-list .watch-list .news-list .ladder-list .feed-list
+               #sec-stocks #focus-stocks #fd-list（.sec-row 家族）
+       卡网格  .sec-grid .sec-hot-grid .overview-grid .senti-cards
+               .pos-summary .sector-strip .index-grid
+     ⚠️ 入场用 mc-rise（纯 opacity/transform，无 blur），代价极低；
+        带 blur 的 mc-page-in 只保留给页面级容器。
+     ⚠️ 首页 #index-areas 由 anime.js 弹性入场接管（anime-ready 会强制
+        animation:none），不在此列，切页回首页时由 switchPage 补播。
+     ⚠️ .lhb-list/.pos-list 是历史死选择器（实际容器是 .watch-list），移除。 */
+  var STAGGER_SEL = '.fund-list, .watch-list, .news-list, .ladder-list, .feed-list, '
+    + '.sec-grid, .sec-hot-grid, .overview-grid, .senti-cards, .pos-summary, '
+    + '.sector-strip, .index-grid, #sec-stocks, #focus-stocks, #fd-list';
 
   function tagStagger() {
     var list = document.querySelectorAll(STAGGER_SEL);
