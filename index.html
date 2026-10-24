@@ -10083,142 +10083,6 @@ html[data-fps-q="low"] .hc-dog {
 html[data-fps-q] .lf-sheet-panel { transform: none !important; }
 
 </style><!-- LF:CSS:END -->
-<!-- GF:CSS:BEGIN -->
-<!-- glass-fold (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
-<style id="glass-fold-style">
-/* ═══════════════════════════════════════════════════════════════════════════
-   glass-fold · 学自 21st.dev「Glassmorphism Folder Cards」的玻璃配方
-   ───────────────────────────────────────────────────────────────────────────
-   来源：https://21st.dev/community/components/kedhareswer/glass-folder-cards/default
-        （MIT，作者 Kedhareswer Naidu）
-   学习方式：读它的组件源码（glass-folder-cards.html / .tsx），拆出玻璃的**分层结构**。
-
-   ── 它到底怎么做的（5 层，按 z 轴从后到前）─────────────────────────────
-     ① 背板 .gf-back      实底渐变（浅 #f3f3f4→#e3e3e6 / 深 #2a2a2e→#121214）
-     ② 背后内容 .gf-art   一张图 / canvas —— **玻璃"透"的来源**
-     ③ 背光 .gf-back-sheen 顶部一条 22% 白光 + 右上角径向高光
-     ④ 前玻璃 .gf-front   backdrop-filter: blur(22px) saturate(1.5)
-          · .gf-tint  **上透下实**的渐变：
-              浅 rgba(255,255,255,.16) → .50@42% → rgba(252,252,252,.93)
-              深 rgba(18,18,20,.18)    → .62@46% → rgba(8,8,10,.94)
-          · .gf-spec  **跟随指针**的径向高光（soft-light / 暗色 screen）
-          · .gf-front-rim  2.4px 描边（暗色模式 opacity 降到 .55）
-     ⑤ 投影 .gf-shadow    一块 blur(22px) 的椭圆，不是多层 box-shadow
-
-   ── 三条和我之前做法冲突、但它是对的 ─────────────────────────────────
-     1. **没有颗粒、没有乳雾**。玻璃的"体"来自「上透下实」的方向性渐变，
-        不是把整块表面均匀刷白 —— 均匀白 = 塑料/纸。
-     2. 高光是**可跟随指针的**（radial at var(--px) var(--py)），不是固定的斜向扫光。
-     3. 边缘是**较粗的柔描边**（2.4px，暗色还降透明度），不是 1px 刺眼亮线。
-
-   ── 为什么工作台上能用 ──────────────────────────────────────────────
-     工作台卡片背后是深空渐变 + 环境光斑，本身就相当于第 ② 层"背后内容"，
-     所以只要把 ③④⑤ 补齐，就能得到同样的通透感。
-
-   ⚠️ 铁律：静态材质，只有 hover 时的高光位置变化（纯 CSS 变量，零 rAF）。
-   ⚠️ 降级：无 JS 时 --gf-x/--gf-y 用默认值（50% / 26%），玻璃照常成立。
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* --------------------------------------------------------------------------
-   一、深色：上透下实的烟玻璃
-   -------------------------------------------------------------------------- */
-html:root:root:not([data-gf="off"]) .index-card,
-html:root:root:not([data-gf="off"]) .ov-card,
-html:root:root:not([data-gf="off"]) .live-bar {
-  /* 层序（上 → 下）：指针高光 → 珊瑚暖光 → 烟色渐变 */
-  background-image:
-    radial-gradient(320px 240px at var(--gf-x, 50%) var(--gf-y, 26%),
-      rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 70%),
-    linear-gradient(180deg,
-      rgba(255, 138, 107, .12) 0%,
-      rgba(255, 138, 107, 0) 32%),
-    /* 组件原值 .18/.62/.94 对看板太实（它要挡住文件夹里的内容）。
-       看板要"透"，所以整体减半：.08/.32/.50 —— 保留上透下实的**方向**，
-       但让背后的环境光仍然透得过来。 */
-    linear-gradient(180deg,
-      rgba(24, 26, 32, .08) 0%,
-      rgba(16, 18, 24, .32) 46%,
-      rgba(10, 12, 16, .50) 100%);
-  background-color: transparent !important;
-
-  -webkit-backdrop-filter: url(#apple-lg) blur(24px) saturate(1.5) !important;
-  backdrop-filter: url(#apple-lg) blur(24px) saturate(1.5) !important;
-
-  border: 1px solid rgba(255, 255, 255, .10) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .18),
-    inset 0 0 0 1px rgba(255, 255, 255, .03),
-    0 1px 2px rgba(0, 0, 0, .30),
-    0 18px 40px -18px rgba(0, 0, 0, .55) !important;
-
-  transition: box-shadow .35s cubic-bezier(.22, 1, .36, 1),
-              border-color .35s cubic-bezier(.22, 1, .36, 1);
-}
-
-/* hover：切面变亮一档 + 投影抬高（对应组件 .gf-root:hover 的 lift） */
-html:root:root:not([data-gf="off"]) .index-card:hover,
-html:root:root:not([data-gf="off"]) .ov-card:hover,
-html:root:root:not([data-gf="off"]) .live-bar:hover {
-  border-color: rgba(255, 255, 255, .16);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .26),
-    inset 0 0 0 1px rgba(255, 255, 255, .04),
-    0 2px 4px rgba(0, 0, 0, .32),
-    0 26px 52px -20px rgba(0, 0, 0, .62) !important;
-}
-
-/* --------------------------------------------------------------------------
-   二、浅色：白玻璃（组件浅色配方的 alpha 原样搬过来）
-   -------------------------------------------------------------------------- */
-html:root:root[data-theme="light"]:not([data-gf="off"]) .index-card,
-html:root:root[data-theme="light"]:not([data-gf="off"]) .ov-card,
-html:root:root[data-theme="light"]:not([data-gf="off"]) .live-bar {
-  background-image:
-    radial-gradient(320px 240px at var(--gf-x, 50%) var(--gf-y, 26%),
-      rgba(255, 255, 255, .60), rgba(255, 255, 255, 0) 70%),
-    linear-gradient(180deg,
-      rgba(255, 255, 255, .16) 0%,
-      rgba(255, 255, 255, .50) 42%,
-      rgba(253, 251, 248, .93) 100%);
-  background-color: transparent !important;
-
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  backdrop-filter: blur(24px) saturate(1.4);
-
-  border: 1px solid rgba(255, 255, 255, .55) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, .95),
-    inset 0 0 0 1px rgba(255, 255, 255, .35),
-    0 1px 2px rgba(150, 110, 80, .10),
-    0 16px 34px -16px rgba(150, 110, 80, .35) !important;
-}
-
-html:root:root[data-theme="light"]:not([data-gf="off"]) .index-card:hover,
-html:root:root[data-theme="light"]:not([data-gf="off"]) .ov-card:hover,
-html:root:root[data-theme="light"]:not([data-gf="off"]) .live-bar:hover {
-  border-color: rgba(255, 255, 255, .75);
-  box-shadow:
-    inset 0 1px 0 #fff,
-    inset 0 0 0 1px rgba(255, 255, 255, .45),
-    0 2px 4px rgba(150, 110, 80, .12),
-    0 24px 48px -20px rgba(150, 110, 80, .42) !important;
-}
-
-/* --------------------------------------------------------------------------
-   三、降级
-   -------------------------------------------------------------------------- */
-/* 低帧率档：backdrop-filter 是这一层最贵的东西，交给 fps-boost 的降级规则处理；
-   这里只保证本层不额外增加合成层。 */
-html[data-fps-q] .index-card,
-html[data-fps-q] .ov-card,
-html[data-fps-q] .live-bar {
-  transition: none;
-}
-
-/* 手动关闭：不需要额外规则 —— 上面所有规则都带 :not([data-gf="off"])，
-   关掉时它们整段不匹配，自然回落到 type-glass / glass-pro / apple-fx 的配方。 */
-
-</style><!-- GF:CSS:END -->
 <!-- TR:CSS:BEGIN -->
 <!-- type-refine (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
 <style id="type-refine-style">
@@ -11887,6 +11751,145 @@ html[data-fps-q="low"] .bd-face.bd-dip { animation: none; }
 }
 
 </style><!-- BD:CSS:END -->
+<!-- GF:CSS:BEGIN -->
+<!-- glass-fold (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
+<style id="glass-fold-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   glass-fold · 学自 21st.dev「Glassmorphism Folder Cards」的玻璃配方
+   ───────────────────────────────────────────────────────────────────────────
+   来源：https://21st.dev/community/components/kedhareswer/glass-folder-cards/default
+        （MIT，作者 Kedhareswer Naidu）
+   学习方式：读它的组件源码（glass-folder-cards.html / .tsx），拆出玻璃的**分层结构**。
+
+   ── 它到底怎么做的（5 层，按 z 轴从后到前）─────────────────────────────
+     ① 背板 .gf-back      实底渐变（浅 #f3f3f4→#e3e3e6 / 深 #2a2a2e→#121214）
+     ② 背后内容 .gf-art   一张图 / canvas —— **玻璃"透"的来源**
+     ③ 背光 .gf-back-sheen 顶部一条 22% 白光 + 右上角径向高光
+     ④ 前玻璃 .gf-front   backdrop-filter: blur(22px) saturate(1.5)
+          · .gf-tint  **上透下实**的渐变：
+              浅 rgba(255,255,255,.16) → .50@42% → rgba(252,252,252,.93)
+              深 rgba(18,18,20,.18)    → .62@46% → rgba(8,8,10,.94)
+          · .gf-spec  **跟随指针**的径向高光（soft-light / 暗色 screen）
+          · .gf-front-rim  2.4px 描边（暗色模式 opacity 降到 .55）
+     ⑤ 投影 .gf-shadow    一块 blur(22px) 的椭圆，不是多层 box-shadow
+
+   ── 三条和我之前做法冲突、但它是对的 ─────────────────────────────────
+     1. **没有颗粒、没有乳雾**。玻璃的"体"来自「上透下实」的方向性渐变，
+        不是把整块表面均匀刷白 —— 均匀白 = 塑料/纸。
+     2. 高光是**可跟随指针的**（radial at var(--px) var(--py)），不是固定的斜向扫光。
+     3. 边缘是**较粗的柔描边**（2.4px，暗色还降透明度），不是 1px 刺眼亮线。
+
+   ── 为什么工作台上能用 ──────────────────────────────────────────────
+     工作台卡片背后是深空渐变 + 环境光斑，本身就相当于第 ② 层"背后内容"，
+     所以只要把 ③④⑤ 补齐，就能得到同样的通透感。
+
+   ⚠️ 铁律：静态材质，只有 hover 时的高光位置变化（纯 CSS 变量，零 rAF）。
+   ⚠️ 降级：无 JS 时 --gf-x/--gf-y 用默认值（50% / 26%），玻璃照常成立。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* --------------------------------------------------------------------------
+   一、深色：上透下实的烟玻璃
+   -------------------------------------------------------------------------- */
+html:root:root:not([data-gf="off"]) .index-card,
+html:root:root:not([data-gf="off"]) .ov-card,
+html:root:root:not([data-gf="off"]) .live-bar {
+  /* 层序（上 → 下）：指针高光 → 珊瑚暖光 → 烟色渐变
+     ⭐ 2026-10-24 用户：「深色版本光斑有点太重了，稍微减少一点亮度。」
+     指针高光 .16→.10、珊瑚暖带 .12→.07 —— 只减"斑"的亮度，
+     烟玻璃的透和厚度不动（那些是"材质"，不是"光斑"）。 */
+  background-image:
+    radial-gradient(320px 240px at var(--gf-x, 50%) var(--gf-y, 26%),
+      rgba(255, 255, 255, .10), rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg,
+      rgba(255, 138, 107, .07) 0%,
+      rgba(255, 138, 107, 0) 32%),
+    /* 组件原值 .18/.62/.94 对看板太实（它要挡住文件夹里的内容）。
+       看板要"透"，所以整体减半：.08/.32/.50 —— 保留上透下实的**方向**，
+       但让背后的环境光仍然透得过来。 */
+    linear-gradient(180deg,
+      rgba(24, 26, 32, .08) 0%,
+      rgba(16, 18, 24, .32) 46%,
+      rgba(10, 12, 16, .50) 100%);
+  background-color: transparent !important;
+
+  -webkit-backdrop-filter: url(#apple-lg) blur(24px) saturate(1.5) !important;
+  backdrop-filter: url(#apple-lg) blur(24px) saturate(1.5) !important;
+
+  border: 1px solid rgba(255, 255, 255, .10) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .18),
+    inset 0 0 0 1px rgba(255, 255, 255, .03),
+    0 1px 2px rgba(0, 0, 0, .30),
+    0 18px 40px -18px rgba(0, 0, 0, .55) !important;
+
+  transition: box-shadow .35s cubic-bezier(.22, 1, .36, 1),
+              border-color .35s cubic-bezier(.22, 1, .36, 1);
+}
+
+/* hover：切面变亮一档 + 投影抬高（对应组件 .gf-root:hover 的 lift） */
+html:root:root:not([data-gf="off"]) .index-card:hover,
+html:root:root:not([data-gf="off"]) .ov-card:hover,
+html:root:root:not([data-gf="off"]) .live-bar:hover {
+  border-color: rgba(255, 255, 255, .16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .26),
+    inset 0 0 0 1px rgba(255, 255, 255, .04),
+    0 2px 4px rgba(0, 0, 0, .32),
+    0 26px 52px -20px rgba(0, 0, 0, .62) !important;
+}
+
+/* --------------------------------------------------------------------------
+   二、浅色：白玻璃（组件浅色配方的 alpha 原样搬过来）
+   -------------------------------------------------------------------------- */
+html:root:root[data-theme="light"]:not([data-gf="off"]) .index-card,
+html:root:root[data-theme="light"]:not([data-gf="off"]) .ov-card,
+html:root:root[data-theme="light"]:not([data-gf="off"]) .live-bar {
+  background-image:
+    radial-gradient(320px 240px at var(--gf-x, 50%) var(--gf-y, 26%),
+      rgba(255, 255, 255, .60), rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg,
+      rgba(255, 255, 255, .16) 0%,
+      rgba(255, 255, 255, .50) 42%,
+      rgba(253, 251, 248, .93) 100%);
+  background-color: transparent !important;
+
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+
+  border: 1px solid rgba(255, 255, 255, .55) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .95),
+    inset 0 0 0 1px rgba(255, 255, 255, .35),
+    0 1px 2px rgba(150, 110, 80, .10),
+    0 16px 34px -16px rgba(150, 110, 80, .35) !important;
+}
+
+html:root:root[data-theme="light"]:not([data-gf="off"]) .index-card:hover,
+html:root:root[data-theme="light"]:not([data-gf="off"]) .ov-card:hover,
+html:root:root[data-theme="light"]:not([data-gf="off"]) .live-bar:hover {
+  border-color: rgba(255, 255, 255, .75);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 0 0 1px rgba(255, 255, 255, .45),
+    0 2px 4px rgba(150, 110, 80, .12),
+    0 24px 48px -20px rgba(150, 110, 80, .42) !important;
+}
+
+/* --------------------------------------------------------------------------
+   三、降级
+   -------------------------------------------------------------------------- */
+/* 低帧率档：backdrop-filter 是这一层最贵的东西，交给 fps-boost 的降级规则处理；
+   这里只保证本层不额外增加合成层。 */
+html[data-fps-q] .index-card,
+html[data-fps-q] .ov-card,
+html[data-fps-q] .live-bar {
+  transition: none;
+}
+
+/* 手动关闭：不需要额外规则 —— 上面所有规则都带 :not([data-gf="off"])，
+   关掉时它们整段不匹配，自然回落到 type-glass / glass-pro / apple-fx 的配方。 */
+
+</style><!-- GF:CSS:END -->
 </head>
 <body>
 
@@ -25508,121 +25511,6 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   else init();
 })();
 </script>
-<!-- GF:JS:BEGIN -->
-<!-- glass-fold (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
-<script id="glass-fold-js">
-/* glass-fold · 指针高光跟随（学自 21st.dev 组件的 .gf-spec）
-   --------------------------------------------------------------------------
-   原组件用 --gf-px / --gf-py（-1 ~ 1）驱动一个 radial-gradient 的位置：
-     background: radial-gradient(260px 200px at calc(50% + px*46%) calc(30% + py*40%), ...)
-   这里复用同一思路，只是把结果直接写成百分比变量 --gf-x / --gf-y。
-
-   ⚠️ 铁律：只在 pointerenter 后绑定 pointermove，pointerleave 复位；
-      纯 CSS 变量写入，不碰布局、不触发重排。
-   ⚠️ 触屏 / reduced-motion：不绑定，保持默认高光位置（玻璃照常好看）。
-   ⚠️ 无 JS：--gf-x/--gf-y 走 CSS 里的默认值，功能自动降级。
-   -------------------------------------------------------------------------- */
-(function () {
-  if (window.__glassFoldInstalled) return;
-  window.__glassFoldInstalled = true;
-
-  var root = document.documentElement;
-  var SEL = '.index-card, .ov-card, .live-bar';
-  var reduced = false;
-  try {
-    reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  } catch (e) { reduced = false; }
-  var hoverable = true;
-  try {
-    hoverable = window.matchMedia('(hover: hover)').matches;
-  } catch (e) { hoverable = true; }
-
-  var bound = new WeakSet();
-
-  /* 默认高光位置（与组件一致：上方 26%） */
-  function reset(el) {
-    el.style.setProperty('--gf-x', '50%');
-    el.style.setProperty('--gf-y', '26%');
-  }
-
-  function bind(el) {
-    if (bound.has(el)) return;
-    bound.add(el);
-    reset(el);
-    if (reduced || !hoverable) return;
-
-    var raf = 0, nx = 0, ny = 0, pending = false;
-
-    function apply() {
-      raf = 0;
-      if (!pending) return;
-      pending = false;
-      el.style.setProperty('--gf-x', nx.toFixed(1) + '%');
-      el.style.setProperty('--gf-y', ny.toFixed(1) + '%');
-    }
-
-    el.addEventListener('pointermove', function (e) {
-      var r = el.getBoundingClientRect();
-      if (!r.width || !r.height) return;
-      nx = ((e.clientX - r.left) / r.width) * 100;
-      ny = ((e.clientY - r.top) / r.height) * 100;
-      /* 只在高光可能被看见的区域更新，避免边缘抖动 */
-      nx = Math.max(-10, Math.min(110, nx));
-      ny = Math.max(-10, Math.min(110, ny));
-      pending = true;
-      if (!raf) raf = requestAnimationFrame(apply);
-    }, { passive: true });
-
-    el.addEventListener('pointerleave', function () {
-      if (raf) { cancelAnimationFrame(raf); raf = 0; }
-      pending = false;
-      reset(el);
-    }, { passive: true });
-  }
-
-  function scan() {
-    var els = document.querySelectorAll(SEL);
-    for (var i = 0; i < els.length; i++) bind(els[i]);
-  }
-
-  /* 卡片会被 renderSectors / 指数刷新整块重建 → 用 MutationObserver 补绑 */
-  var timer = 0;
-  function schedule() {
-    if (timer) return;
-    timer = setTimeout(function () { timer = 0; scan(); }, 250);
-  }
-
-  function boot() {
-    scan();
-    try {
-      new MutationObserver(schedule).observe(document.body, {
-        childList: true, subtree: true
-      });
-    } catch (e) { /* 老内核没有 MutationObserver，静态高光也能用 */ }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
-
-  window.__glassFold = {
-    state: function () {
-      return {
-        on: root.getAttribute('data-gf') !== 'off',
-        hoverable: hoverable,
-        reduced: reduced,
-        cards: document.querySelectorAll(SEL).length
-      };
-    },
-    off: function () { root.setAttribute('data-gf', 'off'); return this.state(); },
-    on: function () { root.removeAttribute('data-gf'); return this.state(); },
-    rescan: function () { scan(); return this.state(); }
-  };
-})();
-
-</script><!-- GF:JS:END -->
 <!-- TR:JS:BEGIN -->
 <!-- type-refine (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
 <script id="type-refine-js">
@@ -27156,5 +27044,120 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
 })();
 
 </script><!-- BD:JS:END -->
+<!-- GF:JS:BEGIN -->
+<!-- glass-fold (2026-10-23) | 毛玻璃的「毛」：细砂颗粒 + 乳雾 + 霜边 | 静态材质零动画 | 改源文件后重跑本注入器 -->
+<script id="glass-fold-js">
+/* glass-fold · 指针高光跟随（学自 21st.dev 组件的 .gf-spec）
+   --------------------------------------------------------------------------
+   原组件用 --gf-px / --gf-py（-1 ~ 1）驱动一个 radial-gradient 的位置：
+     background: radial-gradient(260px 200px at calc(50% + px*46%) calc(30% + py*40%), ...)
+   这里复用同一思路，只是把结果直接写成百分比变量 --gf-x / --gf-y。
+
+   ⚠️ 铁律：只在 pointerenter 后绑定 pointermove，pointerleave 复位；
+      纯 CSS 变量写入，不碰布局、不触发重排。
+   ⚠️ 触屏 / reduced-motion：不绑定，保持默认高光位置（玻璃照常好看）。
+   ⚠️ 无 JS：--gf-x/--gf-y 走 CSS 里的默认值，功能自动降级。
+   -------------------------------------------------------------------------- */
+(function () {
+  if (window.__glassFoldInstalled) return;
+  window.__glassFoldInstalled = true;
+
+  var root = document.documentElement;
+  var SEL = '.index-card, .ov-card, .live-bar';
+  var reduced = false;
+  try {
+    reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch (e) { reduced = false; }
+  var hoverable = true;
+  try {
+    hoverable = window.matchMedia('(hover: hover)').matches;
+  } catch (e) { hoverable = true; }
+
+  var bound = new WeakSet();
+
+  /* 默认高光位置（与组件一致：上方 26%） */
+  function reset(el) {
+    el.style.setProperty('--gf-x', '50%');
+    el.style.setProperty('--gf-y', '26%');
+  }
+
+  function bind(el) {
+    if (bound.has(el)) return;
+    bound.add(el);
+    reset(el);
+    if (reduced || !hoverable) return;
+
+    var raf = 0, nx = 0, ny = 0, pending = false;
+
+    function apply() {
+      raf = 0;
+      if (!pending) return;
+      pending = false;
+      el.style.setProperty('--gf-x', nx.toFixed(1) + '%');
+      el.style.setProperty('--gf-y', ny.toFixed(1) + '%');
+    }
+
+    el.addEventListener('pointermove', function (e) {
+      var r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      nx = ((e.clientX - r.left) / r.width) * 100;
+      ny = ((e.clientY - r.top) / r.height) * 100;
+      /* 只在高光可能被看见的区域更新，避免边缘抖动 */
+      nx = Math.max(-10, Math.min(110, nx));
+      ny = Math.max(-10, Math.min(110, ny));
+      pending = true;
+      if (!raf) raf = requestAnimationFrame(apply);
+    }, { passive: true });
+
+    el.addEventListener('pointerleave', function () {
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      pending = false;
+      reset(el);
+    }, { passive: true });
+  }
+
+  function scan() {
+    var els = document.querySelectorAll(SEL);
+    for (var i = 0; i < els.length; i++) bind(els[i]);
+  }
+
+  /* 卡片会被 renderSectors / 指数刷新整块重建 → 用 MutationObserver 补绑 */
+  var timer = 0;
+  function schedule() {
+    if (timer) return;
+    timer = setTimeout(function () { timer = 0; scan(); }, 250);
+  }
+
+  function boot() {
+    scan();
+    try {
+      new MutationObserver(schedule).observe(document.body, {
+        childList: true, subtree: true
+      });
+    } catch (e) { /* 老内核没有 MutationObserver，静态高光也能用 */ }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  window.__glassFold = {
+    state: function () {
+      return {
+        on: root.getAttribute('data-gf') !== 'off',
+        hoverable: hoverable,
+        reduced: reduced,
+        cards: document.querySelectorAll(SEL).length
+      };
+    },
+    off: function () { root.setAttribute('data-gf', 'off'); return this.state(); },
+    on: function () { root.removeAttribute('data-gf'); return this.state(); },
+    rescan: function () { scan(); return this.state(); }
+  };
+})();
+
+</script><!-- GF:JS:END -->
 </body>
 </html>
