@@ -11118,6 +11118,146 @@ html[data-fps-q] #page-home .index-card {
 }
 
 </style><!-- LQ:CSS:END -->
+<!-- BD:CSS:BEGIN -->
+<!-- buddy-dog (2026-10-24) | 看盘小搭档：安静的卡通狗 + 时段问候/情绪联动 | 无常驻动画 | 改源文件后重跑本注入器 -->
+<style id="buddy-dog-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   buddy-dog · 看盘小搭档（2026-10-24）
+   ───────────────────────────────────────────────────────────────────────────
+   需求（用户原话）：「看盘小搭档可以弄，参考我的狗头来弄。不要太抢眼。」
+
+   设计铁律 —— **安静优先**：
+     · 默认就一只小图，无气泡、无常驻动画、无无限循环
+     · 气泡只在「时段问候 / 用户点击 / 情绪档位变化」时出现，5-6 秒自动收
+     · 尺寸小（52px），半透明起步，hover 才提亮
+     · 不挡内容：右下角 fixed，窄屏直接不显示
+   形象：奶油脸 + 焦糖垂耳的卡通狗（与侧栏 logo / mascot/export 头像同款）。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.bd-buddy {
+  position: fixed;
+  right: 20px;
+  bottom: max(26px, env(safe-area-inset-bottom));
+  z-index: 8800;              /* 低于 dock(9000)，不抢层 */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;        /* 只有狗和气泡吃事件 */
+  user-select: none;
+}
+
+/* ── 玻璃气泡：与工作台同族材质，小而轻 ───────────────────────────── */
+.bd-bubble {
+  pointer-events: auto;
+  max-width: 232px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--text-main, #eef0f2);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .14) 0%, rgba(255, 255, 255, .04) 100%),
+    rgba(46, 52, 66, .58);
+  border: 1px solid rgba(255, 255, 255, .16);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .22), inset 0 1px 0 rgba(255, 255, 255, .18);
+
+  /* 默认收起：内容可见性由 JS 控制 display，不用 opacity:0 常驻（铁律 D） */
+  display: none;
+  opacity: 1;
+  transform-origin: 88% 100%;
+}
+.bd-bubble.show {
+  display: block;
+  animation: bd-pop .26s cubic-bezier(.34, 1.35, .64, 1) both;
+}
+@keyframes bd-pop {
+  from { opacity: 0; transform: translateY(6px) scale(.92); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+:root[data-theme="light"] .bd-bubble {
+  color: #3a332c;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .82) 0%, rgba(255, 252, 246, .66) 100%),
+    rgba(255, 248, 238, .72);
+  border-color: rgba(255, 255, 255, .9);
+  box-shadow: 0 10px 24px rgba(150, 108, 82, .16), inset 0 1px 0 rgba(255, 255, 255, .95);
+}
+
+/* ── 狗头按钮：安静的小图，hover 才活一点 ─────────────────────────── */
+.bd-face {
+  pointer-events: auto;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .22);
+  border-radius: 50%;
+  cursor: pointer;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, .04) 100%),
+    rgba(70, 82, 108, .34);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .20), inset 0 1px 0 rgba(255, 255, 255, .22);
+  display: grid;
+  place-items: center;
+  opacity: .88;
+  transition: opacity .25s ease, transform .25s cubic-bezier(.22, 1, .36, 1);
+  overflow: hidden;
+}
+.bd-face:hover { opacity: 1; transform: translateY(-2px); }
+.bd-face:active { transform: scale(.95); }
+.bd-face svg { width: 40px; height: 40px; display: block; }
+
+:root[data-theme="light"] .bd-face {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .8) 0%, rgba(255, 250, 242, .6) 100%),
+    rgba(255, 246, 234, .7);
+  border-color: rgba(255, 255, 255, .92);
+  box-shadow: 0 8px 18px rgba(150, 108, 82, .18), inset 0 1px 0 rgba(255, 255, 255, .95);
+}
+
+/* ── 情绪联动：一次性微反应（绝不无限循环）─────────────────────────
+   涨（is-happy）→ 轻轻跳一下；跌（is-shy）→ 缩一下耳朵。
+   只播一次 520ms，靠 animation 起停，不做常驻 transform（防覆盖 hover）。 */
+.bd-face.bd-hop { animation: bd-hop .52s cubic-bezier(.34, 1.45, .64, 1) both; }
+@keyframes bd-hop {
+  0%   { transform: translateY(0) scale(1); }
+  38%  { transform: translateY(-7px) scale(1.05); }
+  70%  { transform: translateY(1px) scale(.98); }
+  100% { transform: translateY(0) scale(1); }
+}
+.bd-face.bd-dip { animation: bd-dip .52s cubic-bezier(.34, 1.3, .64, 1) both; }
+@keyframes bd-dip {
+  0%   { transform: translateY(0) scale(1); }
+  40%  { transform: translateY(3px) scale(.94); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* 耳朵随情绪微动（SVG 内部组，独立于按钮 transform，不打架） */
+.bd-face .bd-ear { transform-origin: 50% 12%; transition: transform .45s cubic-bezier(.22, 1, .36, 1); }
+.bd-face.is-happy .bd-ear-l { transform: rotate(-7deg); }
+.bd-face.is-happy .bd-ear-r { transform: rotate(7deg); }
+.bd-face.is-shy .bd-ear-l { transform: rotate(5deg) translateY(2px); }
+.bd-face.is-shy .bd-ear-r { transform: rotate(-5deg) translateY(2px); }
+
+/* ── 降级：低帧率档 / 减少动效 / 窄屏 —— 只留静态小图或整个收起 ── */
+html[data-fps-q="low"] .bd-bubble.show { animation: none; }
+html[data-fps-q="low"] .bd-face.bd-hop,
+html[data-fps-q="low"] .bd-face.bd-dip { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .bd-bubble.show { animation: none; }
+  .bd-face, .bd-face .bd-ear { transition: none; }
+  .bd-face.bd-hop, .bd-face.bd-dip { animation: none; }
+}
+@media (max-width: 600px) {
+  .bd-buddy { display: none; }   /* 窄屏不占地方，跟 mascot-deco 同策略 */
+}
+
+</style><!-- BD:CSS:END -->
 </head>
 <body>
 
@@ -24894,5 +25034,197 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
 })();
 
 </script><!-- LQ:JS:END -->
+<!-- BD:JS:BEGIN -->
+<!-- buddy-dog (2026-10-24) | 看盘小搭档：安静的卡通狗 + 时段问候/情绪联动 | 无常驻动画 | 改源文件后重跑本注入器 -->
+<script id="buddy-dog-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   buddy-dog · 看盘小搭档（2026-10-24）
+   ───────────────────────────────────────────────────────────────────────────
+   一只安静的卡通狗（奶油脸 + 焦糖垂耳，同侧栏 logo 形象）：
+     ① 时段问候 —— 每会话只问一次，气泡 6 秒自动收
+     ② 点它 —— 说一句当前时段/情绪的话
+     ③ 情绪联动 —— 观察 #mascot-deco 的 is-happy/is-shy（零耦合，
+        不碰 lastQuotes / updateMascotMood），档位真变了才反应一次
+
+   铁律：
+     · 内容默认可见，绝不用 opacity:0 常驻（气泡用 display 开关）
+     · 无无限循环动画（用户：不要太抢眼）
+     · 降档 / reduced-motion 自动静音
+     · 重复注入幂等（__bdBuddy 守卫）
+   API: window.__buddy.state() / off() / on() / say(text)
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  if (window.__bdBuddy) return;
+  window.__bdBuddy = true;
+
+  var LS_KEY = 'wb_buddy_off';
+  var bubbleTimer = null;
+  var lastMood = '';
+
+  function reduced() {
+    return !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+  function lowQ() {
+    return document.documentElement.getAttribute('data-fps-q') === 'low';
+  }
+
+  /* ── 形象：卡通狗 SVG（奶油脸 #f7efe2 + 焦糖耳 #d2854a）────────────── */
+  function dogSvg() {
+    return ''
+      + '<svg viewBox="0 0 96 96" aria-hidden="true">'
+      + '<g class="bd-ear bd-ear-l"><path d="M26 30 C10 26 6 44 12 58 C16 68 28 66 32 56 Z" fill="#d2854a"/></g>'
+      + '<g class="bd-ear bd-ear-r"><path d="M70 30 C86 26 90 44 84 58 C80 68 68 66 64 56 Z" fill="#d2854a"/></g>'
+      + '<ellipse cx="48" cy="52" rx="30" ry="28" fill="#f7efe2"/>'
+      + '<ellipse cx="48" cy="60" rx="14" ry="11" fill="#fffaf2"/>'
+      + '<circle cx="37" cy="48" r="3.6" fill="#4a3426"/>'
+      + '<circle cx="59" cy="48" r="3.6" fill="#4a3426"/>'
+      + '<circle cx="38.3" cy="46.8" r="1.2" fill="#fff"/>'
+      + '<circle cx="60.3" cy="46.8" r="1.2" fill="#fff"/>'
+      + '<ellipse cx="48" cy="58" rx="5" ry="3.6" fill="#4a3426"/>'
+      + '<path class="bd-mouth" d="M42 65 Q48 70 54 65" fill="none" stroke="#4a3426" stroke-width="2.2" stroke-linecap="round"/>'
+      + '<ellipse cx="27" cy="57" rx="4.5" ry="3" fill="#f0b8a2" opacity=".55"/>'
+      + '<ellipse cx="69" cy="57" rx="4.5" ry="3" fill="#f0b8a2" opacity=".55"/>'
+      + '</svg>';
+  }
+
+  /* ── 时段问候（只陈述事实，不编行情数据）────────────────────────── */
+  function greetText() {
+    var now = new Date();
+    var day = now.getDay();
+    var mins = now.getHours() * 60 + now.getMinutes();
+    if (day === 0 || day === 6) return '周末不开盘，出去走走吧';
+    if (mins < 9 * 60 + 15) return '早上好，还没开盘';
+    if (mins < 9 * 60 + 30) return '快开盘了，坐好';
+    if (mins < 11 * 60 + 30) return '早盘盯盘辛苦啦';
+    if (mins < 13 * 60) return '午休时间，吃口饭';
+    if (mins < 15 * 60) return '下午盘，稳住节奏';
+    if (mins < 21 * 60) return '收盘啦，今天辛苦了';
+    return '夜深了，早点休息';
+  }
+
+  function moodLine(mood) {
+    if (mood === 'happy') return '今天心情不错，顺势而为';
+    if (mood === 'shy') return '有点难熬，先稳住手';
+    return '震荡中，多看少动';
+  }
+
+  function currentMood() {
+    var deco = document.getElementById('mascot-deco');
+    if (!deco) return '';
+    if (deco.classList.contains('is-happy')) return 'happy';
+    if (deco.classList.contains('is-shy')) return 'shy';
+    return '';
+  }
+
+  /* ── DOM ─────────────────────────────────────────────────────────── */
+  function build() {
+    var wrap = document.createElement('div');
+    wrap.className = 'bd-buddy';
+    wrap.id = 'bd-buddy';
+    wrap.innerHTML = ''
+      + '<div class="bd-bubble" id="bd-bubble"></div>'
+      + '<button class="bd-face" id="bd-face" type="button" '
+      + 'aria-label="看盘小搭档" title="看盘小搭档">' + dogSvg() + '</button>';
+    document.body.appendChild(wrap);
+
+    wrap.querySelector('#bd-face').addEventListener('click', function () {
+      var m = currentMood();
+      say(greetText() + ' —— ' + moodLine(m));
+    });
+    return wrap;
+  }
+
+  function say(text, ms) {
+    var b = document.getElementById('bd-bubble');
+    if (!b) return;
+    b.textContent = text;
+    b.classList.remove('show');
+    void b.offsetWidth;              // 强制回流，让气泡能重复播
+    b.classList.add('show');
+    clearTimeout(bubbleTimer);
+    bubbleTimer = setTimeout(function () {
+      b.classList.remove('show');
+    }, ms || 6000);
+  }
+
+  function hide() {
+    var b = document.getElementById('bd-bubble');
+    if (b) b.classList.remove('show');
+    clearTimeout(bubbleTimer);
+  }
+
+  /* ── 情绪联动：只在档位真变化时反应一次 ─────────────────────────── */
+  function react(mood) {
+    var face = document.getElementById('bd-face');
+    if (!face) return;
+    face.classList.toggle('is-happy', mood === 'happy');
+    face.classList.toggle('is-shy', mood === 'shy');
+    if (reduced() || lowQ()) return;
+    face.classList.remove('bd-hop', 'bd-dip');
+    void face.offsetWidth;
+    face.classList.add(mood === 'happy' ? 'bd-hop' : (mood === 'shy' ? 'bd-dip' : 'bd-hop'));
+    if (mood === '') face.classList.remove('bd-hop', 'bd-dip');
+  }
+
+  function watchMood() {
+    var deco = document.getElementById('mascot-deco');
+    if (!deco || !window.MutationObserver) return;
+    lastMood = currentMood();
+    new MutationObserver(function () {
+      var m = currentMood();
+      if (m === lastMood) return;
+      lastMood = m;
+      react(m);
+      if (m) say(moodLine(m), 5000);
+    }).observe(deco, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  /* ── 启动 ───────────────────────────────────────────────────────── */
+  function init() {
+    if (localStorage.getItem(LS_KEY) === '1') return;   // 用户关过就不再出现
+    if (document.getElementById('bd-buddy')) return;
+    build();
+    watchMood();
+    /* 进场 1.2 秒后再问候，不跟首屏抢注意力 */
+    setTimeout(function () {
+      if (!document.getElementById('bd-buddy')) return;
+      say(greetText(), 6000);
+    }, 1200);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  window.__buddy = {
+    state: function () {
+      var el = document.getElementById('bd-buddy');
+      return {
+        mounted: !!el,
+        off: localStorage.getItem(LS_KEY) === '1',
+        mood: currentMood(),
+        reduced: reduced()
+      };
+    },
+    off: function () {
+      localStorage.setItem(LS_KEY, '1');
+      var el = document.getElementById('bd-buddy');
+      if (el) el.remove();
+      clearTimeout(bubbleTimer);
+    },
+    on: function () {
+      localStorage.removeItem(LS_KEY);
+      init();
+    },
+    say: say,
+    hide: hide
+  };
+})();
+
+</script><!-- BD:JS:END -->
 </body>
 </html>
