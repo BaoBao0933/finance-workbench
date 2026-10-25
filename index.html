@@ -12464,6 +12464,260 @@ html[data-fps-q="low"] .ov-icon:has(.hi-iso) {
 }
 
 </style><!-- CF:CSS:END -->
+<!-- ST:CSS:BEGIN -->
+<!-- stability (2026-10-25) | :has() 兜底 + 错误诊断 + 演示模式 | 只在异常/断网时介入，不影响正常使用 | 改源文件后重跑本注入器 -->
+<style id="stability-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   stability · 稳 (2026-10-25)
+   ① `:has()` 兜底：老浏览器（Safari<15.4 / Chrome<105）不支持 :has，
+      hi.css 里 18 条关键规则会整条失效（2.5D 图标灰底回归、标题基线错位）。
+      JS 会给图标父级补 `.has-iso` / `.has-flame` 类，这里镜像同语义规则。
+  ② 诊断入口：只在真的出现 JS 错误时才亮，不打扰正常使用。
+  ③ 演示模式条：网络受限时明确标注"这些不是实时行情"。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── ① :has() 兜底（与 hi.css 逐条对应，数值必须同步） ─────────────────── */
+.ov-icon.has-iso {
+  background: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  transition: transform .32s cubic-bezier(.22, 1, .36, 1);
+}
+:root[data-theme="light"] .ov-icon.has-iso {
+  background: none !important;
+  box-shadow: none !important;
+}
+.ov-icon.has-iso:hover { transform: translateY(-1.5px) scale(1.05); }
+.ov-icon.has-iso:active { transform: translateY(0) scale(.97); }
+
+.title-ico.has-iso {
+  vertical-align: -12px;
+  margin-right: 10px;
+}
+.fund-ico.has-iso {
+  width: 46px;
+  height: 42px;
+  vertical-align: -13px;
+}
+
+/* 火焰呼吸 / 立方体浮沉（keyframes 由 hi.css 无条件定义，这里直接复用） */
+.title-ico.has-flame .hi-iso {
+  animation: hi-flicker 2.6s ease-in-out infinite;
+  transform-origin: 50% 88%;
+}
+.m-ico.has-iso .hi-iso {
+  animation: hi-bob 3.2s ease-in-out infinite;
+}
+
+/* 情绪联动（跟大盘涨跌轻抬/下沉） */
+.ov-icon.hi-happy.has-iso .hi-iso,
+.m-ico.hi-happy .hi-iso {
+  transform: translateY(-1.3px);
+  filter: brightness(1.06) saturate(1.08);
+}
+.ov-icon.hi-shy.has-iso .hi-iso,
+.m-ico.hi-shy .hi-iso {
+  transform: translateY(1px);
+  filter: brightness(.9) saturate(.85);
+}
+
+/* 降级（与 hi.css 的 data-fps-q / reduced-motion 分支对齐） */
+html[data-fps-q="low"] .title-ico.has-iso .hi-iso,
+html[data-fps-q="low"] .m-ico.has-iso .hi-iso,
+html[data-fps-q="low"] .ov-icon.has-iso {
+  animation: none !important;
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .title-ico.has-flame .hi-iso,
+  .m-ico.has-iso .hi-iso { animation: none !important; }
+  .ov-icon.has-iso:hover,
+  .ov-icon.has-iso:active { transform: none; }
+}
+
+/* ── ② 诊断入口（平时不显示；有 JS 错误才亮） ──────────────────────────── */
+.st-diag-badge {
+  position: fixed;
+  left: 14px;
+  bottom: 16px;
+  z-index: 1300;
+  display: none;                    /* 由 JS 改成 inline-flex */
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px 7px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #ffb4a6;
+  background: rgba(58, 26, 22, .86);
+  border: 1px solid rgba(232, 93, 78, .42);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .32);
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  font-family: inherit;
+}
+.st-diag-badge.on { display: inline-flex; }
+.st-diag-badge:hover { background: rgba(72, 30, 25, .92); }
+.st-diag-badge .st-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #e85d4e;
+  box-shadow: 0 0 0 3px rgba(232, 93, 78, .22);
+}
+
+.st-panel {
+  position: fixed;
+  left: 14px;
+  bottom: 58px;
+  z-index: 1301;
+  width: min(380px, calc(100vw - 28px));
+  max-height: min(58vh, 460px);
+  display: none;
+  flex-direction: column;
+  border-radius: 14px;
+  background: rgba(30, 33, 41, .97);
+  border: 1px solid rgba(255, 255, 255, .12);
+  box-shadow: 0 20px 52px rgba(0, 0, 0, .5);
+  color: #e8ebef;
+  font-size: 12px;
+  overflow: hidden;
+}
+.st-panel.on { display: flex; }
+.st-panel-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+  font-weight: 700;
+  font-size: 12.5px;
+}
+.st-panel-hd .st-x {
+  margin-left: auto;
+  border: 0;
+  background: rgba(255, 255, 255, .08);
+  color: #c8cdd6;
+  width: 22px; height: 22px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+.st-panel-bd {
+  padding: 10px 14px 4px;
+  overflow: auto;
+  line-height: 1.7;
+  color: #b9c0cb;
+}
+.st-env {
+  font-size: 10.5px;
+  color: #7d8592;
+  border-bottom: 1px dashed rgba(255, 255, 255, .08);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+.st-item {
+  font-family: Consolas, monospace;
+  font-size: 10.5px;
+  color: #ff9d8b;
+  padding: 5px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, .06);
+  word-break: break-all;
+}
+.st-item .st-t { color: #7d8592; margin-right: 6px; }
+.st-sub {
+  font-size: 10.5px;
+  color: #8a919c;
+  margin: 10px 0 4px;
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+.st-res {
+  font-family: Consolas, monospace;
+  font-size: 10px;
+  color: #8a919c;
+  padding: 3px 0;
+  word-break: break-all;
+}
+.st-empty { color: #5fdca8; font-size: 11.5px; padding: 6px 0 12px; }
+.st-panel-ft {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-top: 1px solid rgba(255, 255, 255, .08);
+}
+.st-btn {
+  flex: 1;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(255, 255, 255, .08);
+  color: #c8cdd6;
+  font-family: inherit;
+}
+.st-btn:hover { background: rgba(255, 255, 255, .14); }
+.st-btn.pri { background: #e85d4e; color: #fff; }
+.st-btn.pri:hover { background: #f06a5b; }
+
+/* ── ③ 演示数据条 ─────────────────────────────────────────────────────── */
+.st-demo-bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 12px;
+  padding: 9px 12px 9px 11px;
+  border-radius: 11px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #ffd9b0;
+  background: linear-gradient(100deg, rgba(232, 93, 78, .16), rgba(232, 93, 78, .07));
+  border: 1px solid rgba(232, 93, 78, .3);
+}
+.st-demo-bar .st-demo-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #ffb35c;
+  box-shadow: 0 0 0 3px rgba(255, 179, 92, .2);
+  flex: none;
+}
+.st-demo-bar b { color: #ffc98a; }
+.st-demo-bar .st-demo-x {
+  margin-left: auto;
+  border: 0;
+  background: rgba(255, 255, 255, .08);
+  color: #e8c9a8;
+  font-size: 10.5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  flex: none;
+}
+.st-demo-bar .st-demo-x:hover { background: rgba(255, 255, 255, .16); }
+
+/* 被演示数据填充的卡片：标题行里的小标签
+   （不用 ::after 绝对定位 —— .index-card 没有 position:relative，
+     挂上去会相对更外层定位、跑到卡片外面） */
+.st-demo-tag {
+  display: inline-block;
+  vertical-align: 1px;
+  margin-left: 6px;
+  font-size: 9.5px;
+  letter-spacing: .5px;
+  font-weight: 700;
+  color: #ffb35c;
+  background: rgba(255, 179, 92, .12);
+  border: 1px solid rgba(255, 179, 92, .3);
+  padding: 1px 5px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+</style><!-- ST:CSS:END -->
 </head>
 <body>
 
@@ -28681,5 +28935,410 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
 })();
 
 </script><!-- CF:JS:END -->
+<!-- ST:JS:BEGIN -->
+<!-- stability (2026-10-25) | :has() 兜底 + 错误诊断 + 演示模式 | 只在异常/断网时介入，不影响正常使用 | 改源文件后重跑本注入器 -->
+<script id="stability-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   stability · 稳（2026-10-25，为 1024 造物挑战投稿前做的一轮加固）
+
+   ① `:has()` 兜底    —— 给图标父级补 .has-iso / .has-flame
+   ② 错误收集 + 诊断  —— JS 错误才亮角标，不打扰正常使用
+   ③ 演示模式        —— 网络连不通时展示**真实收盘快照**并明确标注"非实时"
+                        （绝不在没有标注的情况下冒充实时数据）
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  if (window.__stInstalled) return;
+  window.__stInstalled = 1;
+
+  var VERSION = '1.0';
+  var DEMO_QS = /[?&]demo=1/.test(location.search);
+
+  /* ── ① :has() 兜底 ───────────────────────────────────────────────────── */
+  function markHas() {
+    var svgs = document.querySelectorAll('.hi-iso');
+    for (var i = 0; i < svgs.length; i++) {
+      var svg = svgs[i];
+      if (svg.getAttribute('data-st-mark') === '1') continue;
+      svg.setAttribute('data-st-mark', '1');
+      var p = svg.parentNode;
+      if (!p || !p.classList) continue;
+      p.classList.add('has-iso');
+      if (svg.getAttribute('data-hi') === 'flame') p.classList.add('has-flame');
+    }
+  }
+  [200, 700, 1500, 3000, 5200, 8000].forEach(function (ms) { setTimeout(markHas, ms); });
+
+  /* ── ② 错误收集 ──────────────────────────────────────────────────────── */
+  var jsErrs = [];      /* JS 异常 / Promise 拒绝 */
+  var resErrs = [];     /* 资源加载失败（接口被墙也会进来，单独归类） */
+  var MAX = 30;
+
+  function hhmmss(t) {
+    var d = new Date(t);
+    return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) +
+           ':' + ('0' + d.getSeconds()).slice(-2);
+  }
+  function trim(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n) + '…' : s; }
+
+  function add(kind, text) {
+    var list = kind === 'res' ? resErrs : jsErrs;
+    if (list.length >= MAX) list.shift();
+    list.push({ t: Date.now(), m: text });
+    if (kind !== 'res') paintBadge();
+  }
+
+  window.addEventListener('error', function (e) {
+    var t = e.target;
+    if (t && t !== window && (t.getAttribute && (t.getAttribute('src') || t.getAttribute('href')))) {
+      var u = t.getAttribute('src') || t.getAttribute('href') || '';
+      add('res', trim(u, 120));
+      return;
+    }
+    add('js', trim((e.message || 'unknown') + ' @' +
+      String(e.filename || '').split('/').pop() + ':' + (e.lineno || 0), 160));
+  }, true);
+
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e.reason;
+    add('js', trim('Promise: ' + ((r && (r.message || r)) || 'rejected'), 160));
+  });
+
+  /* ── ② 诊断 UI ───────────────────────────────────────────────────────── */
+  var badge = null, panel = null, panelBuilt = false;
+
+  function paintBadge() {
+    if (!jsErrs.length) {
+      if (badge) badge.classList.remove('on');
+      return;
+    }
+    if (!badge) {
+      badge = document.createElement('button');
+      badge.type = 'button';
+      badge.className = 'st-diag-badge';
+      badge.setAttribute('aria-label', '查看诊断信息');
+      badge.addEventListener('click', function (e) {
+        e.stopPropagation();
+        togglePanel();
+      });
+      document.body.appendChild(badge);
+    }
+    badge.innerHTML = '<span class="st-dot"></span>诊断 ' + jsErrs.length;
+    badge.classList.add('on');
+  }
+
+  function buildPanel() {
+    panel = document.createElement('div');
+    panel.className = 'st-panel';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-label', '诊断信息');
+    panel.innerHTML =
+      '<div class="st-panel-hd">诊断信息 · 稳 ' + VERSION +
+      '<button class="st-x" type="button" aria-label="关闭">✕</button></div>' +
+      '<div class="st-panel-bd" id="st-bd"></div>' +
+      '<div class="st-panel-ft">' +
+      '<button class="st-btn" type="button" id="st-copy">复制</button>' +
+      '<button class="st-btn" type="button" id="st-clear">清空</button>' +
+      '<button class="st-btn pri" type="button" id="st-close">关闭</button>' +
+      '</div>';
+    document.body.appendChild(panel);
+
+    panel.querySelector('.st-x').addEventListener('click', closePanel);
+    panel.querySelector('#st-close').addEventListener('click', closePanel);
+    panel.querySelector('#st-clear').addEventListener('click', function () {
+      jsErrs.length = 0; resErrs.length = 0;
+      paintBadge(); renderPanel(); closePanel();
+    });
+    panel.querySelector('#st-copy').addEventListener('click', function () {
+      var txt = report();
+      var done = function () {
+        var b = panel.querySelector('#st-copy');
+        b.textContent = '已复制'; setTimeout(function () { b.textContent = '复制'; }, 1200);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(done, function () { fallbackCopy(txt, done); });
+      } else {
+        fallbackCopy(txt, done);
+      }
+    });
+    panelBuilt = true;
+  }
+
+  function fallbackCopy(txt, done) {
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  function envLine() {
+    return 'v' + VERSION + ' · ' + location.pathname + ' · ' +
+      (window.innerWidth + '×' + window.innerHeight) + ' · dpr' + (window.devicePixelRatio || 1) + '<br>' +
+      trim(navigator.userAgent, 150);
+  }
+
+  function renderPanel() {
+    if (!panel) return;
+    var bd = panel.querySelector('#st-bd');
+    var h = '<div class="st-env">' + envLine() + '</div>';
+    if (!jsErrs.length) {
+      h += '<div class="st-empty">没有 JS 异常 —— 页面运行正常。</div>';
+    } else {
+      h += jsErrs.slice().reverse().map(function (e) {
+        return '<div class="st-item"><span class="st-t">' + hhmmss(e.t) + '</span>' + esc(e.m) + '</div>';
+      }).join('');
+    }
+    if (resErrs.length) {
+      var seen = {}, uniq = [];
+      for (var i = resErrs.length - 1; i >= 0 && uniq.length < 8; i--) {
+        var host = resErrs[i].m.split('?')[0];
+        if (seen[host]) continue;
+        seen[host] = 1; uniq.push(resErrs[i].m);
+      }
+      h += '<div class="st-sub">资源加载失败 ' + resErrs.length + ' 次（接口被墙/网络受限时正常）</div>';
+      h += uniq.map(function (u) { return '<div class="st-res">' + esc(u) + '</div>'; }).join('');
+    }
+    bd.innerHTML = h;
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function togglePanel() {
+    if (!panelBuilt) buildPanel();
+    var open = panel.classList.toggle('on');
+    if (open) renderPanel();
+  }
+  function closePanel() { if (panel) panel.classList.remove('on'); }
+
+  function report() {
+    var lines = ['# 包包财经工作台 · 诊断', '时间: ' + new Date().toLocaleString(),
+      '页面: ' + location.href, 'UA: ' + navigator.userAgent, ''];
+    lines.push('## JS 异常 (' + jsErrs.length + ')');
+    if (!jsErrs.length) lines.push('无');
+    jsErrs.forEach(function (e) { lines.push('- [' + hhmmss(e.t) + '] ' + e.m); });
+    lines.push('', '## 资源失败 (' + resErrs.length + ')');
+    resErrs.forEach(function (e) { lines.push('- [' + hhmmss(e.t) + '] ' + e.m); });
+    return lines.join('\n');
+  }
+
+  window.__diag = {
+    list: function () { return { js: jsErrs.slice(), res: resErrs.slice() }; },
+    report: report,
+    open: function () { if (!panelBuilt) buildPanel(); renderPanel(); panel.classList.add('on'); },
+    clear: function () { jsErrs.length = 0; resErrs.length = 0; paintBadge(); }
+  };
+
+  /* ── ③ 演示模式 ──────────────────────────────────────────────────────── */
+  /* 数据说明：这是 2026-10-23（周五）收盘快照，实测取自腾讯财经接口，
+     不是编造的数字；页面上会明确标注"非实时"。 */
+  var DEMO = {
+    /* A 股 / 港股：腾讯 qt.gtimg.cn，字段 [3]现价 [31]涨跌 [32]涨跌幅 [33]高 [34]低 [5]开 */
+    '上证指数':   { price: '3,690.48', chg: 32.45, pct: 0.89, open: '3,623.57', high: '3,691.40', low: '3,574.27' },
+    '科创50':     { price: '1,345.51', chg: 39.64, pct: 3.04, open: '1,287.87', high: '1,353.32', low: '1,257.29' },
+    '创业板指数': { price: '2,684.10', chg: 107.20, pct: 4.16, open: '2,534.16', high: '2,695.08', low: '2,494.22' },
+    '恒生指数':   { price: '23,093.37', chg: 158.69, pct: 0.69, open: '23,027.98', high: '23,231.63', low: '22,803.77' },
+    /* 日韩：新浪 znb_NKY / znb_KOSPI（页面自己用的也是这条源），只取到价与涨跌 */
+    '日经225':    { price: '62,692.94', chg: -214.90, pct: -0.34 },
+    '韩国KOSPI':  { price: '5,550.30', chg: 16.53, pct: 0.30 },
+    /* 美股：腾讯 usDJI / usIXIC / usINX；OHLC 只有道琼斯拿得到 */
+    '道琼斯':     { price: '52,215.16', chg: -652.82, pct: -1.23, open: '52,696.70', high: '52,696.70', low: '52,055.10' },
+    '纳斯达克':   { price: '25,955.34', chg: -53.52, pct: -0.21 },
+    '标普500':    { price: '7,623.68', chg: -39.75, pct: -0.52 }
+  };
+
+  var demoOn = false, demoRaf = 0, sweepTimer = 0;
+
+  function fmtChg(v) { return (v > 0 ? '↑ ' : '↓ ') + Math.abs(v).toFixed(2); }
+  function fmtPct(v) { return (v > 0 ? '↑' : '↓') + Math.abs(v).toFixed(2) + '%'; }
+
+  function fillCards() {
+    if (!demoOn) return 0;
+    var cards = document.querySelectorAll('.index-card');
+    var filled = 0;
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i];
+      var nameEl = card.querySelector('.ic-name');
+      if (!nameEl) continue;
+      var d = DEMO[String(nameEl.textContent || '').trim()];
+      if (!d) continue;
+      var chgEl = card.querySelector('.ic-change');
+      if (!chgEl) continue;
+      /* 只在"没有行情"的状态下填充 —— 真实数据永远优先 */
+      if (chgEl.textContent.indexOf('恢复中') < 0) continue;
+
+      var priceEl = card.querySelector('.ic-price');
+      if (priceEl) priceEl.textContent = d.price;
+      var cls = d.pct > 0 ? 'up' : (d.pct < 0 ? 'down' : 'flat');
+      chgEl.textContent = fmtChg(d.chg);
+      chgEl.className = 'ic-change ' + cls;
+      var badge = card.querySelector('.ic-badge');
+      if (badge) { badge.textContent = fmtPct(d.pct); badge.className = 'ic-badge ' + cls; }
+      var cols = card.querySelectorAll('.ic-ohl .col b');
+      if (cols.length >= 3 && d.open && d.high && d.low) {
+        cols[0].textContent = d.open;
+        cols[1].textContent = d.high;
+        cols[2].textContent = d.low;
+      }
+      card.setAttribute('data-demo', '1');
+      var top = card.querySelector('.ic-top');
+      if (top && !top.querySelector('.st-demo-tag')) {
+        var tag = document.createElement('span');
+        tag.className = 'st-demo-tag';
+        tag.textContent = '演示';
+        top.appendChild(tag);
+      }
+      filled++;
+    }
+    return filled;
+  }
+
+  function ensureBar() {
+    if (document.getElementById('st-demo-bar')) return;
+    var host = document.getElementById('index-areas');
+    if (!host || !host.parentNode) return;
+    var bar = document.createElement('div');
+    bar.id = 'st-demo-bar';
+    bar.className = 'st-demo-bar';
+    bar.innerHTML = '<span class="st-demo-dot"></span>' +
+      '<span><b>演示数据</b> · 当前网络连不上行情接口，以下为 <b>10-23 收盘快照</b>，非实时行情</span>' +
+      '<button class="st-demo-x" type="button">退出演示</button>';
+    bar.querySelector('.st-demo-x').addEventListener('click', function () { stopDemo(true); });
+    host.parentNode.insertBefore(bar, host);
+  }
+
+  function removeBar() {
+    var b = document.getElementById('st-demo-bar');
+    if (b) b.remove();
+  }
+
+  function startDemo() {
+    if (demoOn) return;
+    demoOn = true;
+    ensureBar();
+    fillCards();
+    /* 卡片会被主文件重渲 → 浅合并的观察器负责补填 */
+    if (window.MutationObserver) {
+      var mo = new MutationObserver(function () {
+        if (demoRaf) return;
+        demoRaf = requestAnimationFrame(function () {
+          demoRaf = 0;
+          if (!demoOn) return;
+          ensureBar();
+          fillCards();
+        });
+      });
+      mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+    }
+    /* 每 5 秒自检：只有"我们填进去的值被真实行情覆盖了"才算真实数据回来了。
+       ⚠️ 不能拿"没有恢复中 + 有涨跌幅"当判据 —— 那正是我们刚填进去的样子，
+          第一版就是这样，演示条自己消失、卡片却留着没有标注的假数值。 */
+    sweepTimer = setInterval(function () {
+      if (!demoOn) return;
+      var cards = document.querySelectorAll('.index-card[data-demo]');
+      if (!cards.length) return;
+      var replaced = 0, stillDemo = 0;
+      for (var i = 0; i < cards.length; i++) {
+        var card = cards[i];
+        var nameEl = card.querySelector('.ic-name');
+        var d = DEMO[String(nameEl ? nameEl.textContent : '').trim()];
+        if (!d) continue;
+        var pe = card.querySelector('.ic-price');
+        if (!pe) continue;
+        if (String(pe.textContent).trim() === d.price) stillDemo++;
+        else replaced++;
+      }
+      if (replaced > 0 && stillDemo === 0) stopDemo(false);
+    }, 5000);
+  }
+
+  /* 把演示数值还原成"没有行情"的原样，绝不留没有标注的假数字 */
+  function revertFill() {
+    var cards = document.querySelectorAll('.index-card[data-demo]');
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i];
+      var pe = card.querySelector('.ic-price');
+      if (pe) pe.textContent = '--';
+      var ce = card.querySelector('.ic-change');
+      if (ce) { ce.textContent = '行情通道恢复中…'; ce.className = 'ic-change'; }
+      var be = card.querySelector('.ic-badge');
+      if (be) { be.textContent = '--'; be.className = 'ic-badge'; }
+      var cols = card.querySelectorAll('.ic-ohl .col b');
+      for (var k = 0; k < cols.length; k++) cols[k].textContent = '--';
+      var tags = card.querySelectorAll('.st-demo-tag');
+      for (var j = 0; j < tags.length; j++) tags[j].remove();
+      card.removeAttribute('data-demo');
+    }
+  }
+
+  function stopDemo(byUser) {
+    if (!demoOn) return;
+    demoOn = false;
+    if (sweepTimer) { clearInterval(sweepTimer); sweepTimer = 0; }
+    removeBar();
+    revertFill();
+    if (byUser) {
+      try { sessionStorage.setItem('st-demo-off', '1'); } catch (e) {}
+    }
+  }
+
+  function maybeDemo() {
+    if (demoOn) return;
+    var off = false;
+    try { off = sessionStorage.getItem('st-demo-off') === '1'; } catch (e) {}
+    if (off && !DEMO_QS) return;
+
+    if (DEMO_QS) { startDemo(); return; }
+
+    /* 等 9 秒：如果还有卡片停在"恢复中"，就认为网络受限 */
+    setTimeout(function () {
+      var cards = document.querySelectorAll('.index-card .ic-change');
+      if (!cards.length) return;
+      var waiting = 0;
+      for (var i = 0; i < cards.length; i++) {
+        if ((cards[i].textContent || '').indexOf('恢复中') >= 0) waiting++;
+      }
+      if (waiting >= Math.max(1, Math.ceil(cards.length * 0.5))) startDemo();
+    }, 9000);
+  }
+
+  /* ── 统一调度：图标标记 + 演示检测 ───────────────────────────────────── */
+  if (window.MutationObserver) {
+    var mo2 = new MutationObserver(function () {
+      if (window.__stMarkT) return;
+      window.__stMarkT = setTimeout(function () { window.__stMarkT = 0; markHas(); }, 320);
+    });
+    mo2.observe(document.body, { childList: true, subtree: true });
+  }
+
+  function boot() {
+    markHas();
+    maybeDemo();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  window.__stability = {
+    version: VERSION,
+    demo: function (on) {
+      if (on === undefined) return demoOn;
+      if (on) { try { sessionStorage.removeItem('st-demo-off'); } catch (e) {} startDemo(); }
+      else stopDemo(false);
+      return demoOn;
+    },
+    hasFallback: function () { return document.querySelectorAll('.has-iso').length; }
+  };
+})();
+
+</script><!-- ST:JS:END -->
 </body>
 </html>
