@@ -1,0 +1,203 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   cls-feed · 财联社电报置顶区块样式
+   ───────────────────────────────────────────────────────────────────────────
+   视觉：财联社招牌红做锚点（badge / 重要红点 / 关注标），其余跟随工作台变量。
+   列表是「竖线 + 时间轴」结构：左侧一列小圆点，右侧正文 —— 电报本来就是时间流。
+   ⚠️ 所有内容默认可见，不靠动画点亮（铁律 D）。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cls-block {
+  margin: 0 0 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(226, 58, 58, .22);
+  background: linear-gradient(180deg, rgba(226, 58, 58, .07), rgba(226, 58, 58, .02));
+  overflow: hidden;
+}
+
+/* 头部 */
+.cls-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(226, 58, 58, .16);
+  background: rgba(226, 58, 58, .06);
+}
+.cls-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  color: #fff;
+  background: #e23a3a;
+  box-shadow: 0 2px 8px rgba(226, 58, 58, .3);
+}
+.cls-cap {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main, #eef0f2);
+}
+.cls-hot {
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  color: #e23a3a;
+  background: rgba(226, 58, 58, .14);
+  border: 1px solid rgba(226, 58, 58, .24);
+}
+.cls-upd {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--text-sub, #9aa1a9);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* ⚠️ 右上角有固定的吉祥物装饰（mascot-deco），会压住头部右侧的「N 条重要 / 更新…」。
+   宽屏给头部右侧留出 118px 让信息避开它；窄屏装饰不在这儿，不用留。 */
+@media (min-width: 900px) {
+  .cls-head { padding-right: 118px; }
+}
+
+/* 列表：时间轴 */
+.cls-body {
+  display: flex;
+  flex-direction: column;
+  max-height: 372px;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+.cls-body::-webkit-scrollbar { width: 5px; }
+.cls-body::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); border-radius: 3px; }
+
+.cls-item {
+  display: flex;
+  gap: 9px;
+  padding: 8px 12px 8px 10px;
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px dashed rgba(255, 255, 255, .06);
+  transition: background .15s;
+}
+.cls-item:last-child { border-bottom: 0; }
+.cls-item:hover { background: rgba(226, 58, 58, .06); }
+
+/* 左侧竖轴 + 圆点 */
+.cls-rail {
+  position: relative;
+  width: 9px;
+  flex: none;
+  display: flex;
+  justify-content: center;
+}
+.cls-rail::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 1px;
+  background: rgba(226, 58, 58, .18);
+}
+.cls-item:first-child .cls-rail::before { top: 9px; }
+.cls-item:last-child .cls-rail::before { bottom: calc(100% - 9px); }
+.cls-dot {
+  position: relative;
+  z-index: 1;
+  width: 6px;
+  height: 6px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .28);
+  box-shadow: 0 0 0 2px rgba(30, 32, 38, .9);
+}
+.cls-dot.on {
+  background: #e23a3a;
+  box-shadow: 0 0 0 2px rgba(30, 32, 38, .9), 0 0 8px rgba(226, 58, 58, .55);
+}
+
+.cls-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cls-meta { display: flex; align-items: center; gap: 7px; font-size: 10.5px; }
+.cls-t {
+  color: var(--text-sub, #9aa1a9);
+  font-variant-numeric: tabular-nums;
+}
+.cls-lv {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 0 5px;
+  border-radius: 4px;
+  color: #fff;
+  background: #e23a3a;
+}
+.cls-hit {
+  font-size: 9.5px;
+  color: var(--accent, #ff8a6b);
+  background: rgba(255, 138, 107, .12);
+  border: 1px solid rgba(255, 138, 107, .26);
+  padding: 0 5px;
+  border-radius: 4px;
+}
+.cls-name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-main, #eef0f2);
+}
+.cls-item.is-imp .cls-name { font-weight: 700; }
+.cls-brief {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-sub, #9aa1a9);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cls-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 1px; }
+.cls-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #c2c8d0;
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid rgba(255, 255, 255, .09);
+}
+
+/* 浅色主题 */
+:root[data-theme="light"] .cls-block {
+  border-color: rgba(226, 58, 58, .2);
+  background: linear-gradient(180deg, rgba(226, 58, 58, .05), rgba(226, 58, 58, .015));
+}
+:root[data-theme="light"] .cls-head {
+  background: rgba(226, 58, 58, .05);
+  border-bottom-color: rgba(226, 58, 58, .14);
+}
+:root[data-theme="light"] .cls-cap { color: #2b303a; }
+:root[data-theme="light"] .cls-name { color: #1d222b; }
+:root[data-theme="light"] .cls-brief { color: #5a6270; }
+:root[data-theme="light"] .cls-t { color: #6a7384; }
+:root[data-theme="light"] .cls-item:hover { background: rgba(226, 58, 58, .04); }
+:root[data-theme="light"] .cls-item { border-bottom-color: rgba(0, 0, 0, .05); }
+:root[data-theme="light"] .cls-dot { background: rgba(0, 0, 0, .2); box-shadow: 0 0 0 2px #fff; }
+:root[data-theme="light"] .cls-dot.on { background: #e23a3a; box-shadow: 0 0 0 2px #fff, 0 0 8px rgba(226, 58, 58, .4); }
+:root[data-theme="light"] .cls-tag {
+  color: #4a5160;
+  background: rgba(0, 0, 0, .05);
+  border-color: rgba(0, 0, 0, .08);
+}
+
+/* 手机端：收紧一点，简报两行足够 */
+@media (max-width: 640px) {
+  .cls-block { border-radius: 12px; }
+  .cls-head { padding: 8px 10px; gap: 6px; }
+  .cls-cap { font-size: 11.5px; }
+  .cls-upd { font-size: 10px; }
+  .cls-item { padding: 7px 10px 7px 8px; }
+  .cls-name { font-size: 12.5px; }
+  .cls-brief { font-size: 11.5px; -webkit-line-clamp: 2; }
+  .cls-body { max-height: 330px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cls-item, .cls-dot { transition: none !important; }
+}
