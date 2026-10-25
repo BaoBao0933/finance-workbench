@@ -12256,6 +12256,214 @@ html[data-fps-q="low"] .ov-icon:has(.hi-iso) {
 }
 
 </style><!-- NT:CSS:END -->
+<!-- CF:CSS:BEGIN -->
+<!-- cls-feed (2026-10-25) | 财联社电报置顶（读同源 cls-news.json） | 数据由 scripts/fetch_cls.py 定时生成 | 改源文件后重跑本注入器 -->
+<style id="cls-feed-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   cls-feed · 财联社电报置顶区块样式
+   ───────────────────────────────────────────────────────────────────────────
+   视觉：财联社招牌红做锚点（badge / 重要红点 / 关注标），其余跟随工作台变量。
+   列表是「竖线 + 时间轴」结构：左侧一列小圆点，右侧正文 —— 电报本来就是时间流。
+   ⚠️ 所有内容默认可见，不靠动画点亮（铁律 D）。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cls-block {
+  margin: 0 0 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(226, 58, 58, .22);
+  background: linear-gradient(180deg, rgba(226, 58, 58, .07), rgba(226, 58, 58, .02));
+  overflow: hidden;
+}
+
+/* 头部 */
+.cls-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(226, 58, 58, .16);
+  background: rgba(226, 58, 58, .06);
+}
+.cls-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  color: #fff;
+  background: #e23a3a;
+  box-shadow: 0 2px 8px rgba(226, 58, 58, .3);
+}
+.cls-cap {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main, #eef0f2);
+}
+.cls-hot {
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  color: #e23a3a;
+  background: rgba(226, 58, 58, .14);
+  border: 1px solid rgba(226, 58, 58, .24);
+}
+.cls-upd {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--text-sub, #9aa1a9);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* ⚠️ 右上角有固定的吉祥物装饰（mascot-deco），会压住头部右侧的「N 条重要 / 更新…」。
+   宽屏给头部右侧留出 118px 让信息避开它；窄屏装饰不在这儿，不用留。 */
+@media (min-width: 900px) {
+  .cls-head { padding-right: 118px; }
+}
+
+/* 列表：时间轴 */
+.cls-body {
+  display: flex;
+  flex-direction: column;
+  max-height: 372px;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+.cls-body::-webkit-scrollbar { width: 5px; }
+.cls-body::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); border-radius: 3px; }
+
+.cls-item {
+  display: flex;
+  gap: 9px;
+  padding: 8px 12px 8px 10px;
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px dashed rgba(255, 255, 255, .06);
+  transition: background .15s;
+}
+.cls-item:last-child { border-bottom: 0; }
+.cls-item:hover { background: rgba(226, 58, 58, .06); }
+
+/* 左侧竖轴 + 圆点 */
+.cls-rail {
+  position: relative;
+  width: 9px;
+  flex: none;
+  display: flex;
+  justify-content: center;
+}
+.cls-rail::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 1px;
+  background: rgba(226, 58, 58, .18);
+}
+.cls-item:first-child .cls-rail::before { top: 9px; }
+.cls-item:last-child .cls-rail::before { bottom: calc(100% - 9px); }
+.cls-dot {
+  position: relative;
+  z-index: 1;
+  width: 6px;
+  height: 6px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .28);
+  box-shadow: 0 0 0 2px rgba(30, 32, 38, .9);
+}
+.cls-dot.on {
+  background: #e23a3a;
+  box-shadow: 0 0 0 2px rgba(30, 32, 38, .9), 0 0 8px rgba(226, 58, 58, .55);
+}
+
+.cls-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cls-meta { display: flex; align-items: center; gap: 7px; font-size: 10.5px; }
+.cls-t {
+  color: var(--text-sub, #9aa1a9);
+  font-variant-numeric: tabular-nums;
+}
+.cls-lv {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 0 5px;
+  border-radius: 4px;
+  color: #fff;
+  background: #e23a3a;
+}
+.cls-hit {
+  font-size: 9.5px;
+  color: var(--accent, #ff8a6b);
+  background: rgba(255, 138, 107, .12);
+  border: 1px solid rgba(255, 138, 107, .26);
+  padding: 0 5px;
+  border-radius: 4px;
+}
+.cls-name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-main, #eef0f2);
+}
+.cls-item.is-imp .cls-name { font-weight: 700; }
+.cls-brief {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-sub, #9aa1a9);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cls-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 1px; }
+.cls-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: #c2c8d0;
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid rgba(255, 255, 255, .09);
+}
+
+/* 浅色主题 */
+:root[data-theme="light"] .cls-block {
+  border-color: rgba(226, 58, 58, .2);
+  background: linear-gradient(180deg, rgba(226, 58, 58, .05), rgba(226, 58, 58, .015));
+}
+:root[data-theme="light"] .cls-head {
+  background: rgba(226, 58, 58, .05);
+  border-bottom-color: rgba(226, 58, 58, .14);
+}
+:root[data-theme="light"] .cls-cap { color: #2b303a; }
+:root[data-theme="light"] .cls-name { color: #1d222b; }
+:root[data-theme="light"] .cls-brief { color: #5a6270; }
+:root[data-theme="light"] .cls-t { color: #6a7384; }
+:root[data-theme="light"] .cls-item:hover { background: rgba(226, 58, 58, .04); }
+:root[data-theme="light"] .cls-item { border-bottom-color: rgba(0, 0, 0, .05); }
+:root[data-theme="light"] .cls-dot { background: rgba(0, 0, 0, .2); box-shadow: 0 0 0 2px #fff; }
+:root[data-theme="light"] .cls-dot.on { background: #e23a3a; box-shadow: 0 0 0 2px #fff, 0 0 8px rgba(226, 58, 58, .4); }
+:root[data-theme="light"] .cls-tag {
+  color: #4a5160;
+  background: rgba(0, 0, 0, .05);
+  border-color: rgba(0, 0, 0, .08);
+}
+
+/* 手机端：收紧一点，简报两行足够 */
+@media (max-width: 640px) {
+  .cls-block { border-radius: 12px; }
+  .cls-head { padding: 8px 10px; gap: 6px; }
+  .cls-cap { font-size: 11.5px; }
+  .cls-upd { font-size: 10px; }
+  .cls-item { padding: 7px 10px 7px 8px; }
+  .cls-name { font-size: 12.5px; }
+  .cls-brief { font-size: 11.5px; -webkit-line-clamp: 2; }
+  .cls-body { max-height: 330px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cls-item, .cls-dot { transition: none !important; }
+}
+
+</style><!-- CF:CSS:END -->
 </head>
 <body>
 
@@ -28245,5 +28453,217 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
 })();
 
 </script><!-- NT:JS:END -->
+<!-- CF:JS:BEGIN -->
+<!-- cls-feed (2026-10-25) | 财联社电报置顶（读同源 cls-news.json） | 数据由 scripts/fetch_cls.py 定时生成 | 改源文件后重跑本注入器 -->
+<script id="cls-feed-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   cls-feed · 财联社电报（重点关注）置顶区块
+   ───────────────────────────────────────────────────────────────────────────
+   用户 2026-10-25：「能否加入财联社的新闻呢？需要重点关注这个」
+
+   为什么要"预生成 JSON"这条路：
+     · 财联社接口需要 sign 签名，而且**没有 CORS 头** → 浏览器 fetch 会被拦，
+       它也不是 JSONP（script 注入拿不到）→ 纯静态页拿不到。
+     · 所以由 scripts/fetch_cls.py 定时抓成同源 cls-news.json，
+       网页读 ./cls-news.json 是同源，没有跨域问题。
+   展示规则：
+     · 财联社 A/B 级（重要）= 红点 + 标题加粗；C/D 级普通
+     · 命中用户「关注」关键词（news-tune 存的 wb_news_follow_v1）的条目 → 打「关注」标
+     · 数据超过 8 小时视为过期，整块不显示（避免让人看到隔夜旧闻还以为是最新）
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  if (window.__cfInstalled) return;
+  window.__cfInstalled = 1;
+
+  var JSON_URL = 'cls-news.json';
+  var LS_FOLLOW = 'wb_news_follow_v1';
+  var STALE_SEC = 8 * 3600;        /* 超过 8 小时算过期 */
+  var MAX_ITEMS = 12;              /* 区块里最多显示多少条 */
+
+  var cache = null;                /* 上一次成功拿到的数据 */
+  var loading = false;
+  var failCount = 0;
+
+  /* ── 工具 ─────────────────────────────────────────────────────────────── */
+  function esc(s) {
+    return String(s || '').replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function hhmm(ts) {
+    var d = new Date((ts || 0) * 1000);
+    return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+  function ago(ts) {
+    var s = Math.max(0, Math.round(Date.now() / 1000 - (ts || 0)));
+    if (s < 60) return '刚刚';
+    if (s < 3600) return Math.floor(s / 60) + ' 分钟前';
+    return Math.floor(s / 3600) + ' 小时前';
+  }
+  function followList() {
+    try {
+      var raw = localStorage.getItem(LS_FOLLOW);
+      if (!raw) return null;
+      var a = JSON.parse(raw);
+      return Array.isArray(a) ? a.filter(function (x) { return x && String(x).trim(); }) : null;
+    } catch (e) { return null; }
+  }
+  function hitFollow(item, list) {
+    if (!list || !list.length) return '';
+    var hay = (item.title || '') + ' ' + (item.brief || '') + ' ' + (item.tags || []).join(' ');
+    for (var i = 0; i < list.length; i++) {
+      if (hay.indexOf(list[i]) >= 0) return list[i];
+    }
+    return '';
+  }
+
+  /* ── 渲染 ─────────────────────────────────────────────────────────────── */
+  function ensureBlock() {
+    var page = document.getElementById('page-news');
+    if (!page) return null;
+    var block = page.querySelector('#cls-block');
+    if (block) return block;
+    var list = page.querySelector('#news-list');
+    if (!list || !list.parentNode) return null;
+    block = document.createElement('div');
+    block.id = 'cls-block';
+    block.className = 'cls-block';
+    list.parentNode.insertBefore(block, list);
+    return block;
+  }
+
+  function render(data) {
+    var block = ensureBlock();
+    if (!block) return;
+    /* ⭐ 2026-10-25：重要级不能被「只取最新 N 条」截掉 ——
+       实测抓 30 条时 A/B 级可能排在第 13/20 位，纯按时间截 12 条会漏。
+       做法：最新 N 条 + 补入 24h 内的 A/B 级（不在前 N 里的），再按时间重排。 */
+    var all = data.items || [];
+    var picked = all.slice(0, MAX_ITEMS);
+    var chosen = {};
+    picked.forEach(function (x) { chosen[x.id] = 1; });
+    var now = Date.now() / 1000;
+    all.slice(MAX_ITEMS).forEach(function (x) {
+      if ((x.level === 'A' || x.level === 'B') && (now - (x.ctime || 0)) < 24 * 3600 && !chosen[x.id]) {
+        chosen[x.id] = 1;
+        picked.push(x);
+      }
+    });
+    var items = picked.sort(function (a, b) { return (b.ctime || 0) - (a.ctime || 0); }).slice(0, MAX_ITEMS + 4);
+    if (!items.length) { block.innerHTML = ''; block.style.display = 'none'; return; }
+    block.style.display = '';
+
+    var follow = followList();
+    var hot = items.filter(function (x) { return x.level === 'A' || x.level === 'B'; }).length;
+
+    var rows = items.map(function (x, i) {
+      var lv = x.level || '';
+      var important = lv === 'A' || lv === 'B';
+      var hit = hitFollow(x, follow);
+      var title = esc(x.title || '');
+      var brief = esc(x.brief || '');
+      if (brief && brief.length > 96) brief = brief.slice(0, 96) + '…';
+      var tags = (x.tags || []).slice(0, 2).map(function (t) {
+        return '<span class="cls-tag">' + esc(t) + '</span>';
+      }).join('');
+      var href = x.url ? esc(x.url) : '';
+      var tag = href ? 'a' : 'div';
+      var attrs = href ? ' href="' + href + '" target="_blank" rel="noreferrer noopener"' : '';
+      return '<' + tag + ' class="cls-item' + (important ? ' is-imp' : '') + '"' + attrs + '>'
+        + '<span class="cls-rail"><i class="cls-dot' + (important ? ' on' : '') + '"></i></span>'
+        + '<span class="cls-main">'
+        + '<span class="cls-meta"><span class="cls-t">' + hhmm(x.ctime) + '</span>'
+        + (important ? '<span class="cls-lv">' + (lv === 'A' ? '重要' : '关注') + '</span>' : '')
+        + (hit ? '<span class="cls-hit">● ' + esc(hit) + '</span>' : '')
+        + '</span>'
+        + '<span class="cls-name">' + title + '</span>'
+        + (brief ? '<span class="cls-brief">' + brief + '</span>' : '')
+        + (tags ? '<span class="cls-tags">' + tags + '</span>' : '')
+        + '</span></' + tag + '>';
+    }).join('');
+
+    block.innerHTML = '<div class="cls-head">'
+      + '<span class="cls-badge">财联社</span>'
+      + '<span class="cls-cap">电报 · 重点关注</span>'
+      + (hot ? '<span class="cls-hot">' + hot + ' 条重要</span>' : '')
+      + '<span class="cls-upd">更新 ' + hhmm(data.updated) + ' · ' + ago(data.updated) + '</span>'
+      + '</div>'
+      + '<div class="cls-body">' + rows + '</div>';
+  }
+
+  /* ── 数据 ─────────────────────────────────────────────────────────────── */
+  function isStale(updated) {
+    return !updated || (Date.now() / 1000 - updated) > STALE_SEC;
+  }
+
+  function load(force) {
+    if (loading) return;
+    if (!force && cache) { render(cache); return; }
+    loading = true;
+    var url = JSON_URL + (JSON_URL.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+    fetch(url, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        loading = false;
+        if (!d || !d.items || !d.items.length) return;
+        cache = d;
+        if (isStale(d.updated)) {          /* 过期数据不展示，避免误当最新 */
+          var b = document.getElementById('cls-block');
+          if (b) { b.innerHTML = ''; b.style.display = 'none'; }
+          return;
+        }
+        render(d);
+      })
+      .catch(function () { loading = false; failCount++; });
+  }
+
+  /* ── 时机：进新闻页才渲染（省流量） ───────────────────────────────────── */
+  var renderedOnce = false;
+  function maybeLoad() {
+    var page = document.getElementById('page-news');
+    if (!page || page.style.display === 'none') return;
+    if (!ensureBlock()) return;
+    load(false);
+    renderedOnce = true;
+  }
+
+  function init() {
+    /* 首次 + 切到新闻页时 */
+    [600, 1600, 3200].forEach(function (ms) { setTimeout(maybeLoad, ms); });
+    document.addEventListener('click', function (e) {
+      var nav = e.target.closest && e.target.closest('.nav-item');
+      if (!nav) return;
+      if (String(nav.textContent || '').indexOf('财经要闻') < 0) return;
+      setTimeout(maybeLoad, 320);
+    }, true);
+    /* 点了刷新按钮也顺手刷一次财联社 */
+    document.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('#btn-news-refresh')) {
+        setTimeout(function () { load(true); }, 500);
+      }
+    }, true);
+    /* 关注列表变了（news-tune 保存后）→ 重算「关注」标 */
+    window.addEventListener('storage', function (ev) {
+      if (ev.key === LS_FOLLOW && cache) render(cache);
+    });
+    /* 每 10 分钟静默刷新（页面在新闻页时才拉） */
+    setInterval(function () {
+      var page = document.getElementById('page-news');
+      if (page && page.style.display !== 'none') load(true);
+    }, 10 * 60 * 1000);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+
+  window.__clsFeed = {
+    load: function () { load(true); },
+    data: function () { return cache; },
+    render: function () { if (cache) render(cache); }
+  };
+})();
+
+</script><!-- CF:JS:END -->
 </body>
 </html>
