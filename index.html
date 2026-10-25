@@ -874,7 +874,65 @@
   /* ⭐⭐ 2026-10-18：底部只留 12px，而 dock 是 fixed 悬浮在底部 ——
      最后一排卡片会被 dock 压住（截图实测确认）。
      留出 dock 高度 + 呼吸间距。 */
-  .content { flex: 1; overflow-y: auto; padding: 26px 30px 96px; }
+  .content { flex: 1; overflow-y: auto; padding: 26px 30px 36px; }
+
+  /* ⭐⭐⭐ 2026-10-25 移动端导航改「顶部横条」（dock 删掉后必须补）
+     ─────────────────────────────────────────────────────────────────────
+     原来手机上靠底部 dock 导航、侧栏整条藏到屏幕外；dock 删掉后侧栏回到
+     常驻布局，390px 屏幕被它吃掉 216px，正文只剩 174px，卡片压到 44px 宽
+     （实测截图确认，标题还被挤成每行一个字）。
+
+     试过 62px 图标栏：正文 328px 仍然不够，卡片内部（名称/代码/标签/成交额）
+     照样换行。所以改成「窄屏把侧栏横过来当顶部导航条」：
+       · body 变纵向 flex，aside 变成 54px 高的横向滚动条，只占高度不占宽度
+       · 正文 100% 全宽，和原来 dock 模式的可用宽度一致
+       · 导航项仍在 DOM 原位，点击/高亮逻辑一行都不用改 */
+  @media (max-width: 820px) {
+    body { flex-direction: column; }
+    .sidebar {
+      width: 100%; min-width: 0;
+      height: 54px; min-height: 54px;
+      flex-direction: row; align-items: center;
+      overflow-x: auto; overflow-y: hidden;
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+      background: rgba(18, 22, 30, .55);
+      backdrop-filter: blur(16px) saturate(160%);
+      -webkit-backdrop-filter: blur(16px) saturate(160%);
+      scrollbar-width: none;
+    }
+    .sidebar::-webkit-scrollbar { display: none; }
+    .logo, .sidebar-footer, .sidebar-toggle, .nav-group-title { display: none; }
+    .nav-item {
+      flex: 0 0 auto;
+      margin: 7px 2px;
+      padding: 7px 11px;
+      font-size: 12.5px;
+      gap: 6px;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+    .nav-item .icon, .nav-item .icon svg { width: 17px; height: 17px; }
+    .main { width: 100%; height: calc(100vh - 54px); }
+    .content { padding: 14px 12px 24px; }
+
+    /* 窄屏标题：48px 的桌面字号在这里会被压成「每行一个字」
+       （text-wrap: balance 会切得更碎）→ 压到 24px 并允许 header 换行 */
+    .header { flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+    .header .title {
+      font-size: 24px !important;
+      line-height: 1.3;
+      text-wrap: normal;
+      white-space: normal;
+    }
+    .header .title .title-ico { vertical-align: -6px !important; margin-right: 6px; }
+    .header .title .title-ico .hi-iso { width: 28px !important; height: 28px !important; }
+    .header-actions { width: 100%; justify-content: flex-end; gap: 8px; }
+    .time-row { font-size: 12px; flex-wrap: wrap; row-gap: 4px; }
+  }
+  @media (max-width: 560px) {
+    .overview-grid { grid-template-columns: 1fr; }
+    .index-focus, .index-region .ir-grid { grid-template-columns: 1fr; }
+  }
 
   /* 无边界毛玻璃：卡片全部去除可见边框；仅交互控件保留轻微可辨描边 */
   .search-input,
@@ -5179,43 +5237,10 @@ html:not([data-fps-q]) body {
   /* 侧边栏让位后，主区占满 */
 }
 
-/* ⭐⭐⭐ 2026-10-19 修复「侧边栏有时候消失有时候出现」
-   ─────────────────────────────────────────────────────────────────────
-   症状：侧边栏在两种状态间来回跳，还伴随主区忽宽忽窄、底部内容被 dock 遮。
-   根因：这三条**布局规则**被写在了 `html:not([data-fps-q])` 条件下 ——
-        本意是"dock 出现后侧边栏让位"，但绑到了**性能档位**上。
-        而 fps-boost（fps.js:115/126）会随帧率抖动**自动降档/升档**：
-          掉帧 → setAttribute('data-fps-q') → 这三条全部失效 → 侧边栏冒出来
-          回稳 → removeAttribute → 又缩回去
-        于是一次轻微卡顿就让侧边栏闪一下。
-
-   ⭐ 原则（与"主题层不该写死版式基准"同源）：
-      **性能档位只该控制"动效多少"，绝不该控制"布局长什么样"。**
-      布局是无条件事实：dock 是主导航，侧边栏就该一直让位。 */
-.sidebar {
-  position: fixed !important;
-  left: -240px;
-  top: 0;
-  bottom: 0;
-  width: 216px !important;
-  min-width: 216px;
-  z-index: 1;
-  /* 视觉隐藏但保留在 DOM 与可访问性树里 */
-  visibility: hidden;
-  pointer-events: none;
-  /* 只过渡 transform —— visibility 不适合加过渡，会拖出一帧残影 */
-  transition: transform .3s cubic-bezier(.4, 0, .2, 1);
-}
-
-/* 侧边栏让位后主区拉满（无条件，与帧率档位无关）*/
-.main {
-  width: 100%;
-}
-
-/* Dock 出现后，内容底部留出空间，避免最后一行被 dock 遮住（无条件）*/
-.content {
-  padding-bottom: calc(var(--dock-icon) + 46px) !important;
-}
+/* 2026-10-25：底部 dock 已移除，侧边栏回归常驻。
+   原来这段「dock 出现后侧栏让位」的规则会无条件把 aside 推到 left:-240px
+   并 visibility:hidden —— dock 一删，导航就彻底看不见了，所以整段一并移除。
+   现在布局回到最朴素的 flex：aside 216px + main flex:1。 */
 
 /* ═══════════════════════════════════════════════════════════════════════════
    6. 窄屏适配
@@ -13113,11 +13138,11 @@ html[data-fps-q="low"] .ov-icon.has-iso {
       </div>
       <div class="focus-wrap">
         <div class="focus-block">
-          <div class="focus-block-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12h4"/><path d="M10 8h4"/><path d="M14 21v-3a2 2 0 0 0-4 0v3"/><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/></svg> 光纤 / 光通信 相关板块（点击查看成分股）</div>
+          <div class="focus-block-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12h4"/><path d="M10 8h4"/><path d="M14 21v-3a2 2 0 0 0-4 0v3"/><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/></svg><span id="focus-title-sectors"> 光纤 / 光通信 相关板块（点击查看成分股）</span></div>
           <div class="sec-grid" id="focus-sectors"><div class="news-empty">相关板块加载中…</div></div>
         </div>
         <div class="focus-block">
-          <div class="focus-block-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg> 光纤 / 光通信 核心个股</div>
+          <div class="focus-block-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg><span id="focus-title-stocks"> 光纤 / 光通信 核心个股</span></div>
           <div id="focus-stocks"><div class="news-empty">核心个股行情加载中…</div></div>
         </div>
         <!-- 板块成分股详情 -->
@@ -18089,25 +18114,54 @@ function loadFocus() {
   else if (focusFdCode) loadFocusDetailStocks();
   loadFocusNews();
 }
-$('btn-focus-refresh').addEventListener('click', () => { focusSecCache = {}; focusStockCache = {}; $('focus-sectors').innerHTML = '<div class="news-empty">刷新中…</div>'; loadFocus(); });
-$('fd-back').addEventListener('click', closeFocusDetail);
 
 // 行情（股指/板块/个股/成分股）每 10 秒局部刷新；快讯每 30 秒
-setInterval(() => {
-  if ($('page-focus').style.display === 'none') return;
-  loadFocusSectors();
-  loadFocusStocks();
-  if (focusFdCode === FOCUS_ENGINE_CODE) loadFocusEngineDetailStocks();
-  else if (focusFdCode) loadFocusDetailStocks();
-}, 10000);
-setInterval(() => {
-  if ($('page-focus').style.display === 'none') return;
-  loadFocusNews();
-}, 30000);
 
 /* QF: 暴露句柄给「行情备用通道」模块（quote-fallback）
    注：const/let 声明不会挂到 window，备用模块取不到，故在此显式暴露引用。
    getXxx 一律用函数返回当前对象，避免后续被整体替换（如刷新按钮里 focusSecCache = {}）时句柄失效。 */
+/* ⭐⭐ 2026-10-25 板块标题随「管理」结果动态化
+   ─────────────────────────────────────────────────────────────────────
+   标题原来写死「光纤 / 光通信 相关板块」。用户在管理模式里加删板块后，
+   标题还在说光纤光通信，图文不符。现在从 #focus-sectors 实际渲染出的
+   板块格子读名字（用户删的不会出现、加的会），取前 4 个拼进标题；
+   核心个股标题同步。用 MutationObserver 盯格子容器，渲染/增删都会触发。 */
+(function () {
+  function readNames() {
+    var g = document.getElementById('focus-sectors');
+    if (!g) return [];
+    var out = [];
+    g.querySelectorAll('.sec-cell .scn').forEach(function (n) {
+      var t = (n.textContent || '').replace(/\s*★$/, '').trim();
+      if (t && out.indexOf(t) < 0) out.push(t);
+    });
+    return out;
+  }
+  function applyTitles() {
+    var list = readNames();
+    if (!list.length) return;
+    var head = list.slice(0, 4).join(' / ') + (list.length > 4 ? ' 等' : '');
+    var t1 = document.getElementById('focus-title-sectors');
+    var t2 = document.getElementById('focus-title-stocks');
+    var st = document.getElementById('focus-status');
+    if (t1) t1.textContent = ' ' + head + ' 相关板块（点击查看成分股）';
+    if (t2) t2.textContent = ' ' + head + ' 核心个股';
+    if (st && /重点监控/.test(st.textContent)) st.textContent = head + ' 重点监控 · ' + list.length + ' 个板块';
+  }
+  window.__focusTitles = applyTitles;
+  function boot() {
+    var g = document.getElementById('focus-sectors');
+    if (g && window.MutationObserver) {
+      new MutationObserver(function () { applyTitles(); })
+        .observe(g, { childList: true, subtree: true });
+    }
+    /* 首次进入页面时也刷一遍（loadFocus 渲染完成后 observer 会再触发一次，双保险） */
+    setTimeout(applyTitles, 800);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
 window.__quoteHook = {
   getFutures: function () { return FUTURES; },
   getFutCache: function () { return futCache; },
@@ -18125,6 +18179,22 @@ window.__quoteHook = {
   loadFocus: function () { return loadFocus(); },
   setFutStatus: function (txt) { const el = $('fut-status'); if (el) el.textContent = txt; }
 };
+
+$('btn-focus-refresh').addEventListener('click', () => { focusSecCache = {}; focusStockCache = {}; $('focus-sectors').innerHTML = '<div class="news-empty">刷新中…</div>'; loadFocus(); });
+$('fd-back').addEventListener('click', closeFocusDetail);
+
+// 行情（股指/板块/个股/成分股）每 10 秒局部刷新；快讯每 30 秒
+setInterval(() => {
+  if ($('page-focus').style.display === 'none') return;
+  loadFocusSectors();
+  loadFocusStocks();
+  if (focusFdCode === FOCUS_ENGINE_CODE) loadFocusEngineDetailStocks();
+  else if (focusFdCode) loadFocusDetailStocks();
+}, 10000);
+setInterval(() => {
+  if ($('page-focus').style.display === 'none') return;
+  loadFocusNews();
+}, 30000);
 
 /* ================= 龙虎榜 ================= */
 let lhbDate = '';         // 当前交易日 YYYY-MM-DD
@@ -19251,592 +19321,6 @@ pollAdaptive(() => loadBoardRank(), 300000, 300000);     // 板块榜首：5min
 })();
 
 </script><!-- FD:JS:END -->
-<!-- DOCK:JS:BEGIN -->
-<!-- mac-dock (2026-10-12) | 底部浮动玻璃停靠栏 | 距离衰减放大 + 名称气泡 + 当前页圆点 | 只放图标 -->
-<script id="mac-dock-js">
-/* ═══════════════════════════════════════════════════════════════════════════
-   mac-dock · 运行时（2026-10-12）
-   ───────────────────────────────────────────────────────────────────────────
-   CSS 负责「长什么样」，本层负责三件 CSS 做不到的事：
-
-   ① ⭐⭐⭐ 距离衰减放大（macOS Dock 的灵魂）
-      纯 CSS 只能做到「直接相邻的那一个放大」（:hover + .next），
-      而 macOS Dock 是「距离鼠标越近放大越多」的**连续函数**。
-      这里在 mousemove 时算出每个图标中心到鼠标的水平距离，
-      按余弦衰减算出缩放值，写入 CSS 变量 --dock-scale。
-
-   ② 把侧边栏的 10 个 nav-item 搬进 dock（DOM 迁移，不重写 HTML）
-
-   ③ 点击转发 + 当前页状态同步
-      dock 上的点击要触发原 nav-item 的点击（原页面逻辑照常工作），
-      当前页切换时同步移动小圆点。
-
-   ⚠️ 铁律：只写 CSS 变量 + transform，零重排。
-   ╠️ 铁律 D：所有默认态必须可见。
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-(function () {
-  'use strict';
-
-  if (window.__macDockInstalled) return;
-  window.__macDockInstalled = true;
-
-  /* ══════════════════════════════════════════════════════════════════════════
-     ⭐⭐⭐ 2026-10-13 重写：reduced-motion 的正确处理方式
-     ─────────────────────────────────────────────────────────────────────────
-     症状：用户报「EXE 里悬停没动效，全都不动」，但预览页正常。
-
-     根因：Windows「关闭了窗口动画」（注册表 MinAnimate=0）→
-     Chromium/Electron 报 `prefers-reduced-motion: reduce` = **true** →
-     本层 `REDUCED=true` 把 **放大/按压/涟漪/弹跳全部短路**，
-     CSS 侧的 reduce 分支又把 transform 锁成 scale(1)。
-     结果：整个 dock 完全静态。
-
-     ⭐ 为什么这是设计错误（不只是环境问题）：
-       `prefers-reduced-motion` 是给**前庭障碍用户**的 —— 他们需要的是
-       「不要大幅位移/旋转」，**不是「整个界面变成死的」**。
-       我原来的实现把「减动效」做成了「零反馈」，
-       这是把无障碍偏好误读成了「关掉功能」。
-
-     正解：**降级但保留最小反馈**
-       · 缩放幅度压到 ±4%（几乎不产生位移感，但仍能看出「碰到了」）
-       · 取消涟漪（径向扩散是大位移，reduce 的核心目标）
-       · 保留颜色/透明度变化（对前庭障碍完全无害）
-       · 关键：⚠️ 静止时也要给一点点 scale，不能是 1
-     ════════════════════════════════════════════════════════════════════════ */
-  var REDUCED = !!(window.matchMedia
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-
-  /* ⭐ 减动效档的缩放幅度：仍有反馈，但位移小到不会诱发不适 */
-  var REDUCED_AMP = 1.04;
-  var REDUCED_FALLOFF = 60;
-
-  /* 档位参数：reduce 用小幅度，其余用全量 */
-  function ampOf() { return REDUCED ? REDUCED_AMP : CFG.amp; }
-  function falloffOf() { return REDUCED ? REDUCED_FALLOFF : CFG.falloff; }
-
-  var state = {
-    installed: true,
-    reduced: REDUCED,
-    /* dock 是否已建立 */
-    built: false,
-    /* 图标数 */
-    items: 0,
-    /* 当前页 */
-    active: null,
-    /* 统计 */
-    mouseMoves: 0,
-    scaled: 0,
-    clicks: 0,
-    presses: 0,      /* 按下次数（点击动效 Primary 层）*/
-    bounces: 0,      /* 弹跳播放次数 */
-    bounces: 0,      /* 弹跳播放次数 */
-    ripples: 0,      /* 涟漪播放次数（Secondary 层）*/
-    /* 上一次的鼠标 X，用于跳过无变化的事件 */
-    lastX: -1,
-    /* 最近一次按下的坐标（供涟漪定位）*/
-    lastDownX: null,
-    lastDownY: null,
-    /* 降档中 */
-    degraded: false
-  };
-
-  /* ═══ 参数（与 dock.css 的 :root 保持一致）═══════════════════════════════ */
-
-  var CFG = {
-    amp: 1.42,        // 悬停项最大放大倍数
-    falloff: 92,      // 衰减半径（px）
-    near: 0.62,       // 相邻项基础跟随比例
-    idle: 1.0,        // 常态
-    maxItems: 12      // 安全上限
-  };
-
-  /* ═══ 工具 ═══════════════════════════════════════════════════════════ */
-
-  function qs(sel, root) {
-    return (root || document).querySelector(sel);
-  }
-  function qsa(sel, root) {
-    return Array.prototype.slice.call((root || document).querySelectorAll(sel));
-  }
-
-  /* ═══ ① 距离衰减放大 ═════════════════════════════════════════════════
-     算法：对每个图标，算它中心到鼠标的水平距离 d，
-           d = 0        → 放大到 amp（悬停项本身）
-           0 < d < falloff → 按 (1 - d/falloff) 的平方衰减到 1
-           d >= falloff → 1（不放大）
-
-     ⭐ 为什么用**平方**而不是线性：
-        线性衰减在视觉上是「等距递减」，看起来像一排被推开的积木；
-        平方衰减才有 macOS 那种「中间鼓起来」的弧度 —— 邻居明显、
-        隔壁的隔壁几乎看不出。这是 macOS Dock 的辨识度所在。
-
-     ⚠️ 只算水平距离：dock 是横向排列的，纵向距离没有意义。
-     ═══════════════════════════════════════════════════════════════════ */
-
-  function scaleAt(d) {
-    /* ⭐ 2026-10-13：reduce 档位走小幅度，而不是「不放大」 */
-    var _amp = ampOf();
-    var _fall = falloffOf();
-    if (d <= 0) return _amp;
-    if (d >= _fall) return CFG.idle;
-    var t = 1 - d / _fall;
-    /* ⭐ 2026-10-12 修正：原来写的是 `t * t * (1 + near)`，
-       而 near=0.62 是个 >1 的系数 → 曲线在 d≈6px 处会翘到 1.59，
-       **比悬停项本身（1.42）还大**。这违反了「d=0 是最大值」的基本前提，
-       视觉表现是：鼠标明明在 A 上，旁边 B 却鼓得更高，看着像抖动。
-       正解：near 只作为**下限**参与，不参与放大顶部 ——
-       用 (1 + near * (1 - t)) 让系数从 (1+near) 平滑降到 1，
-       既保留「邻居也明显」的效果，又保证 d=0 仍是全局最大值。 */
-    return CFG.idle + (_amp - CFG.idle) * t * t * (1 + CFG.near * (1 - t));
-  }
-
-  function applyScale(dock, mouseX) {
-    var items = qsa('.md-item', dock);
-    if (!items.length) return 0;
-    var n = 0;
-
-    for (var i = 0; i < items.length; i++) {
-      var r = items[i].getBoundingClientRect();
-      if (!r.width) continue;
-      var cx = r.left + r.width / 2;
-      var d = Math.abs(mouseX - cx);
-      var s = scaleAt(d);
-      /* 只在变化超过 1% 时才写变量 —— 减少样式重算 */
-      var prev = parseFloat(items[i].style.getPropertyValue('--dock-scale'));
-      if (isNaN(prev) || Math.abs(prev - s) > 0.01) {
-        items[i].style.setProperty('--dock-scale', s.toFixed(3));
-        n++;
-      }
-    }
-    state.scaled = n;
-    return n;
-  }
-
-  /* ═══ ② 建 dock：把侧边栏 nav-item 搬进来 ═══════════════════════════════ */
-
-  function build() {
-    if (state.built) return false;
-
-    var navs = qsa('.nav-item');
-    if (!navs.length) return false;
-
-    var dock = document.createElement('nav');
-    dock.className = 'mac-dock';
-    dock.setAttribute('role', 'navigation');
-    dock.setAttribute('aria-label', '主导航');
-
-    var frag = document.createDocumentFragment();
-    var count = 0;
-
-    for (var i = 0; i < navs.length && count < CFG.maxItems; i++) {
-      var src = navs[i];
-      var page = src.getAttribute('data-page') || '';
-      var active = src.classList.contains('active');
-
-      var item = document.createElement('div');
-      item.className = 'md-item' + (active ? ' active' : '');
-      item.setAttribute('data-page', page);
-      item.setAttribute('data-tip', page);       /* 名称气泡取这里 */
-      item.setAttribute('role', 'button');
-      item.setAttribute('tabindex', '0');
-      item.setAttribute('aria-label', page);
-      if (active) item.setAttribute('aria-current', 'page');
-
-      /* ⭐ 图标直接搬过来（不重新解析 SVG 字符串，避免丢属性）*/
-      var ico = qs('.icon', src);
-      if (ico) item.appendChild(ico.cloneNode(true));
-
-      /* 小圆点：当前页标记 */
-      var dot = document.createElement('span');
-      dot.className = 'md-dot';
-      item.appendChild(dot);
-
-      /* 涟漪元素：每个图标一个，复用（不每次创建 DOM）*/
-      var rip = document.createElement('span');
-      rip.className = 'md-ripple';
-      item.appendChild(rip);
-
-      /* ⭐ 点击转发到原 nav-item —— 原页面逻辑（switchPage 等）照常工作 */
-      (function (orig, el) {
-        var fire = function (e) {
-          if (e && e.type === 'keydown') {
-            if (e.key !== 'Enter' && e.key !== ' ') return;
-            e.preventDefault();
-          }
-          state.clicks++;
-          if (typeof orig.click === 'function') orig.click();
-        };
-        el.addEventListener('click', fire);
-        el.addEventListener('keydown', fire);
-      })(src, item);
-
-      /* ⭐ 点击动效三层：按压（Primary）+ 涟漪（Secondary）+ dock 下沉（Ambient）
-         与上面的 click 转发分开 —— 转发管「功能」，这里管「手感」，
-         两者互不影响：动效挂了也不该挡住点击。 */
-      (function (el, dockEl) {
-        var down = function (e) {
-          /* ⭐ reduce 档位也响应按下 —— CSS 侧会把幅度压到很小，
-             不响应等于「点不动」，那是功能缺失不是减动效 */
-          if (state.degraded) return;
-          /* 右键/中键不响应 */
-          if (e.type === 'pointerdown' && e.button !== 0) return;
-          el.classList.add('kz-down');
-          dockEl.classList.add('kz-pressed');
-          state.presses++;
-          /* 记住按下位置，松手时涟漪从这里扩散 */
-          if (e && typeof e.clientX === 'number') {
-            state.lastDownX = e.clientX;
-            state.lastDownY = e.clientY;
-          }
-        };
-        var up = function (e) {
-          el.classList.remove('kz-down');
-          dockEl.classList.remove('kz-pressed');
-          /* 松手才放涟漪 + 弹跳 —— 按住不放时不出，避免「预支」反馈 */
-          if (e && e.type === 'pointerup' && e.button === 0) {
-            ripple(el, e.clientX, e.clientY);
-            flash(el);
-            bounce(el, dockEl);
-          }
-        };
-        el.addEventListener('pointerdown', down, { passive: true });
-        el.addEventListener('pointerup', up, { passive: true });
-        el.addEventListener('pointercancel', up, { passive: true });
-        el.addEventListener('pointerleave', up, { passive: true });
-
-        /* 键盘触发：Enter/Space 也要有反馈（可访问性）*/
-        el.addEventListener('keydown', function (e) {
-          if (e.key !== 'Enter' && e.key !== ' ') return;
-          down(e);
-          /* 键盘没有「位置」，涟漪从中心出 */
-          ripple(el, null, null);
-          flash(el);
-          bounce(el, dockEl);
-          /* 短暂按压后自动回弹（模拟手指抬起）*/
-          setTimeout(function () {
-            el.classList.remove('kz-down');
-            dockEl.classList.remove('kz-pressed');
-          }, 130);
-        });
-        el.addEventListener('keyup', function (e) {
-          if (e.key !== 'Enter' && e.key !== ' ') return;
-          el.classList.remove('kz-down');
-          dockEl.classList.remove('kz-pressed');
-        });
-      })(item, dock);
-
-      frag.appendChild(item);
-      count++;
-    }
-
-    if (!count) return false;
-    dock.appendChild(frag);
-
-    /* ⭐ 挂到 body 下，不挂侧边栏（侧边栏 overflow-y:auto 会裁掉 fixed 子元素）*/
-    document.body.appendChild(dock);
-    state.items = count;
-    state.built = true;
-    return true;
-  }
-
-  /* ═══ ③ 当前页状态同步 ═══════════════════════════════════════════════ */
-
-  function syncActive() {
-    var dock = qs('.mac-dock');
-    if (!dock) return false;
-    var cur = qsa('.nav-item.active');
-    var page = cur.length ? cur[0].getAttribute('data-page') : null;
-    if (page === state.active) return false;
-    state.active = page;
-
-    var items = qsa('.md-item', dock);
-    for (var i = 0; i < items.length; i++) {
-      var isOn = items[i].getAttribute('data-page') === page;
-      if (isOn) {
-        items[i].classList.add('active');
-        items[i].setAttribute('aria-current', 'page');
-      } else {
-        items[i].classList.remove('active');
-        items[i].removeAttribute('aria-current');
-      }
-    }
-    return true;
-  }
-
-  /* ═══ 点击动效：涟漪 + 高亮 ═════════════════════════════════════════════ */
-
-  /* 涟漪：从点击点径向扩散。
-     ⚠️ 必须先移除 .go、强制 reflow、再加回 .go —— 否则连续点击时
-        第二次动画不会重播（class 没变，浏览器认为无需重启动画）。*/
-  function ripple(item, clientX, clientY) {
-    /* reduce 档位跳过涟漪（径向扩散位移大），但图标高亮仍会播 */
-    if (state.degraded || REDUCED) return false;
-    var el = qs('.md-ripple', item);
-    if (!el) return false;
-
-    /* 有坐标就按点击点定位，没有（键盘）就用中心 */
-    if (typeof clientX === 'number') {
-      var r = item.getBoundingClientRect();
-      /* item 有 scale，rect 是缩放后的 → 除回缩放量才是本地坐标 */
-      var sc = parseFloat(item.style.getPropertyValue('--dock-scale')) || 1;
-      if (sc <= 0) sc = 1;
-      el.style.left = ((clientX - r.left) / sc) + 'px';
-      el.style.top = ((clientY - r.top) / sc) + 'px';
-      /* 定位后不再用 margin 居中 */
-      el.style.marginLeft = 'calc(var(--dock-icon) / -2)';
-      el.style.marginTop = 'calc(var(--dock-icon) / -2)';
-    } else {
-      el.style.left = '50%';
-      el.style.top = '50%';
-    }
-
-    el.classList.remove('go');
-    void el.offsetWidth;          /* 强制 reflow */
-    el.classList.add('go');
-    state.ripples++;
-    return true;
-  }
-
-  /* 图标高亮闪一下（视觉确认「按到了」）*/
-  function flash(item) {
-    /* ⭐ reduce 档位仍播高亮 —— 颜色/透明度变化不会诱发前庭不适 */
-    if (state.degraded) return false;
-    item.classList.add('kz-flash');
-    setTimeout(function () { item.classList.remove('kz-flash'); }, 200);
-    return true;
-  }
-
-  /* ═══ 松手弹跳 ═══════════════════════════════════════════════════════
-     ⭐ 2026-10-12：用户反馈「完全没用回弹的感觉」。
-     根因：悬停时 .md-item 已被距离衰减放到 1.42，.icon 的 .88↔1
-     过渡在视觉上只值 0.17；且 --ios-spring 的过冲只有 5.8%，
-     用在 scale 上等于没有。
-     正解：多关键帧动画（多次衰减振荡），这是 cubic-bezier 的表达盲区。
-
-     ⚠️ 动画结束后必须移除 class，否则下次点击不重播。
-     ⚠️ 播放中再次点击要能打断重播 → 同样先 remove + 强制 reflow。
-     ⚠️ animationend 在元素不可见时不触发 → 必须加 setTimeout 兜底。 */
-  function bounce(item, dockEl) {
-    if (state.degraded) return false;
-    var ico = qs('.icon', item);
-    if (!ico) return false;
-    /* ⭐ reduce 档位：不做多关键帧振荡（那是大幅位移的源头），
-       改为一次极短的轻微缩放脉冲 —— 保留「按到了」的确认感 */
-    if (REDUCED) {
-      ico.classList.remove('kz-bounce-lite');
-      void ico.offsetWidth;
-      ico.classList.add('kz-bounce-lite');
-      clearTimeout(ico.__kzBTL);
-      ico.__kzBTL = setTimeout(function () {
-        ico.classList.remove('kz-bounce-lite');
-      }, 200);
-      state.bounces++;
-      return true;
-    }
-
-    /* 重播：先摘 class、强制 reflow、再加回 */
-    ico.classList.remove('kz-bounce');
-    if (dockEl) dockEl.classList.remove('kz-bounce');
-    void ico.offsetWidth;
-    ico.classList.add('kz-bounce');
-    if (dockEl) dockEl.classList.add('kz-bounce');
-    state.bounces++;
-
-    /* 兜底清理：animationend 可能因元素隐藏而不触发 */
-    clearTimeout(ico.__kzBT);
-    ico.__kzBT = setTimeout(function () {
-      ico.classList.remove('kz-bounce');
-      if (dockEl) dockEl.classList.remove('kz-bounce');
-    }, 620);
-    return true;
-  }
-
-  /* ═══ 鼠标跟随 ═══════════════════════════════════════════════════════ */
-
-  var rafId = 0;
-  var pendingX = null;
-
-  function onMove(e) {
-    var x = e && typeof e.clientX === 'number' ? e.clientX : null;
-    if (x === null) return;
-    state.mouseMoves++;
-    /* ⭐ 同一个 X 不重复计算 */
-    if (Math.abs(x - state.lastX) < 1) return;
-    state.lastX = x;
-    pendingX = x;
-    if (rafId) return;
-    rafId = requestAnimationFrame(flush);
-  }
-
-  function flush() {
-    rafId = 0;
-    var dock = qs('.mac-dock');
-    if (!dock || pendingX === null) return;
-    /* ⭐ 2026-10-13 修正：只有 fps 降档才锁死 1。
-       reduce 档位仍然放大（只是幅度 1.04）—— 因为
-       「减动效」≠「零反馈」，锁死 1 等于把界面做成死的。 */
-    if (state.degraded) {
-      var its = qsa('.md-item', dock);
-      for (var i = 0; i < its.length; i++) {
-        its[i].style.setProperty('--dock-scale', '1');
-      }
-      return;
-    }
-    applyScale(dock, pendingX);
-  }
-
-  function onLeave() {
-    var dock = qs('.mac-dock');
-    if (!dock) return;
-    state.lastX = -1;
-    pendingX = null;
-    var items = qsa('.md-item', dock);
-    for (var i = 0; i < items.length; i++) {
-      items[i].style.setProperty('--dock-scale', '1');
-    }
-  }
-
-  /* ═══ 启动 ══════════════════════════════════════════════════════════ */
-
-  function init() {
-    if (!build()) {
-      /* 侧边栏还没渲染出来（极少见），等 DOM 就绪再试 */
-      return false;
-    }
-
-    var dock = qs('.mac-dock');
-
-    /* ⭐ 只在 dock 自身范围内监听 —— 不在 document 上，
-       否则整页移动鼠标都会触发计算（性能）*/
-    dock.addEventListener('mousemove', onMove, { passive: true });
-    dock.addEventListener('mouseleave', onLeave, { passive: true });
-
-    /* 触屏：tap 即放大一下（用 :active 已够，这里只兜底聚焦态）*/
-    dock.addEventListener('touchstart', function (e) {
-      var t = e.touches && e.touches[0];
-      if (t) onMove({ clientX: t.clientX });
-    }, { passive: true });
-
-    /* 键盘 Tab 也能触发放大（可访问性）*/
-    dock.addEventListener('focusin', function (e) {
-      var item = e.target && e.target.closest
-        ? e.target.closest('.md-item') : null;
-      if (!item) return;
-      var r = item.getBoundingClientRect();
-      onMove({ clientX: r.left + r.width / 2 });
-    });
-
-    /* 侧边栏切换页时同步圆点 */
-    document.addEventListener('click', function (e) {
-      var n = e.target && e.target.closest
-        ? e.target.closest('.nav-item') : null;
-      if (n) setTimeout(syncActive, 60);
-    });
-
-    /* 面板重绘后重新同步（行情面板会重建 DOM）*/
-    if (typeof MutationObserver === 'function') {
-      var mo = new MutationObserver(function () {
-        clearTimeout(state.syncTimer);
-        state.syncTimer = setTimeout(function () {
-          syncActive();
-          /* nav-item 被重建则重搬 */
-          if (!qs('.mac-dock')) {
-            state.built = false;
-            build();
-            bind();
-          }
-        }, 400);
-      });
-      try {
-        mo.observe(document.body, { childList: true, subtree: true });
-        state.retag = true;
-      } catch (e) { state.retag = false; }
-    }
-
-    syncActive();
-    state.ready = true;
-    return true;
-  }
-
-  function bind() {
-    var dock = qs('.mac-dock');
-    if (!dock) return;
-    dock.addEventListener('mousemove', onMove, { passive: true });
-    dock.addEventListener('mouseleave', onLeave, { passive: true });
-  }
-
-  /* ═══ 对外 API ══════════════════════════════════════════════════════ */
-
-  window.__macDock = {
-    state: function () {
-      return {
-        ready: !!state.ready,
-        reduced: state.reduced,
-        degraded: state.degraded,
-        built: state.built,
-        items: state.items,
-        active: state.active,
-        mouseMoves: state.mouseMoves,
-        scaled: state.scaled,
-        clicks: state.clicks,
-        presses: state.presses,
-        ripples: state.ripples,
-        bounces: state.bounces,
-        retag: !!state.retag
-      };
-    },
-    cfg: CFG,
-    /* ⭐ 衰减函数单独暴露 —— 测试可直接验证算法 */
-    scaleAt: scaleAt,
-    applyScale: applyScale,
-    build: build,
-    syncActive: syncActive,
-    /* 点击动效（测试可直接调）*/
-    ripple: ripple,
-    flash: flash,
-    bounce: bounce,
-    /* 手动模拟一次悬停，测试用 */
-    hover: function (x) {
-      var dock = qs('.mac-dock');
-      if (!dock) return 0;
-      state.lastX = -1;
-      return applyScale(dock, x);
-    },
-    /* 降级开关 */
-    setDegraded: function (v) {
-      state.degraded = !!v;
-      if (state.degraded) {
-        onLeave();
-        /* 点击动效也要复位 —— 否则降档后图标还缩着 */
-        var dock = qs('.mac-dock');
-        if (dock) {
-          dock.classList.remove('kz-pressed');
-          var its = qsa('.md-item', dock);
-          for (var i = 0; i < its.length; i++) {
-            its[i].classList.remove('kz-down', 'kz-flash');
-            var _ic = qs('.icon', its[i]);
-            if (_ic) _ic.classList.remove('kz-bounce');
-            var _ic = qs('.icon', its[i]);
-            if (_ic) _ic.classList.remove('kz-bounce');
-            var rp = qs('.md-ripple', its[i]);
-            if (rp) rp.classList.remove('go');
-          }
-        }
-      }
-    },
-    disable: function () { this.setDegraded(true); },
-    enable: function () { this.setDegraded(false); }
-  };
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-})();
-
-</script><!-- DOCK:JS:END -->
 <!-- FF:JS:BEGIN -->
 <!-- fluid-fill (2026-10-11) | 移植 Predidit/Kazumi 转场体系 | 方向感知 + 70ms极快 + 共享元素飞行 + 零时长降级 -->
 <script id="fluid-fill-js">
@@ -29353,6 +28837,10 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
   var badge = null, panel = null, panelBuilt = false;
 
   function paintBadge() {
+    /* ⭐ 2026-10-25：用户要求投稿版不显示「诊断」入口 —— 直接不建徽章。
+       错误仍然照常收集到 __diag（排查时控制台调用 window.__diag.report() 即可），
+       只是页面上不再有任何可见入口。 */
+    return;
     if (!jsErrs.length) {
       if (badge) badge.classList.remove('on');
       return;
