@@ -18425,10 +18425,14 @@ requestAnimationFrame(() => {
   try { if (watchlist.length) loadWatchQuotes(); } catch (e) {}
 });
 
-pollAdaptive(() => refresh(false), REFRESH_MS, 60000);   // 首页指数：盘中 2s，收盘 60s
-pollAdaptive(() => loadWatchQuotes(), 2000, 60000);      // 自选行情：盘中 2s，收盘 60s
-pollAdaptive(() => loadSectors(), 5000, 120000);         // 板块：盘中 5s，收盘 2min
-pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘中 5min，收盘 15min
+/* ⭐ 2026-10-25 用户反馈「行情刷新的那么慢现在」。
+   原因：休市档（非交易时段）原来是 60s / 2min，页面上只有状态栏一个秒级时间戳在动，
+   看着像卡死。实测单次拉取 ~0.2-0.5s（东财是快速失败，不占时间；腾讯/新浪都很快），
+   所以把慢档收紧 —— 交易时段仍然是 2s / 5s，不受影响。 */
+pollAdaptive(() => refresh(false), REFRESH_MS, 10000);   // 首页指数：盘中 2s，休市 10s
+pollAdaptive(() => loadWatchQuotes(), 2000, 10000);      // 自选行情：盘中 2s，休市 10s
+pollAdaptive(() => loadSectors(), 5000, 30000);          // 板块：盘中 5s，休市 30s
+pollAdaptive(() => loadBoardRank(), 300000, 300000);     // 板块榜首：5min
 
 /* ============ 卡片鼠标悬停跟随转动动效（Uiverse kennyotsu 灵感） ============ */
 (function () {
