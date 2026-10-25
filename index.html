@@ -29277,12 +29277,25 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
     }
   }
 
+  /* 只摘标记，不动数值 —— 用于"真实行情已经回来了"的自动退出：
+     这时卡片里的数字已经是真实数据，再 revert 会把它们抹回 '--'。 */
+  function clearMarks() {
+    var cards = document.querySelectorAll('.index-card[data-demo]');
+    for (var i = 0; i < cards.length; i++) {
+      var tags = cards[i].querySelectorAll('.st-demo-tag');
+      for (var j = 0; j < tags.length; j++) tags[j].remove();
+      cards[i].removeAttribute('data-demo');
+    }
+  }
+
   function stopDemo(byUser) {
     if (!demoOn) return;
     demoOn = false;
     if (sweepTimer) { clearInterval(sweepTimer); sweepTimer = 0; }
     removeBar();
-    revertFill();
+    /* 用户主动退出 → 还原成"没有行情"的原样（绝不留没标注的假数字）
+       网络恢复自动退出 → 只摘标记，真实数值必须留着 */
+    if (byUser) revertFill(); else clearMarks();
     if (byUser) {
       try { sessionStorage.setItem('st-demo-off', '1'); } catch (e) {}
     }
