@@ -1,0 +1,226 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   user-tune · 用户自定义（2026-10-24）
+   ───────────────────────────────────────────────────────────────────────────
+   ① 热点精选板块：标题栏右侧「管理」→ 面板里增删板块，存 localStorage
+   ② 左上角头像：hover 出现小相机 → 选图 → 居中裁方压到 192 → 存 localStorage
+   两处都只影响本机（单文件应用没有后端），换人换电脑各用各的。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── ① 热点精选：管理按钮 ─────────────────────────────────────────── */
+.sec-hot { position: relative; }
+
+.ut-manage {
+  margin-left: auto;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: #b4530b;
+  background: rgba(255, 255, 255, .72);
+  border: 1px solid #f0c9a6;
+  border-radius: 99px;
+  padding: 2px 13px;
+  cursor: pointer;
+  transition: background .18s, color .18s, border-color .18s, transform .18s;
+  flex: 0 0 auto;
+}
+.ut-manage:hover { background: #b4530b; color: #fff; border-color: #b4530b; }
+.ut-manage:active { transform: scale(.96); }
+.ut-manage.on { background: #b4530b; color: #fff; border-color: #b4530b; }
+
+/* ── 面板 ─────────────────────────────────────────────────────────── */
+.ut-panel {
+  /* 挂 body + fixed：.sec-hot 卡片带圆角裁剪（overflow hidden），
+     放里面会被切掉下半截 */
+  position: fixed;
+  z-index: 900;
+  width: min(348px, calc(100vw - 24px));
+  max-height: min(78vh, 520px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  background: rgba(255, 255, 255, .975);
+  border: 1px solid #f0c9a6;
+  border-radius: 15px;
+  box-shadow: 0 20px 48px rgba(120, 70, 20, .20), 0 2px 6px rgba(120, 70, 20, .08);
+  animation: ut-in .19s cubic-bezier(.22, 1, .36, 1);
+  transform-origin: top right;
+}
+@keyframes ut-in {
+  from { opacity: 0; transform: translateY(-6px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+.ut-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #8a3d08;
+}
+.ut-head small { font-weight: 500; font-size: 11px; color: #b08a6a; margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* 已选：胶囊 */
+.ut-cur {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 9px 10px;
+  background: #fff8ef;
+  border: 1px dashed #f0c9a6;
+  border-radius: 11px;
+  min-height: 42px;
+  max-height: 126px;
+  overflow-y: auto;
+  align-content: flex-start;
+  flex: 0 0 auto;          /* 不许被下面的候选区挤扁 */
+}
+.ut-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: #8a3d08;
+  background: #fff;
+  border: 1px solid #f3d3b6;
+  border-radius: 99px;
+  padding: 2px 4px 2px 9px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.ut-chip i { font-style: normal; color: #c08a5a; font-size: 10px; }
+.ut-chip b {
+  display: grid; place-items: center;
+  width: 15px; height: 15px; border-radius: 50%;
+  font-size: 11px; font-weight: 400; line-height: 1;
+  color: #b08a6a; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.ut-chip b:hover { background: #f6d9c3; color: #8a3d08; }
+.ut-empty { font-size: 11.5px; color: #b08a6a; padding: 4px 2px; }
+
+/* 搜索 */
+.ut-search input {
+  width: 100%;
+  font: inherit;
+  font-size: 12.5px;
+  color: #5a3a20;
+  background: #fff;
+  border: 1px solid #f0d5bb;
+  border-radius: 9px;
+  padding: 7px 11px;
+  outline: none;
+  transition: border-color .18s, box-shadow .18s;
+}
+.ut-search input::placeholder { color: #c0a184; }
+.ut-search input:focus { border-color: #e0a875; box-shadow: 0 0 0 3px rgba(224, 168, 117, .16); }
+
+/* 候选列表 */
+.ut-pool {
+  flex: 1 1 auto;
+  min-height: 82px;
+  max-height: 210px;
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid #f4e2cf;
+  background: #fffdfa;
+  overscroll-behavior: contain;
+}
+.ut-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  color: #4a3524;
+  cursor: pointer;
+  border-bottom: 1px solid #f8efe4;
+  transition: background .14s;
+}
+.ut-row:last-child { border-bottom: none; }
+.ut-row:hover { background: #fff4e7; }
+.ut-row.on { background: #fdf1e3; cursor: default; }
+.ut-row.on .ut-row-add { color: #c08a5a; }
+.ut-row-code { font-size: 11px; color: #b08a6a; font-variant-numeric: tabular-nums; }
+.ut-row-add {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: #d2762f;
+  width: 18px;
+  text-align: center;
+}
+.ut-row.on .ut-row-add::before { content: '✓'; }
+.ut-msg { padding: 14px 12px; font-size: 11.5px; color: #b08a6a; text-align: center; }
+
+/* 底部 */
+.ut-foot { display: flex; gap: 8px; align-items: center; }
+.ut-foot .ut-hint { font-size: 10.5px; color: #b08a6a; margin-right: auto; }
+.ut-btn {
+  font: inherit; font-size: 12px; line-height: 1.7;
+  padding: 4px 14px; border-radius: 9px; cursor: pointer;
+  border: 1px solid #f0d0b4; background: #fff; color: #8a3d08;
+  transition: background .16s, border-color .16s, color .16s;
+}
+.ut-btn:hover { background: #fff4e9; border-color: #e5b98f; }
+.ut-btn.pri { background: #c1691a; border-color: #c1691a; color: #fff; }
+.ut-btn.pri:hover { background: #a95812; border-color: #a95812; }
+
+/* ── ② 头像 ───────────────────────────────────────────────────────── */
+.ut-avatar { position: relative; }
+
+.ut-avatar-btn {
+  position: absolute;
+  right: 1px;
+  top: 1px;
+  z-index: 4;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, .55);
+  background: rgba(18, 18, 22, .72);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(.7);
+  transition: opacity .18s, transform .18s, background .18s;
+  -webkit-tap-highlight-color: transparent;
+}
+.ut-avatar:hover .ut-avatar-btn,
+.ut-avatar-btn:focus-visible { opacity: 1; transform: scale(1); }
+.ut-avatar-btn:hover { background: #c1691a; }
+.ut-avatar-btn svg { width: 9px; height: 9px; }
+
+/* 用户自己的头像不要压太暗（原 .logo-dog 有 brightness(.78)，是给那张暗调照片用的） */
+.logo-icon .logo-dog.ut-custom {
+  filter: brightness(.95) contrast(1.03) saturate(1.06);
+}
+
+/* ── toast ────────────────────────────────────────────────────────── */
+.ut-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 34px;
+  z-index: 9999;
+  transform: translate(-50%, 10px);
+  padding: 8px 18px;
+  font-size: 12.5px;
+  color: #fff;
+  background: rgba(28, 26, 32, .9);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 99px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .28);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .22s, transform .22s;
+}
+.ut-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 560px) {
+  .ut-panel { width: calc(100vw - 20px); }
+}
