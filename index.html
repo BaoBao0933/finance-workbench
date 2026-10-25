@@ -11829,13 +11829,26 @@ html[data-fps-q] .live-bar {
   height: 22px;
 }
 
-/* ⭐ 2026-10-25 「热门行业板块」标题的 2.5D 火焰：同样是 22px。
-   主文件有 `.title-ico img { width:22px }`（0,2,0）—— 火焰是 SVG 不是 img，
-   但 `.module-header .m-ico img, .title-ico img` 管不到它，这里显式给尺寸。 */
-.title-ico .hi-iso {
-  width: 22px;
-  height: 22px;
+/* ⭐ 2026-10-25 标题图标尺寸（用户：「可以稍微放大一点这些图标。再页面里看太小了」）
+   22 → 28px（+27%）。要点：
+   · 主文件 `.title-ico img { width:22px }` 只约束 <img>，我们的是 SVG，尺寸由这里给
+   · `.title-ico` 是 inline-block 无固定尺寸 → 会被撑开，不用改容器
+   · 但 `vertical-align:-4px` 是给 22px 图标调的，大图标不跟着调会往下沉 → -7px
+   · `.fund-ico` 容器固定 34×28，图标 28 正好，容器高度放到 30 免得裁切 */
+.title-ico .hi-iso,
+.fund-ico .hi-iso {
+  width: 28px;
+  height: 28px;
   display: block;
+}
+.title-ico:has(.hi-iso) {
+  vertical-align: -7px;
+  margin-right: 9px;
+}
+.fund-ico:has(.hi-iso) {
+  width: 34px;
+  height: 30px;
+  vertical-align: -8px;
 }
 /* 火焰 idle：极缓的呼吸缩放（模拟火焰的"活着"），不抢内容
    ⚠️ 只给 flame（热门行业板块）：其他图标是 kit 造的静物，不该整体呼吸 */
