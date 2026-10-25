@@ -28477,6 +28477,14 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
   window.__cfInstalled = 1;
 
   var JSON_URL = 'cls-news.json';
+  /* ⭐⭐ 2026-10-25 桌面版必须走线上（实测结论，别再改回去）：
+     Electron 是 loadFile + webSecurity:true → 页面源是 file://，
+     在 file:// 源里 fetch('cls-news.json') 会被 Chromium 直接拦掉
+     （实测 LOCAL_FAIL Failed to fetch），打包进 renderer/ 的那份根本读不到。
+     而 GitHub Pages 对该文件返回 Access-Control-Allow-Origin: *（实测），
+     从 file:// 跨域读得到（实测 REMOTE_OK 30 条）。
+     ⇒ 网页端读同源文件；file:// 端读线上。两边都能拿到最新。 */
+  var REMOTE_URL = 'https://baobao0933.github.io/finance-workbench/cls-news.json';
   var LS_FOLLOW = 'wb_news_follow_v1';
   var STALE_SEC = 8 * 3600;        /* 超过 8 小时算过期 */
   var MAX_ITEMS = 12;              /* 区块里最多显示多少条 */
@@ -28597,25 +28605,33 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
     return !updated || (Date.now() / 1000 - updated) > STALE_SEC;
   }
 
+  function getJSON(url) {
+    var u = url + (url.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+    return fetch(u, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; });
+  }
+
   function load(force) {
     if (loading) return;
     if (!force && cache) { render(cache); return; }
     loading = true;
-    var url = JSON_URL + (JSON_URL.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
-    fetch(url, { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        loading = false;
-        if (!d || !d.items || !d.items.length) return;
-        cache = d;
-        if (isStale(d.updated)) {          /* 过期数据不展示，避免误当最新 */
-          var b = document.getElementById('cls-block');
-          if (b) { b.innerHTML = ''; b.style.display = 'none'; }
-          return;
-        }
-        render(d);
-      })
-      .catch(function () { loading = false; failCount++; });
+
+    function finish(d) {
+      loading = false;
+      if (!d || !d.items || !d.items.length) { failCount++; return; }
+      cache = d;
+      if (isStale(d.updated)) {          /* 过期数据不展示，避免误当最新 */
+        var b = document.getElementById('cls-block');
+        if (b) { b.innerHTML = ''; b.style.display = 'none'; }
+        return;
+      }
+      render(d);
+    }
+
+    /* 数据源：file:// 端（桌面版）读线上，http(s) 端读同源文件 */
+    var src = (location.protocol === 'file:') ? REMOTE_URL : JSON_URL;
+    getJSON(src).then(finish);
   }
 
   /* ── 时机：进新闻页才渲染（省流量） ───────────────────────────────────── */
