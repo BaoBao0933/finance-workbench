@@ -23652,33 +23652,6 @@ pollAdaptive(() => loadBoardRank(), 300000, 300000);     // 板块榜首：5min
   }
 })();
 
-/* ⭐⭐ 2026-10-25 网页端起步档：浏览器打开明显比桌面 EXE 卡。
-   同一套代码，主线程完全空闲（长任务 0 / 脚本 0s，CDP 实测），
-   瓶颈全在合成层 —— 157 处 backdrop-filter + 全屏 fixed 渐变背景，
-   浏览器的 GPU/合成路径远比 Electron 重。所以网页环境默认 medium 起步
-   （模糊半径砍半，视觉几乎无感），且不允许自动升回 high：
-   发现被升回就再设回 medium，fps-boost 的升档失败退避会让它很快放弃。
-   桌面 EXE（Electron UA）不受影响，保持全效。 */
-  (function () {
-    try {
-      if (navigator.userAgent.indexOf('Electron') >= 0) return;
-      /* 手机 / 窄屏 GPU 更弱，起步直接 low（评审常用手机扫一眼，首屏顺滑最重要） */
-      var START = (window.matchMedia && matchMedia('(max-width: 820px)').matches) ? 'low' : 'medium';
-      var LOCK = function () {
-        if (document.documentElement.getAttribute('data-fps-q') === START) return;
-        if (window.__fpsBoost && window.__fpsBoost.setQuality) window.__fpsBoost.setQuality(START);
-        else document.documentElement.setAttribute('data-fps-q', START);
-      };
-      LOCK();
-      setTimeout(LOCK, 3000);
-      setTimeout(LOCK, 9000);
-      if (window.MutationObserver) {
-        new MutationObserver(function () {
-          if (document.documentElement.getAttribute('data-fps-q') === 'high') LOCK();
-        }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-fps-q'] });
-      }
-    } catch (e) {}
-  })();
 
 </script>
 <!-- FPS:JS:END -->
