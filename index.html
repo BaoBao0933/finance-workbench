@@ -11829,6 +11829,29 @@ html[data-fps-q] .live-bar {
   height: 22px;
 }
 
+/* ⭐ 2026-10-25 「热门行业板块」标题的 2.5D 火焰：同样是 22px。
+   主文件有 `.title-ico img { width:22px }`（0,2,0）—— 火焰是 SVG 不是 img，
+   但 `.module-header .m-ico img, .title-ico img` 管不到它，这里显式给尺寸。 */
+.title-ico .hi-iso {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+/* 火焰 idle：极缓的呼吸缩放（模拟火焰的"活着"），不抢内容 */
+@keyframes hi-flicker {
+  0%, 100% { transform: scale(1, 1); }
+  30%      { transform: scale(1.04, .96); }
+  60%      { transform: scale(.97, 1.05); }
+}
+.title-ico:has(.hi-iso) .hi-iso {
+  animation: hi-flicker 2.6s ease-in-out infinite;
+  transform-origin: 50% 88%;
+}
+html[data-fps-q="low"] .title-ico:has(.hi-iso) .hi-iso { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .title-ico:has(.hi-iso) .hi-iso { animation: none !important; }
+}
+
 /* 容器：整块可点，hover 微抬（背景已去掉，不再给浮空阴影） */
 .ov-icon:has(.hi-iso) {
   cursor: pointer;
@@ -25488,6 +25511,29 @@ pollAdaptive(() => loadBoardRank(), 300000, 900000);     // 板块榜首：盘�
   function init() {
     var deco = document.getElementById('mascot-deco');
     if (!deco) return;
+
+    /* ⭐⭐⭐ 2026-10-25 用户：「这个狗头不要跟着鼠标滚轮一起往下滑，
+       就让他只出现在右上角就好。」
+       背景：.mascot-deco 本来就是 position:fixed（top:44px right:-46px），
+       headless 实测四个视口下滚动 .content 600px 后 rect.top 都是 44.7 → 不动。
+       但用户环境里看着会漂，所以加双保险：
+        ① 内联样式硬钉（内联 > 样式表，除 !important 没人能覆盖）
+        ② rAF 节流滚动守卫：任何容器滚动（capture 抓到 .content）后重钉
+       将来哪层给祖先加了 transform/filter 把 fixed 包含块搞坏也钉得死。 */
+    deco.style.position = 'fixed';
+    deco.style.top = '44px';
+    deco.style.right = '-46px';
+    deco.style.zIndex = '1100';
+    var pinRaf = 0;
+    function pin() {
+      pinRaf = 0;
+      if (deco.style.position !== 'fixed') deco.style.position = 'fixed';
+      if (deco.style.top !== '44px') deco.style.top = '44px';
+    }
+    window.addEventListener('scroll', function () {
+      if (!pinRaf) pinRaf = requestAnimationFrame(pin);
+    }, true);
+
     if (!window.matchMedia) return;
     if (!matchMedia('(hover: hover)').matches) return;
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -26983,26 +27029,36 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
       /* 滑梯支腿（先画，在地板后面） */
       + '<polygon points="8,17.8 10,18.8 10,26 8,25" fill="#8fb0d0"/>'
       + '<polygon points="22,25.4 24,26.4 24,33.6 22,32.6" fill="#8fb0d0"/>'
-      /* 远侧护边 -> 地板 -> 落料端盖
-         通道宽度 = (8,-4.6) 向量（长 9.2）—— 必须 >= 金币宽 8.4，
-         否则金币是「骑」在板边上的（第一版就是这样，截图看出来后重画的）。 */
+      /* 远侧护边 -> 地板 -> 落料端盖 */
       + '<polygon points="10,7 36,21 36,22.4 10,8.4" fill="#b7c9e0"/>'
       + '<polygon points="2,13 28,27 36,22.4 10,8.4" fill="#d7e2f0"/>'
       + '<polygon points="28,27 36,22.4 36,24.4 28,29" fill="#5b7fa6"/>'
-      /* 三枚金币：躺在地板中线（近边 (2,13)->(28,27)，远边 (10,8.4)->(36,22.4)，
-         中线 (6,10.7)->(32,24.7)），顶面中心 = 接触点上方 h*0.87 = 1.9 */
-      + '<g class="hi-u" data-step="0" data-from="12.8,12.4" data-exit="32,24.7" data-land="34,31.4" data-roll="0.36"><g transform="translate(9.8,10.9)"><g class="hi-roll"><path d="M-4.2 0 A4.2 2.4 0 0 0 4.2 0 L4.2 2.2 A4.2 2.4 0 0 1 -4.2 2.2 Z" fill="#c08a44"/><ellipse cx="0" cy="0" rx="4.2" ry="2.4" fill="#f5c887"/><ellipse cx="0" cy="0" rx="2.3" ry="1.3" fill="none" stroke="#8a5a24" stroke-width=".5" opacity=".55"/></g></g></g>'
-      + '<g class="hi-u" data-step="1" data-from="19.5,16.1" data-exit="32,24.7" data-land="34,31.4" data-roll="0.36"><g transform="translate(17.7,15)"><g class="hi-roll"><path d="M-4.2 0 A4.2 2.4 0 0 0 4.2 0 L4.2 2.2 A4.2 2.4 0 0 1 -4.2 2.2 Z" fill="#c08a44"/><ellipse cx="0" cy="0" rx="4.2" ry="2.4" fill="#f5c887"/><ellipse cx="0" cy="0" rx="2.3" ry="1.3" fill="none" stroke="#8a5a24" stroke-width=".5" opacity=".55"/></g></g></g>'
-      + '<g class="hi-u" data-step="2" data-from="26.3,19.7" data-exit="32,24.7" data-land="34,31.4" data-roll="0.36"><g transform="translate(25.6,19.1)"><g class="hi-roll"><path d="M-4.2 0 A4.2 2.4 0 0 0 4.2 0 L4.2 2.2 A4.2 2.4 0 0 1 -4.2 2.2 Z" fill="#c08a44"/><ellipse cx="0" cy="0" rx="4.2" ry="2.4" fill="#f5c887"/><ellipse cx="0" cy="0" rx="2.3" ry="1.3" fill="none" stroke="#8a5a24" stroke-width=".5" opacity=".55"/></g></g></g>'
-      /* 近侧矮护边（画在金币前面 -> 金币「陷在」槽里，不是浮在上面） */
-      + '<polygon points="2,12 28,26 28,27 2,13" fill="#8fb0d0"/>'
-      /* 料斗前壁（画在金币之后 → 金币掉进开口后被前壁挡住） */
-      + '<g class="hi-u" data-step="3" data-amp="3.2" data-dip="1"><polygon points="42,32 46,28 46,37.5 42,41.5" fill="#4e7794"/><polygon points="24,32 42,32 42,41.5 24,41.5" fill="#6f9dc0"/></g>'
-      /* 接料斗：斗沿 + 内壁 + 已经躺着的老币（比斗沿高一点才看得见），
-         金币到货时整斗下沉 */
-      + '<g class="hi-u" data-step="3" data-amp="3.2" data-dip="1"><polygon points="24,32 28,28 46,28 42,32" fill="#a9c6e0"/><polygon points="26.6,31.2 29,29 43,29 40.6,31.2" fill="#3a6382"/><g transform="translate(32,31.6)"><path d="M-2.8 0 A2.8 1.6 0 0 0 2.8 0 L2.8 1.4 A2.8 1.6 0 0 1 -2.8 1.4 Z" fill="#c08a44"/><ellipse cx="0" cy="0" rx="2.8" ry="1.6" fill="#f5c887"/></g><g transform="translate(37,31.2)"><path d="M-2.8 0 A2.8 1.6 0 0 0 2.8 0 L2.8 1.4 A2.8 1.6 0 0 1 -2.8 1.4 Z" fill="#c08a44"/><ellipse cx="0" cy="0" rx="2.8" ry="1.6" fill="#ffe0ae"/></g><path d="M28 28 L46 28" fill="none" stroke="#dce9f6" stroke-width=".6"/></g>',
+      /* ⭐ 料斗「后沿+内壁+老币」必须画在金币之前 —— 掉进来的金币才看得见
+         （之前画在最后，整块把金币盖住，堆积的金币全看不见） */
+      + '<g class="hi-u" data-step="3" data-amp="3.2" data-dip="1"><polygon points="24,32 28,28 46,28 42,32" fill="#a9c6e0"/><polygon points="26.6,31.2 29,29 43,29 40.6,31.2" fill="#3a6382"/><g transform="translate(32,31.6)"><path d="M-2.8 0 A2.8 1.6 0 0 0 2.8 0 L2.8 1.4 A2.8 1.6 0 0 1 -2.8 1.4 Z" fill="#c08a44"/><ellipse cx="0" cy="0" rx="2.8" ry="1.6" fill="#f5c887"/></g><g transform="translate(37,31.2)"><path d="M-2.8 0 A2.8 1.6 0 0 0 2.8 0 L2.8 1.4 A2.8 1.6 0 0 1 -2.8 1.4 Z" fill="#c08a44"/><ellipse cx="0" cy="0" rx="2.8" ry="1.6" fill="#ffe0ae"/></g><path d="M28 28 L46 28" fill="none" stroke="#dce9f6" stroke-width=".6"/></g>'
+      /* 三枚初始金币：躺在地板中线上；新币由 JS 克隆第一枚的几何、
+         插到 data-kerb（近侧护边）之前出发 */
+      + '<g class="hi-u" data-step="0" data-from="12.8,12.4" data-roll="0.36"><g transform="translate(12.8,12.4)"><g class="hi-roll"><path d="M-4.2 0 A4.2 2.4 0 0 0 4.2 0 L4.2 2.2 A4.2 2.4 0 0 1 -4.2 2.2 Z" fill="#c08a44"/><ellipse cx="0" cy="0" rx="4.2" ry="2.4" fill="#f5c887"/><ellipse cx="0" cy="0" rx="2.3" ry="1.3" fill="none" stroke="#8a5a24" stroke-width=".5" opacity=".55"/></g></g></g>'
+      + '<g class="hi-u" data-step="1" data-from="19.5,16.1" data-roll="0.36"><g transform="translate(19.5,16.1)"><g class="hi-roll"><path d="M-4.2 0 A4.2 2.4 0 0 0 4.2 0 L4.2 2.2 A4.2 2.4 0 0 1 -4.2 2.2 Z" fill="#c08a44"/><ellipse cx="0" cy="0" rx="4.2" ry="2.4" fill="#f5c887"/><ellipse cx="0" cy="0" rx="2.3" ry="1.3" fill="none" stroke="#8a5a24" stroke-width=".5" opacity=".55"/></g></g></g>'
+      + '<g class="hi-u" data-step="2" data-from="26.3,19.7" data-roll="0.36"><g transform="translate(26.3,19.7)"><g class="hi-roll"><path d="M-4.2 0 A4.2 2.4 0 0 0 4.2 0 L4.2 2.2 A4.2 2.4 0 0 1 -4.2 2.2 Z" fill="#c08a44"/><ellipse cx="0" cy="0" rx="4.2" ry="2.4" fill="#f5c887"/><ellipse cx="0" cy="0" rx="2.3" ry="1.3" fill="none" stroke="#8a5a24" stroke-width=".5" opacity=".55"/></g></g></g>'
+      /* 近侧矮护边（画在金币前面 → 金币「陷在」槽里；也是新币的插入锚点） */
+      + '<polygon data-kerb="1" points="2,12 28,26 28,27 2,13" fill="#8fb0d0"/>'
+      /* 料斗前壁（画在最后 → 挡住掉进斗里、低于斗沿的部分） */
+      + '<g class="hi-u" data-step="3" data-amp="3.2" data-dip="1"><polygon points="42,32 46,28 46,37.5 42,41.5" fill="#4e7794"/><polygon points="24,32 42,32 42,41.5 24,41.5" fill="#6f9dc0"/></g>',
     up: '<g class="hi-u" data-step="0"><polygon points="24.00,23.38 14.30,28.98 14.30,21.51 24.00,15.91" fill="#b8453a"/><polygon points="14.30,28.98 4.60,23.38 4.60,15.91 14.30,21.51" fill="#e8705e"/><polygon points="14.30,10.31 24.00,15.91 14.30,21.51 4.60,15.91" fill="#ffb9a8"/></g><g class="hi-u" data-step="1"><polygon points="33.70,28.98 24.00,34.58 24.00,20.27 33.70,14.67" fill="#b8453a"/><polygon points="24.00,34.58 14.30,28.98 14.30,14.67 24.00,20.27" fill="#e8705e"/><polygon points="24.00,9.07 33.70,14.67 24.00,20.27 14.30,14.67" fill="#ffb9a8"/></g><g class="hi-u" data-step="2"><polygon points="43.40,34.58 33.70,40.18 33.70,19.02 43.40,13.42" fill="#b8453a"/><polygon points="33.70,40.18 24.00,34.58 24.00,13.42 33.70,19.02" fill="#e8705e"/><polygon points="33.70,7.82 43.40,13.42 33.70,19.02 24.00,13.42" fill="#ffb9a8"/></g>',
     down: '<g class="hi-u" data-step="0"><polygon points="24.00,28.43 15.36,33.42 15.36,14.58 24.00,9.59" fill="#157a55"/><polygon points="15.36,33.42 6.72,28.43 6.72,9.59 15.36,14.58" fill="#45b98a"/><polygon points="15.36,4.60 24.00,9.59 15.36,14.58 6.72,9.59" fill="#aee8cc"/></g><g class="hi-u" data-step="1"><polygon points="32.64,33.42 24.00,38.41 24.00,25.66 32.64,20.67" fill="#157a55"/><polygon points="24.00,38.41 15.36,33.42 15.36,20.67 24.00,25.66" fill="#45b98a"/><polygon points="24.00,15.69 32.64,20.67 24.00,25.66 15.36,20.67" fill="#aee8cc"/></g><g class="hi-u" data-step="2"><polygon points="41.28,38.41 32.64,43.40 32.64,36.75 41.28,31.76" fill="#157a55"/><polygon points="32.64,43.40 24.00,38.41 24.00,31.76 32.64,36.75" fill="#45b98a"/><polygon points="32.64,26.77 41.28,31.76 32.64,36.75 24.00,31.76" fill="#aee8cc"/></g>',
+    /* ⭐ 2026-10-25 用户：「热门行业板块」标题的柱状图换成 2.5D 火焰
+       （"热门"= 火）。按 anatomy SKILL：部件坐在部件上（底座是等距圆台）、
+       色调分层（外焰最深 → 内焰 → 焰心最亮，就是"受光面"）、
+       只有焰芯是 lit 焦点；火星是会动的单元（一次冲量弹一下）。 */
+    flame: '<ellipse cx="24" cy="41.6" rx="10.4" ry="3.1" fill="#3a3f4a"/>'
+      + '<ellipse cx="24" cy="40.2" rx="10.4" ry="3.1" fill="#5a626f"/>'
+      + '<ellipse cx="24" cy="39.4" rx="6.6" ry="2" fill="#7d8797"/>'
+      + '<g class="hi-u" data-step="0" data-amp="2.2"><path d="M24 5.5 C25.6 11.5 33.4 17.6 33.4 26.4 C33.4 33.9 29.3 39.2 24 39.2 C18.7 39.2 14.6 33.9 14.6 26.4 C14.6 21.4 17.6 18.2 19.6 13.6 C20.4 16.6 21.4 18.2 22.8 18.9 C22.2 15.4 22.6 10.4 24 5.5 Z" fill="#c8442a"/></g>'
+      + '<g class="hi-u" data-step="1" data-amp="1.8"><path d="M24 13.4 C25.8 18 28.9 20.6 28.9 26 C28.9 30.6 26.8 34.2 24 34.2 C21.2 34.2 19.1 30.6 19.1 26 C19.1 22.4 21 20.2 22.2 17.4 C22.8 19.4 23.4 20.4 24 20.8 C23.7 18 23.8 15.6 24 13.4 Z" fill="#ef7a3c"/></g>'
+      + '<g class="hi-u" data-step="2" data-amp="1.4"><path d="M24 21.6 C25 24.4 26.6 25.8 26.6 28.4 C26.6 31.2 25.5 33.2 24 33.2 C22.5 33.2 21.4 31.2 21.4 28.4 C21.4 26.2 22.4 24.8 23.1 23.2 C23.5 24.4 23.8 25 24 25.2 Z" fill="#ffd28a"/></g>'
+      + '<g class="hi-u" data-step="3" data-amp="2.6" data-dx="-.5" data-dy="-.87" data-kick="down" data-roll="0"><circle cx="30.5" cy="17.5" r="1.5" fill="#ffb35c"/></g>'
+      + '<g class="hi-u" data-step="4" data-amp="2.6" data-dx=".62" data-dy="-.78" data-kick="down" data-roll="0"><circle cx="17.8" cy="14.6" r="1.2" fill="#ffcf8a"/></g>',
     cube: '<g class="hi-u" data-step="0"><polygon points="40.80,33.70 24.00,43.40 24.00,24.00 40.80,14.30" fill="#157a55"/><polygon points="24.00,43.40 7.20,33.70 7.20,14.30 24.00,24.00" fill="#45b98a"/><polygon points="24.00,4.60 40.80,14.30 24.00,24.00 7.20,14.30" fill="#aee8cc"/></g>'
   };
 
@@ -27012,7 +27068,8 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
     north: { amp: 2.6, gap: 90 },
     up:    { amp: 5.0, gap: 78 },
     down:  { amp: 5.0, gap: 78 },
-    cube:  { amp: 4.2, gap: 0 }
+    cube:  { amp: 4.2, gap: 0 },
+    flame: { amp: 2.2, gap: 150 }
   };
 
   var K_SPRING = 150, D_SPRING = 8.5, GAIN = 22;
@@ -27101,17 +27158,20 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
     };
   }
 
-  /* ── north：滑梯 → 落料斗 的「真掉下去」流动 ──────────────────────────
-     ⭐ 2026-10-24 用户：「能不能做成掉下去得动效呢。只弹一下又没真掉下去。」
-     之前的做法是"原地弹一下"（弹簧位移），钱没动位置 —— 这版改成**路径驱动**：
-       阶段 1 滚：沿滑梯方向 (0.87,0.5) 从槽位滚到滑梯出口（真实位移）
-       阶段 2 坠：离开出口后按重力 u² 加速，掉进料斗口
-       阶段 3 隐：落进斗里被斗沿遮住 → 隐藏 → 回到槽位淡入，准备下一轮
-     接料斗用**真弹簧**（k=150 d=8.5）：金币落进斗口的那一刻给一记向下的冲量，
-     整只斗下沉再回弹 —— 「接住了」的重量感。
-     按 anatomy SKILL：单 rAF 循环、时间步进 dt、离屏停、hover 暂停、
-     reduced-motion 不跑（静态图仍成立）、淡入用 smoothstep 不用硬切。 */
-  var FLOW = { roll: 560, fall: 300, fade: 140, period: 1500, stagger: 190 };
+  /* ── north：滑梯 → 落料斗：真·路径流动 + 越积越多 ────────────────────
+     ⭐ 2026-10-25 用户：「让它落进斗里后留在斗里越积越多」
+     · 供应（supply）：金币从第一站位淡入 → 沿滑梯滚 → 腾空坠 → 落进斗里
+     · 堆积（pile）：落进斗里的金币**留下来**，按槽位往上码；
+       码满 maxPile 枚后，最老那枚从斗底漏出去（下滑 + 淡出），其余顺次降一格
+     · 每落地一枚就补一枚新的出发 → 水流不断；点击图标 = 手动投一枚 */
+  var FLOW = { fadeIn: 150, roll: 560, fall: 300, maxPile: 5, maxSupply: 3 };
+  var STATION = { x: 12.8, y: 12.4 };   /* 新币出发点（第一站位） */
+  var EXITP = { x: 32, y: 24.7 };       /* 滑梯出口 */
+
+  /* 斗内槽位：从斗底往上码（y 越来越小 = 越堆越高，最上面那枚会露出斗沿） */
+  function slotPos(n) {
+    return { x: 34.2 + (n % 2 ? 1.4 : 0), y: 30.3 - 0.95 * n };
+  }
 
   function smoothstep(x) {
     x = x < 0 ? 0 : (x > 1 ? 1 : x);
@@ -27119,80 +27179,136 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
   }
 
   function makeNorth(svg) {
-    var coins = [], dips = [];
+    var supply = [], pile = [], drainList = [], dips = [];
+    var kerb = svg.querySelector('[data-kerb]');
+    var template = '';
     var nodes = svg.querySelectorAll('.hi-u');
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
-      var from = el.getAttribute('data-from');
-      if (from) {
-        var fr = from.split(','), ex = (el.getAttribute('data-exit') || '').split(','),
-            la = (el.getAttribute('data-land') || '').split(',');
-        coins.push({
-          el: el,
-          rollEl: el.querySelector('.hi-roll'),
+      if (el.getAttribute('data-from')) {
+        if (!template) template = el.innerHTML;      /* 第一枚的几何当新币模板 */
+        var fr = el.getAttribute('data-from').split(',');
+        supply.push({
+          el: el, rollEl: el.querySelector('.hi-roll'),
           from: { x: parseFloat(fr[0]), y: parseFloat(fr[1]) },
-          exit: { x: parseFloat(ex[0]), y: parseFloat(ex[1]) },
-          land: { x: parseFloat(la[0]), y: parseFloat(la[1]) },
-          squash: parseFloat(el.getAttribute('data-roll')) || 0.3,
-          landed: false
+          age: parseInt(el.getAttribute('data-step') || '0', 10) * 260,
+          dx: 0, dy: 0, op: 1, k: 1, land: null, landed: false
         });
       } else if (el.getAttribute('data-dip')) {
         /* 料斗被拆成「后沿+内壁+老币」和「前壁」两块 —— 一起下沉 */
         dips.push({ el: el, y: 0, v: 0, amp: parseFloat(el.getAttribute('data-amp')) || 3.2 });
       }
     }
-    if (!coins.length) return function () {};
+    if (!supply.length) return function () {};
 
-    var raf = 0, last = 0, clock = 0, running = false, paused = false;
+    var raf = 0, last = 0, running = false, paused = false;
+
+    function mkCoinEl() {
+      var el = document.createElement('g');
+      el.setAttribute('class', 'hi-u');
+      el.innerHTML = template;
+      var place = el.firstElementChild;
+      if (place) place.setAttribute('transform', 'translate(' + STATION.x + ',' + STATION.y + ')');
+      kerb.parentNode.insertBefore(el, kerb);
+      return el;
+    }
+
+    function spawn(force) {
+      if (!kerb || !template || !svg.isConnected) return;
+      if (!force && supply.length >= FLOW.maxSupply) return;
+      var el = mkCoinEl();
+      supply.push({ el: el, rollEl: el.querySelector('.hi-roll'), from: { x: STATION.x, y: STATION.y },
+                    age: 0, dx: 0, dy: 0, op: 0, k: 1, land: null, landed: false });
+    }
+
+    function reflow() {
+      for (var i = 0; i < pile.length; i++) {
+        var s = slotPos(i);
+        pile[i].tx = s.x; pile[i].ty = s.y;
+      }
+    }
+
+    function dipOnce() {
+      for (var d = 0; d < dips.length; d++) dips[d].v += dips[d].amp * 22;
+    }
+
+    function landCoin(c) {
+      if (pile.length >= FLOW.maxPile) {
+        /* 斗满了 → 最老那枚从斗底漏出去，腾出槽位 */
+        var old = pile.shift();
+        drainList.push({ el: old.el, rollEl: old.rollEl, from: old.from, x: old.x, y: old.y,
+                         age: 0, dur: 460 });
+      }
+      pile.push({ el: c.el, rollEl: c.rollEl, from: c.from,
+                  x: c.land.x, y: c.land.y, tx: c.land.x, ty: c.land.y });
+      reflow();
+      dipOnce();
+      spawn();
+    }
 
     function tick(now) {
+      if (!svg.isConnected) { running = false; raf = 0; return; }
       var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 1 / 60;
       last = now;
-      if (!paused) clock += dt * 1000;
 
-      for (var i = 0; i < coins.length; i++) {
-        var c = coins[i];
-        var t = (clock + i * FLOW.stagger) % FLOW.period;
-        if (t < 0) t += FLOW.period;
-        var dx = 0, dy = 0, op = 1, k = 1;
+      /* ① 供应：淡入 → 沿滑梯滚 → 腾空坠 → 落进斗里（落地即转入堆积） */
+      for (var i = supply.length - 1; i >= 0; i--) {
+        var c = supply[i];
+        c.age += dt * 1000;
+        var t = c.age, dx = 0, dy = 0, op = 1, k = 1;
 
-        if (t < FLOW.roll) {
-          /* 阶段 1：沿滑梯滚下去（smoothstep 缓入缓出，滚到出口） */
-          var u = smoothstep(t / FLOW.roll);
-          var px = c.from.x + (c.exit.x - c.from.x) * u;
-          var py = c.from.y + (c.exit.y - c.from.y) * u;
-          dx = px - c.from.x; dy = py - c.from.y;
-          k = 1 - c.squash * Math.sin(Math.PI * u);   /* 滚动压缩（不闪） */
-        } else if (t < FLOW.roll + FLOW.fall) {
-          /* 阶段 2：重力下坠，掉进料斗口 */
-          var u2 = (t - FLOW.roll) / FLOW.fall;
-          var g = u2 * u2;
-          var qx = c.exit.x + (c.land.x - c.exit.x) * g;
-          var qy = c.exit.y + (c.land.y - c.exit.y) * g;
-          dx = qx - c.from.x; dy = qy - c.from.y;
-          k = (1 - c.squash) * (1 - 0.22 * u2);
-          if (!c.landed) {                     /* 落进斗口 → 整只斗下沉一下 */
-            c.landed = true;
-            for (var d = 0; d < dips.length; d++) dips[d].v += dips[d].amp * 22;
-          }
-        } else if (t < FLOW.roll + FLOW.fall + FLOW.fade) {
-          /* 阶段 3：落在斗里（被前壁挡住）→ 换回槽位并淡入（换位时全透明，看不见） */
-          dx = 0; dy = 0;
-          op = smoothstep((t - (FLOW.roll + FLOW.fall)) / FLOW.fade);
-          c.landed = false;
+        if (t < FLOW.fadeIn) {
+          op = smoothstep(t / FLOW.fadeIn);
+        } else if (t < FLOW.fadeIn + FLOW.roll) {
+          var u = smoothstep((t - FLOW.fadeIn) / FLOW.roll);
+          dx = (EXITP.x - c.from.x) * u;
+          dy = (EXITP.y - c.from.y) * u;
+          k = 1 - 0.36 * Math.sin(Math.PI * u);          /* 滚动压缩（不闪） */
+        } else if (t < FLOW.fadeIn + FLOW.roll + FLOW.fall) {
+          var u2 = (t - FLOW.fadeIn - FLOW.roll) / FLOW.fall;
+          if (!c.land) c.land = slotPos(Math.min(pile.length, FLOW.maxPile - 1));
+          var g = u2 * u2;                                /* 重力加速 */
+          var fx = EXITP.x + (c.land.x - EXITP.x) * g;
+          var fy = EXITP.y + (c.land.y - EXITP.y) * g;
+          dx = fx - c.from.x; dy = fy - c.from.y;
+          k = 0.64 * (1 - 0.22 * u2);
+          if (!c.landed) { c.landed = true; dipOnce(); }
         } else {
-          /* 阶段 4：回到槽位排队，等下一轮 */
-          op = 1;
+          supply.splice(i, 1);       /* 先摘掉，landCoin 里补新币时上限判断才准 */
+          landCoin(c);
+          continue;
         }
-
         c.el.setAttribute('transform', 'translate(' + dx.toFixed(3) + ' ' + dy.toFixed(3) + ')');
         c.el.setAttribute('opacity', op.toFixed(3));
         if (c.rollEl) c.rollEl.setAttribute('transform', 'scale(1 ' + k.toFixed(3) + ')');
       }
 
-      /* 料斗：真弹簧（被砸到 → 下沉 → 回弹） */
-      for (var j = 0; j < dips.length; j++) {
-        var dp = dips[j];
+      /* ② 堆积：新币落位，老币顺次降格（指数缓动，不会跳） */
+      var ease = 1 - Math.exp(-dt / 0.14);
+      for (var j = 0; j < pile.length; j++) {
+        var pc = pile[j];
+        pc.x += (pc.tx - pc.x) * ease;
+        pc.y += (pc.ty - pc.y) * ease;
+        pc.el.setAttribute('transform', 'translate(' + (pc.x - pc.from.x).toFixed(3) + ' ' + (pc.y - pc.from.y).toFixed(3) + ')');
+        pc.el.setAttribute('opacity', '1');
+        if (pc.rollEl) pc.rollEl.setAttribute('transform', 'scale(1 1)');
+      }
+
+      /* ③ 漏出去的老币：往斗底漏 + 淡出，出画后删元素（不攒垃圾） */
+      for (var m = drainList.length - 1; m >= 0; m--) {
+        var d = drainList[m];
+        d.age += dt * 1000;
+        var du = Math.min(d.age / d.dur, 1);
+        d.y = d.y + 12 * (du - (d._last || 0));
+        d._last = du;
+        d.el.setAttribute('transform', 'translate(' + (d.x - d.from.x).toFixed(3) + ' ' + (d.y - d.from.y).toFixed(3) + ')');
+        d.el.setAttribute('opacity', (1 - smoothstep(du)).toFixed(3));
+        if (du >= 1) { d.el.remove(); drainList.splice(m, 1); }
+      }
+
+      /* ④ 料斗：真弹簧（被砸到 → 下沉 → 回弹） */
+      for (var n = 0; n < dips.length; n++) {
+        var dp = dips[n];
         var acc = -150 * dp.y - 8.5 * dp.v;
         dp.v += acc * dt; dp.y += dp.v * dt;
         if (Math.abs(dp.y) < 5e-4 && Math.abs(dp.v) < 5e-4) {
@@ -27213,7 +27329,7 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
     }
     function stop() { running = false; raf = 0; }
 
-    /* 离屏停（SKILL：省资源 + 回来时接着走） */
+    /* 离屏停（SKILL：省资源 + 回来接着走） */
     if (window.IntersectionObserver) {
       new IntersectionObserver(function (es) {
         var e = es[es.length - 1];
@@ -27223,16 +27339,14 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
       start();
     }
 
-    /* hover 暂停，移开后接着走（时钟不跳） */
+    /* hover 暂停，移开后接着走 */
     var host = svg.parentNode || svg;
     host.addEventListener('pointerenter', function () { paused = true; });
     host.addEventListener('pointerleave', function () { paused = false; });
 
     return function fire() {
       if (reduce && reduce.matches) return;
-      clock = 0;
-      for (var i = 0; i < coins.length; i++) coins[i].landed = false;
-      start();
+      spawn(true);                 /* 点击 = 手动投一枚 */
     };
   }
 
@@ -27240,7 +27354,6 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
     if (!svg || svg.__hiFire) return;
     var key = svg.getAttribute('data-hi') || 'cube';
     svg.__hiFire = (key === 'north') ? makeNorth(svg) : makeHopper(svg, HOP[key] || HOP.cube);
-    if (key === 'north') svg.__hiFire();   /* 进场就开始流水 */
   }
 
   /* 事件委托到 document：图标容器可能被主文件重渲 */
@@ -27291,6 +27404,18 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
     return true;
   }
 
+  /* 「热门行业板块」标题的静态柱状图 → 2.5D 火焰（用户 2026-10-25 指定）
+     ⚠️ 只换一次：已经换成 hi-iso 就不再动；img 被换掉也随它去。 */
+  function mountSectorTitle() {
+    var host = document.querySelector('.sector-title .title-ico');
+    if (!host || host.querySelector('.hi-iso')) return false;
+    if (!host.querySelector('img')) return false;   /* 只换带 img 的（线条 SVG 不动） */
+    host.innerHTML = svgFor('flame');
+    host.classList.remove('m-emoji-swing');          /* 火焰自己会动，不需要摇摆 */
+    bind(host.querySelector('.hi-iso'));
+    return true;
+  }
+
   /* ── 情绪联动：跟右上角狗同一套信号 ─────────────────────────────── */
   function applyMood(mood) {
     if (mood === MOOD) return;
@@ -27320,13 +27445,14 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
   function init() {
     mountCards();
     mountModule();
+    mountSectorTitle();
     watchMood();
     document.addEventListener('click', function (e) { fireFrom(e.target); }, true);
 
     /* 首屏后数据刷新可能重建卡片 → 低频补挂（12 次封顶，不常驻轮询） */
     var tries = 0;
     var t = setInterval(function () {
-      mountCards(); mountModule();
+      mountCards(); mountModule(); mountSectorTitle();
       if (++tries >= 12) clearInterval(t);
     }, 700);
   }
@@ -27338,7 +27464,7 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
   }
 
   window.__homeIso = {
-    mount: function () { mountCards(); mountModule(); },
+    mount: function () { mountCards(); mountModule(); mountSectorTitle(); },
     keys: Object.keys(ICONS),
     state: function () { return { mood: MOOD, hops: this.hops || 0 }; },
     hops: 0
