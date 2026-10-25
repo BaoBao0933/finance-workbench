@@ -1,0 +1,179 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   home-iso · 主页 2.5D 小图标（2026-10-24）
+   ───────────────────────────────────────────────────────────────────────────
+   用户：「把静态 EMOJI 和图标一个一个换成差不多的 2.5D 动画…参考我横幅做的
+          2.5D 动画，加上交互和情绪，特别是主页那几个动态小图标先换。」
+
+   第一批（主页 5 个）：
+     deal   两市成交额     → 三根上升柱（金）
+     north  南向资金净流入  → 托盘 + 两枚叠币（蓝 + 金）
+     up     板块涨幅榜首   → 三级上升楼梯（红）
+     down   板块跌幅榜首   → 三级下降楼梯（绿）
+     cube   市场概览标题   → 等距立方体（绿，22px）
+
+   共同语言（和 banner-iso 一致）：
+     · 30° 等距投影，三面明暗（顶亮 / 左中 / 右暗）
+     · 点击 = 每个 .hi-u 单元按 data-step 逐个受一次冲量，再欠阻尼弹簧回落
+     · 情绪 = 观察 #mascot-deco 的 is-happy / is-shy（和右上角狗、右下角小搭档同一套信号）
+     · 只写 transform，不碰 filter / 布局；settled 即停
+
+   ⚠️ 替换的是 .ov-icon 里的 <svg>，原 SVG 在 JS 失败时仍是兜底（不 pre-hide）。
+   ⚠️ 点击**不** stopPropagation —— 卡片本身有"点击查看成分股"，别抢它的活。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.hi-iso {
+  display: block;
+  overflow: visible;
+  pointer-events: none;      /* 点击交给 .ov-icon 容器，热区才是整个方块 */
+}
+
+/* ⭐ 2026-10-24 用户：「2.5D 图稍微放大一点，这个背景的边框（米色圆角块）不要，
+   只保留 2.5D 动效。」—— 四类卡片的底色一律去掉。
+   ⚠️ 必须用 `.ov-icon .hi-iso` 前缀：主文件有 `.ov-icon svg { width:26px }`
+   （同特异性且更早写死），裸 `.hi-iso` 会被它压成 26px —— 前两版"放大"其实没生效。 */
+.ov-icon .hi-iso {
+  width: 52px;
+  height: 52px;
+}
+.ov-icon:has(.hi-iso) {
+  background: none !important;
+  box-shadow: none !important;
+}
+/* ⭐ 2026-10-24 补丁：主文件有 `:root[data-theme="light"] .ov-icon.purple/blue/…`
+   { background: #e6eaf1 !important } —— 特异性 (0,4,0)，压过上面的 (0,2,0)，
+   浅色主题底片去不掉（用户截图反馈）。同前缀提级到 (0,4,0)，
+   注入位置在主样式之后 → 同分后者胜。 */
+:root[data-theme="light"] .ov-icon:has(.hi-iso) {
+  background: none !important;
+  box-shadow: none !important;
+}
+
+/* 22px 的模块标题图标：容器就是 22，别再撑大 */
+.m-ico .hi-iso {
+  width: 22px;
+  height: 22px;
+}
+
+/* ⭐ 2026-10-25 标题图标尺寸（用户两次调大：「再页面里看太小了」→「再大一点跟字体差不多」）
+   22 → 28 → **40px**。为什么 28 看着还是小：
+   SVG 是 48×48 方框、按**最长边**适配，扁图标（报纸/图表牌）在方框里视觉高度只有 ~50%，
+   28px 框下实际只有 12px 左右 —— 比 14px 的字还矮。
+   40px 框：高图标视觉 ~34px、扁图标 ~18px，和 14px 标题**视觉齐平**（样张实测）。
+   要点：
+   · 主文件 `.title-ico img { width:22px }` 只约束 <img>，我们的是 SVG，尺寸由这里给
+   · `.title-ico` 是 inline-block 无固定尺寸 → 会被撑开，不用改容器
+   · `vertical-align` 必须跟着调（-4 → -12），否则大图标往下沉
+   · `.fund-ico` 容器固定 34×28 → 放到 46×42 免得裁切 */
+.title-ico .hi-iso,
+.fund-ico .hi-iso {
+  width: 40px;
+  height: 40px;
+  display: block;
+}
+.title-ico:has(.hi-iso) {
+  vertical-align: -12px;
+  margin-right: 10px;
+}
+.fund-ico:has(.hi-iso) {
+  width: 46px;
+  height: 42px;
+  vertical-align: -13px;
+}
+/* 火焰 idle：极缓的呼吸缩放（模拟火焰的"活着"），不抢内容
+   ⚠️ 只给 flame（热门行业板块）：其他图标是 kit 造的静物，不该整体呼吸 */
+@keyframes hi-flicker {
+  0%, 100% { transform: scale(1, 1); }
+  30%      { transform: scale(1.04, .96); }
+  60%      { transform: scale(.97, 1.05); }
+}
+.title-ico:has(.hi-iso[data-hi="flame"]) .hi-iso {
+  animation: hi-flicker 2.6s ease-in-out infinite;
+  transform-origin: 50% 88%;
+}
+html[data-fps-q="low"] .title-ico:has(.hi-iso) .hi-iso { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .title-ico:has(.hi-iso) .hi-iso { animation: none !important; }
+}
+
+/* 资金流向「带翅膀的钱」：双翼极缓扇动（绕翅膀根部小角度翻，
+   不进 JS 引擎 —— 引擎只写 translate，会与 rotate 打架） */
+@keyframes hi-wing-l {
+  0%, 100% { transform: rotate(0deg); }
+  50%      { transform: rotate(-7deg); }
+}
+@keyframes hi-wing-r {
+  0%, 100% { transform: rotate(0deg); }
+  50%      { transform: rotate(7deg); }
+}
+.hi-wing-l, .hi-wing-r {
+  transform-box: fill-box;
+  animation: hi-wing-l 1.9s ease-in-out infinite;
+}
+.hi-wing-r { animation-name: hi-wing-r; }
+.hi-wing-l { transform-origin: 100% 60%; }
+.hi-wing-r { transform-origin: 0% 60%; }
+html[data-fps-q="low"] .hi-wing-l,
+html[data-fps-q="low"] .hi-wing-r { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .hi-wing-l, .hi-wing-r { animation: none !important; }
+}
+
+/* 容器：整块可点，hover 微抬（背景已去掉，不再给浮空阴影） */
+.ov-icon:has(.hi-iso) {
+  cursor: pointer;
+  transition: transform .32s cubic-bezier(.22, 1, .36, 1);
+}
+.ov-icon:has(.hi-iso):hover {
+  transform: translateY(-1.5px) scale(1.05);
+}
+.ov-icon:has(.hi-iso):active {
+  transform: translateY(0) scale(.97);
+}
+
+/* 单元：位移由 JS 写 transform 属性，这里只声明变换盒，
+   避免百分比轴心按 viewBox 算导致甩飞 */
+.hi-u {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+/* ── 情绪 ────────────────────────────────────────────────────────────────
+   涨 → 整体轻抬 1.3px + 提亮；跌 → 下沉 1px + 变淡。
+   只作用于容器，不动单元（单元的 transform 由 JS 每帧覆写）。 */
+.ov-icon.hi-happy:has(.hi-iso) .hi-iso,
+.m-ico.hi-happy .hi-iso {
+  transform: translateY(-1.3px);
+  filter: brightness(1.06) saturate(1.08);
+}
+.ov-icon.hi-shy:has(.hi-iso) .hi-iso,
+.m-ico.hi-shy .hi-iso {
+  transform: translateY(1px);
+  filter: brightness(.9) saturate(.85);
+}
+.ov-icon .hi-iso,
+.m-ico .hi-iso {
+  transition: transform .5s cubic-bezier(.22, 1, .36, 1), filter .5s ease;
+}
+
+/* 模块标题的立方体：原来那个 emoji 是 7s 转一圈，2.5D 转起来会拖影，
+   改成极缓的上下浮沉（3.2s ±0.8px），保留"活着"的感觉 */
+.m-ico:has(.hi-iso) .hi-iso {
+  animation: hi-bob 3.2s ease-in-out infinite;
+}
+@keyframes hi-bob {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 0 -0.8px; }
+}
+
+/* ── 降级 ───────────────────────────────────────────────────────────────── */
+html[data-fps-q="low"] .m-ico:has(.hi-iso) .hi-iso,
+html[data-fps-q="low"] .ov-icon:has(.hi-iso) {
+  animation: none !important;
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-ico:has(.hi-iso) .hi-iso { animation: none !important; }
+  .ov-icon:has(.hi-iso):hover,
+  .ov-icon:has(.hi-iso):active { transform: none; }
+  .ov-icon .hi-iso, .m-ico .hi-iso { transition: none !important; }
+}
