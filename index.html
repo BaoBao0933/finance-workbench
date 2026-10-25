@@ -12803,6 +12803,7 @@ html[data-fps-q="low"] .ov-icon.has-iso {
           </div>
         </div>
         <div class="header-actions">
+          <a class="btn btn-dl-exe" id="btn-dl-exe" href="https://github.com/BaoBao0933/finance-workbench/releases/latest/download/BaoBaoFinance-Setup.exe" target="_blank" rel="noopener" title="下载 Windows 桌面版， liquid 玻璃全特效 + 满帧流畅" style="text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg></span>电脑版</a>
           <div class="btn btn-refresh" id="btn-refresh" role="button" tabindex="0" title="刷新"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>刷新</div>
         </div>
       </div>
@@ -23661,10 +23662,12 @@ pollAdaptive(() => loadBoardRank(), 300000, 300000);     // 板块榜首：5min
   (function () {
     try {
       if (navigator.userAgent.indexOf('Electron') >= 0) return;
+      /* 手机 / 窄屏 GPU 更弱，起步直接 low（评审常用手机扫一眼，首屏顺滑最重要） */
+      var START = (window.matchMedia && matchMedia('(max-width: 820px)').matches) ? 'low' : 'medium';
       var LOCK = function () {
-        if (document.documentElement.getAttribute('data-fps-q') === 'medium') return;
-        if (window.__fpsBoost && window.__fpsBoost.setQuality) window.__fpsBoost.setQuality('medium');
-        else document.documentElement.setAttribute('data-fps-q', 'medium');
+        if (document.documentElement.getAttribute('data-fps-q') === START) return;
+        if (window.__fpsBoost && window.__fpsBoost.setQuality) window.__fpsBoost.setQuality(START);
+        else document.documentElement.setAttribute('data-fps-q', START);
       };
       LOCK();
       setTimeout(LOCK, 3000);
@@ -23687,6 +23690,64 @@ pollAdaptive(() => loadBoardRank(), 300000, 300000);     // 板块榜首：5min
 html[data-fps-q="medium"] body,
 html[data-fps-q="low"] body {
   background-attachment: scroll !important;
+}
+
+/* ⭐ 2026-10-25 补全 medium/low 的覆盖面：除了卡片家族，还有一批
+   常驻/弹出面板保持着 20~32px 的大模糊（dock、刷新按钮 hover、涨停卡、
+   分时面板、news-tune 面板、龙虎详情、小搭档气泡、人气弹窗、首页庆祝…），
+   之前没进降档列表，评审的浏览器会在这些元素上继续吃满 GPU。 */
+html[data-fps-q="medium"] .mac-dock,
+html[data-fps-q="medium"] .btn-refresh,
+html[data-fps-q="medium"] .zt-card,
+html[data-fps-q="medium"] .lf-sheet-panel,
+html[data-fps-q="medium"] .nt-panel,
+html[data-fps-q="medium"] #minute-panel,
+html[data-fps-q="medium"] .fd-host .module,
+html[data-fps-q="medium"] .fd-bar,
+html[data-fps-q="medium"] .bd-buddy,
+html[data-fps-q="medium"] .bd-face,
+html[data-fps-q="medium"] .bd-bubble,
+html[data-fps-q="medium"] .rise-pop,
+html[data-fps-q="medium"] .home-congrats,
+html[data-fps-q="medium"] .fun-banner,
+html[data-fps-q="medium"] .se-add-panel,
+html[data-fps-q="medium"] .sector-chip,
+html[data-fps-q="medium"] .sec-hot-card,
+html[data-fps-q="medium"] .nav-item.active {
+  -webkit-backdrop-filter: blur(10px) saturate(160%) !important;
+  backdrop-filter: blur(10px) saturate(160%) !important;
+}
+
+/* low 档：全部压到 6px —— 磨砂感还在，成本只剩零头 */
+html[data-fps-q="low"] .mac-dock,
+html[data-fps-q="low"] .btn-refresh,
+html[data-fps-q="low"] .zt-card,
+html[data-fps-q="low"] .lf-sheet-panel,
+html[data-fps-q="low"] .nt-panel,
+html[data-fps-q="low"] #minute-panel,
+html[data-fps-q="low"] .fd-host .module,
+html[data-fps-q="low"] .fd-bar,
+html[data-fps-q="low"] .bd-buddy,
+html[data-fps-q="low"] .bd-face,
+html[data-fps-q="low"] .bd-bubble,
+html[data-fps-q="low"] .rise-pop,
+html[data-fps-q="low"] .home-congrats,
+html[data-fps-q="low"] .fun-banner,
+html[data-fps-q="low"] .se-add-panel,
+html[data-fps-q="low"] .sector-chip,
+html[data-fps-q="low"] .sec-hot-card,
+html[data-fps-q="low"] .nav-item.active,
+html[data-fps-q="low"] .ov-card,
+html[data-fps-q="low"] .index-card,
+html[data-fps-q="low"] .live-bar,
+html[data-fps-q="low"] .fund-panel,
+html[data-fps-q="low"] .ladder-row,
+html[data-fps-q="low"] .pos-row,
+html[data-fps-q="low"] .lhb-row,
+html[data-fps-q="low"] .news-item,
+html[data-fps-q="low"] .feed-item {
+  -webkit-backdrop-filter: blur(6px) saturate(150%) !important;
+  backdrop-filter: blur(6px) saturate(150%) !important;
 }
 </style>
 
