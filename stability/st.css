@@ -1,0 +1,249 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   stability · 稳 (2026-10-25)
+   ① `:has()` 兜底：老浏览器（Safari<15.4 / Chrome<105）不支持 :has，
+      hi.css 里 18 条关键规则会整条失效（2.5D 图标灰底回归、标题基线错位）。
+      JS 会给图标父级补 `.has-iso` / `.has-flame` 类，这里镜像同语义规则。
+  ② 诊断入口：只在真的出现 JS 错误时才亮，不打扰正常使用。
+  ③ 演示模式条：网络受限时明确标注"这些不是实时行情"。
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── ① :has() 兜底（与 hi.css 逐条对应，数值必须同步） ─────────────────── */
+.ov-icon.has-iso {
+  background: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  transition: transform .32s cubic-bezier(.22, 1, .36, 1);
+}
+:root[data-theme="light"] .ov-icon.has-iso {
+  background: none !important;
+  box-shadow: none !important;
+}
+.ov-icon.has-iso:hover { transform: translateY(-1.5px) scale(1.05); }
+.ov-icon.has-iso:active { transform: translateY(0) scale(.97); }
+
+.title-ico.has-iso {
+  vertical-align: -12px;
+  margin-right: 10px;
+}
+.fund-ico.has-iso {
+  width: 46px;
+  height: 42px;
+  vertical-align: -13px;
+}
+
+/* 火焰呼吸 / 立方体浮沉（keyframes 由 hi.css 无条件定义，这里直接复用） */
+.title-ico.has-flame .hi-iso {
+  animation: hi-flicker 2.6s ease-in-out infinite;
+  transform-origin: 50% 88%;
+}
+.m-ico.has-iso .hi-iso {
+  animation: hi-bob 3.2s ease-in-out infinite;
+}
+
+/* 情绪联动（跟大盘涨跌轻抬/下沉） */
+.ov-icon.hi-happy.has-iso .hi-iso,
+.m-ico.hi-happy .hi-iso {
+  transform: translateY(-1.3px);
+  filter: brightness(1.06) saturate(1.08);
+}
+.ov-icon.hi-shy.has-iso .hi-iso,
+.m-ico.hi-shy .hi-iso {
+  transform: translateY(1px);
+  filter: brightness(.9) saturate(.85);
+}
+
+/* 降级（与 hi.css 的 data-fps-q / reduced-motion 分支对齐） */
+html[data-fps-q="low"] .title-ico.has-iso .hi-iso,
+html[data-fps-q="low"] .m-ico.has-iso .hi-iso,
+html[data-fps-q="low"] .ov-icon.has-iso {
+  animation: none !important;
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .title-ico.has-flame .hi-iso,
+  .m-ico.has-iso .hi-iso { animation: none !important; }
+  .ov-icon.has-iso:hover,
+  .ov-icon.has-iso:active { transform: none; }
+}
+
+/* ── ② 诊断入口（平时不显示；有 JS 错误才亮） ──────────────────────────── */
+.st-diag-badge {
+  position: fixed;
+  left: 14px;
+  bottom: 16px;
+  z-index: 1300;
+  display: none;                    /* 由 JS 改成 inline-flex */
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px 7px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #ffb4a6;
+  background: rgba(58, 26, 22, .86);
+  border: 1px solid rgba(232, 93, 78, .42);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .32);
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  font-family: inherit;
+}
+.st-diag-badge.on { display: inline-flex; }
+.st-diag-badge:hover { background: rgba(72, 30, 25, .92); }
+.st-diag-badge .st-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #e85d4e;
+  box-shadow: 0 0 0 3px rgba(232, 93, 78, .22);
+}
+
+.st-panel {
+  position: fixed;
+  left: 14px;
+  bottom: 58px;
+  z-index: 1301;
+  width: min(380px, calc(100vw - 28px));
+  max-height: min(58vh, 460px);
+  display: none;
+  flex-direction: column;
+  border-radius: 14px;
+  background: rgba(30, 33, 41, .97);
+  border: 1px solid rgba(255, 255, 255, .12);
+  box-shadow: 0 20px 52px rgba(0, 0, 0, .5);
+  color: #e8ebef;
+  font-size: 12px;
+  overflow: hidden;
+}
+.st-panel.on { display: flex; }
+.st-panel-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+  font-weight: 700;
+  font-size: 12.5px;
+}
+.st-panel-hd .st-x {
+  margin-left: auto;
+  border: 0;
+  background: rgba(255, 255, 255, .08);
+  color: #c8cdd6;
+  width: 22px; height: 22px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+.st-panel-bd {
+  padding: 10px 14px 4px;
+  overflow: auto;
+  line-height: 1.7;
+  color: #b9c0cb;
+}
+.st-env {
+  font-size: 10.5px;
+  color: #7d8592;
+  border-bottom: 1px dashed rgba(255, 255, 255, .08);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+.st-item {
+  font-family: Consolas, monospace;
+  font-size: 10.5px;
+  color: #ff9d8b;
+  padding: 5px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, .06);
+  word-break: break-all;
+}
+.st-item .st-t { color: #7d8592; margin-right: 6px; }
+.st-sub {
+  font-size: 10.5px;
+  color: #8a919c;
+  margin: 10px 0 4px;
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+.st-res {
+  font-family: Consolas, monospace;
+  font-size: 10px;
+  color: #8a919c;
+  padding: 3px 0;
+  word-break: break-all;
+}
+.st-empty { color: #5fdca8; font-size: 11.5px; padding: 6px 0 12px; }
+.st-panel-ft {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-top: 1px solid rgba(255, 255, 255, .08);
+}
+.st-btn {
+  flex: 1;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(255, 255, 255, .08);
+  color: #c8cdd6;
+  font-family: inherit;
+}
+.st-btn:hover { background: rgba(255, 255, 255, .14); }
+.st-btn.pri { background: #e85d4e; color: #fff; }
+.st-btn.pri:hover { background: #f06a5b; }
+
+/* ── ③ 演示数据条 ─────────────────────────────────────────────────────── */
+.st-demo-bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 12px;
+  padding: 9px 12px 9px 11px;
+  border-radius: 11px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #ffd9b0;
+  background: linear-gradient(100deg, rgba(232, 93, 78, .16), rgba(232, 93, 78, .07));
+  border: 1px solid rgba(232, 93, 78, .3);
+}
+.st-demo-bar .st-demo-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #ffb35c;
+  box-shadow: 0 0 0 3px rgba(255, 179, 92, .2);
+  flex: none;
+}
+.st-demo-bar b { color: #ffc98a; }
+.st-demo-bar .st-demo-x {
+  margin-left: auto;
+  border: 0;
+  background: rgba(255, 255, 255, .08);
+  color: #e8c9a8;
+  font-size: 10.5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  flex: none;
+}
+.st-demo-bar .st-demo-x:hover { background: rgba(255, 255, 255, .16); }
+
+/* 被演示数据填充的卡片：标题行里的小标签
+   （不用 ::after 绝对定位 —— .index-card 没有 position:relative，
+     挂上去会相对更外层定位、跑到卡片外面） */
+.st-demo-tag {
+  display: inline-block;
+  vertical-align: 1px;
+  margin-left: 6px;
+  font-size: 9.5px;
+  letter-spacing: .5px;
+  font-weight: 700;
+  color: #ffb35c;
+  background: rgba(255, 179, 92, .12);
+  border: 1px solid rgba(255, 179, 92, .3);
+  padding: 1px 5px;
+  border-radius: 4px;
+  pointer-events: none;
+}
