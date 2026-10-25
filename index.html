@@ -11954,6 +11954,308 @@ html[data-fps-q="low"] .ov-icon:has(.hi-iso) {
 }
 
 </style><!-- HI:CSS:END -->
+<!-- NT:CSS:BEGIN -->
+<!-- news-tune (2026-10-25) | 财经要闻：自定义关注的板块/关键词 | 只写 localStorage，不动行情数据 | 改源文件后重跑本注入器 -->
+<style id="news-tune-style">
+/* ═══════════════════════════════════════════════════════════════════════════
+   news-tune · 财经要闻「管理」：自定义关注哪些板块/关键词的新闻
+   ───────────────────────────────────────────────────────────────────────────
+   用户 2026-10-25：「财经要闻那里我也想加个管理按钮，也是能让我自己删减
+   添加想要关注的板块新闻。」
+
+   设计：
+   · 按钮落在新闻页 .header-actions 里（刷新左边），叫「管理」
+   · 面板是玻璃卡（跟随 --glass），手机端居中弹层、桌面跟随按钮
+   · 每个关注项是一枚胶囊，点 × 删；输入框回车加自定义关键词（如「半导体」）
+   · 「热门板块」区一点即加，省得手打
+   · 只写 localStorage（键 wb_news_follow_v1），不动行情数据
+   ⚠️ 类名统一 nt- 前缀（除 .nt-note 已被新闻标签占用，本模块不用它）
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 管理按钮（跟在「刷新」旁边）── */
+#page-news .header-actions { position: relative; }
+.nt-manage {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255, 255, 255, .08) !important;
+  border: 1px solid var(--card-border) !important;
+  color: var(--text-main) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.nt-manage:hover {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  background: rgba(255, 138, 107, .12) !important;
+}
+.nt-manage:active { transform: scale(.97); }
+.nt-manage.on {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+}
+.nt-manage svg { width: 13px; height: 13px; display: block; }
+
+/* ── 面板 ── */
+.nt-panel {
+  position: fixed;
+  z-index: 1200;
+  width: 332px;
+  max-height: min(66vh, 520px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  border-radius: 16px;
+  /* ⚠️ 不能用 --glass(.55)：面板压在新闻列表上，半透明会让正文透上来糊成一片
+     （第一版实测看不清输入框和胶囊）。这里给接近实色的底，再留一点玻璃感。 */
+  background: rgba(30, 32, 38, .965);
+  border: 1px solid rgba(255, 255, 255, .14);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .5), 0 2px 8px rgba(0, 0, 0, .3);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  color: var(--text-main);
+  opacity: 1;                 /* ⚠️ 铁律 D：内容默认可见。动画只做位移/缩放，
+                                 绝不用 from{opacity:0}——动画被冻结（离屏/减少动效/
+                                 virtual-time）时面板会永远透明，第一版就踩了这坑。 */
+  animation: nt-pop .18s cubic-bezier(.22, 1.2, .36, 1);
+  transform-origin: top right;
+}
+@keyframes nt-pop {
+  from { transform: translateY(-6px) scale(.97); }
+  to { transform: none; }
+}
+.nt-head {
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.nt-head small {
+  margin-left: auto;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--text-sub);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 当前关注：胶囊区 */
+.nt-cur {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 128px;
+  overflow-y: auto;
+  padding: 2px 1px;
+}
+.nt-cur::-webkit-scrollbar { width: 5px; }
+.nt-cur::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); border-radius: 3px; }
+.nt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 4px 8px 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid var(--card-border);
+  color: var(--text-main);
+  line-height: 1.2;
+}
+.nt-chip.is-kw { background: rgba(255, 138, 107, .14); border-color: rgba(255, 138, 107, .34); }
+.nt-chip b {
+  font-weight: 400;
+  font-style: normal;
+  cursor: pointer;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-sub);
+  transition: .15s;
+}
+.nt-chip b:hover { background: rgba(255, 90, 70, .3); color: #fff; }
+.nt-empty { font-size: 11.5px; color: var(--text-sub); padding: 6px 2px; }
+
+/* 输入框 */
+.nt-search { display: flex; gap: 6px; }
+.nt-input {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 8px 11px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, .24);
+  border: 1px solid var(--card-border);
+  color: var(--text-main);
+  outline: none;
+  transition: .16s;
+}
+.nt-input::placeholder { color: rgba(154, 161, 169, .8); }
+.nt-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255, 138, 107, .16); }
+.nt-add {
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #fff;
+  cursor: pointer;
+  transition: .16s;
+}
+.nt-add:hover { background: var(--accent-hover, #e86a4e); }
+.nt-add:active { transform: scale(.97); }
+
+/* 热门板块候选 */
+.nt-sub { font-size: 11px; color: var(--text-sub); margin: -2px 0 -4px; }
+.nt-pool {
+  flex: 1;
+  min-height: 64px;
+  max-height: 168px;
+  overflow-y: auto;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: rgba(0, 0, 0, .18);
+  padding: 3px;
+}
+.nt-pool::-webkit-scrollbar { width: 5px; }
+.nt-pool::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); border-radius: 3px; }
+.nt-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: .14s;
+}
+.nt-row:hover { background: rgba(255, 255, 255, .08); }
+.nt-row.on { cursor: default; color: var(--text-sub); }
+.nt-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nt-row-flag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 138, 107, .18);
+  color: var(--accent);
+}
+.nt-row-add { font-size: 15px; line-height: 1; color: var(--text-sub); width: 14px; text-align: center; }
+.nt-row:hover .nt-row-add { color: var(--accent); }
+.nt-row.on .nt-row-add::before { content: '✓'; }
+
+/* 底部 */
+.nt-foot { display: flex; gap: 8px; align-items: center; }
+.nt-hint { font-size: 10.5px; color: var(--text-sub); margin-right: auto; line-height: 1.5; }
+.nt-btn {
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .08);
+  border: 1px solid var(--card-border);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: .16s;
+  white-space: nowrap;
+}
+.nt-btn:hover { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .22); }
+.nt-btn.pri { background: var(--accent); border-color: var(--accent); color: #fff; }
+.nt-btn.pri:hover { background: var(--accent-hover, #e86a4e); border-color: var(--accent-hover, #e86a4e); }
+
+/* toast */
+.nt-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 34px;
+  transform: translate(-50%, 12px);
+  z-index: 1300;
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: #fff;
+  background: rgba(30, 30, 34, .92);
+  border: 1px solid rgba(255, 255, 255, .14);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .4);
+  opacity: 0;
+  pointer-events: none;
+  transition: .22s;
+}
+.nt-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* 手机端：面板居中、按钮文字可省 */
+@media (max-width: 640px) {
+  .nt-panel {
+    left: 50% !important;
+    top: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate(-50%, -50%);
+    width: calc(100vw - 28px);
+    max-width: 380px;
+    max-height: 76vh;
+    transform-origin: center;
+  }
+  @keyframes nt-pop {
+    from { transform: translate(-50%, -50%) scale(.95); }
+    to { transform: translate(-50%, -50%); }
+  }
+  .nt-manage { padding: 0 10px; }
+}
+
+/* 浅色主题 */
+:root[data-theme="light"] .nt-panel {
+  background: rgba(255, 255, 255, .985);
+  border-color: rgba(0, 0, 0, .12);
+  color: #1d222b;
+  box-shadow: 0 18px 48px rgba(40, 50, 70, .2);
+}
+:root[data-theme="light"] .nt-manage {
+  background: rgba(0, 0, 0, .05) !important;
+  color: #2b303a !important;
+  border-color: rgba(0, 0, 0, .12) !important;
+}
+:root[data-theme="light"] .nt-chip {
+  background: rgba(0, 0, 0, .05);
+  border-color: rgba(0, 0, 0, .1);
+  color: #2b303a;
+}
+:root[data-theme="light"] .nt-chip b { color: #6a7384; }
+:root[data-theme="light"] .nt-input {
+  background: rgba(0, 0, 0, .04);
+  border-color: rgba(0, 0, 0, .12);
+  color: #1d222b;
+}
+:root[data-theme="light"] .nt-pool {
+  background: rgba(0, 0, 0, .03);
+  border-color: rgba(0, 0, 0, .1);
+}
+:root[data-theme="light"] .nt-row:hover { background: rgba(0, 0, 0, .05); }
+:root[data-theme="light"] .nt-btn {
+  background: rgba(0, 0, 0, .04);
+  border-color: rgba(0, 0, 0, .12);
+  color: #2b303a;
+}
+:root[data-theme="light"] .nt-btn:hover { background: rgba(0, 0, 0, .08); }
+:root[data-theme="light"] .nt-toast { background: rgba(40, 44, 52, .94); }
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .nt-panel { animation: none !important; }
+  .nt-toast { transition: none !important; }
+  .nt-manage:active, .nt-add:active { transform: none; }
+}
+
+</style><!-- NT:CSS:END -->
 </head>
 <body>
 
@@ -15100,9 +15402,15 @@ function renderNewsTags() {
   if (wrap.children.length) return;
   const sectorNames = SECTORS.map(s => s.name)
     .reduce((acc, n) => acc.indexOf(n) < 0 ? acc.concat(n) : acc, []);
-  const tags = ['全部', '快讯', ...sectorNames];
+  /* ⭐ 2026-10-25 用户：财经要闻要能自己删减/添加关注的板块新闻。
+     news-tune 模块把关注列表挂在 window.__newsFollow.list()；
+     没设过（null）就沿用热门板块，保持原行为。 */
+  const followList = (window.__newsFollow && typeof window.__newsFollow.list === 'function')
+    ? window.__newsFollow.list() : null;
+  const tags = ['全部', '快讯', ...(Array.isArray(followList) ? followList : sectorNames)];
+  const cur = (activeNewsTag && tags.indexOf(activeNewsTag) >= 0) ? activeNewsTag : '全部';
   wrap.innerHTML = tags.map(name => {
-    const cls = name === '全部' ? ' active' : '';
+    const cls = name === cur ? ' active' : '';
     return `<span class="news-tag${cls}" data-tag="${name}">${name}</span>`;
   }).join('');
   wrap.querySelectorAll('.news-tag').forEach(t => t.addEventListener('click', () => {
@@ -15117,6 +15425,21 @@ function renderNewsTags() {
     setTimeout(() => { if (list) list.classList.remove('is-transitioning'); }, 400);
   }));
 }
+
+/* ⭐ 2026-10-25 财经要闻「管理」桥接（news-tune 模块用）
+   SECTORS / NEWS_KEYWORDS / activeNewsTag 都是顶层变量，不挂 window —— 这里显式暴露。 */
+window.__newsFollowBridge = {
+  sectors: function () { return SECTORS.map(function (s) { return s.name; }); },
+  hasKeywords: function (name) { return !!NEWS_KEYWORDS[name]; },
+  count: function () { return newsCache.length; },
+  rerender: function () {
+    var wrap = $('news-tags');
+    if (wrap) wrap.innerHTML = '';      /* renderNewsTags 里有 children.length 早退，必须先清 */
+    renderNewsTags();
+    renderNewsList();
+  },
+  current: function () { return activeNewsTag; }
+};
 
 // 当前快讯来源与失败原因（状态栏展示 / 便于排查）
 const NEWS_SRC_VER = 'v2';
@@ -27590,5 +27913,337 @@ window.__secPool = {"BK0420":"航空机场","BK0421":"铁路公路","BK0422":"�
 })();
 
 </script><!-- HI:JS:END -->
+<!-- NT:JS:BEGIN -->
+<!-- news-tune (2026-10-25) | 财经要闻：自定义关注的板块/关键词 | 只写 localStorage，不动行情数据 | 改源文件后重跑本注入器 -->
+<script id="news-tune-js">
+/* ═══════════════════════════════════════════════════════════════════════════
+   news-tune · 财经要闻「管理」面板
+   ───────────────────────────────────────────────────────────────────────────
+   用户 2026-10-25：「财经要闻那里我也想加个管理按钮，也是能让我自己删减
+   添加想要关注的板块新闻。」
+
+   做什么：
+     · 新闻页标题栏加「管理」按钮（刷新左边）
+     · 面板里列出当前关注的板块/关键词，点 × 删；输入框回车加自定义关键词
+     · 「热门板块」区一点即加，省得手打
+     · 完成 → 存 localStorage（wb_news_follow_v1）→ 让主文件重建标签行 + 重渲列表
+
+   为什么能生效：
+     主文件 renderNewsTags() 里 tags 来源优先读 window.__newsFollow.list()，
+     返回 null（没设过）就沿用 SECTORS —— 不写存储时行为与原来完全一致。
+     匹配逻辑本来就是 NEWS_KEYWORDS[tag] || [tag]，自定义词直接按词匹配标题/摘要。
+
+   ⚠️ SECTORS / NEWS_KEYWORDS / activeNewsTag 是顶层变量不挂 window，
+      所以走主文件里的 window.__newsFollowBridge（sectors / hasKeywords / rerender）。
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  if (window.__ntInstalled) return;
+  window.__ntInstalled = 1;
+
+  var LS_FOLLOW = 'wb_news_follow_v1';
+  var MAX_ITEMS = 24;                     /* 太多标签行会挤爆，给个上限 */
+  var bridge = function () { return window.__newsFollowBridge || null; };
+
+  /* ── 存储 ─────────────────────────────────────────────────────────────── */
+  function readList() {
+    try {
+      var raw = localStorage.getItem(LS_FOLLOW);
+      if (!raw) return null;              /* null = 从没设过 → 跟随热门板块 */
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return null;
+      var out = [];
+      arr.forEach(function (x) {
+        var v = String(x || '').trim();
+        if (v && out.indexOf(v) < 0) out.push(v);
+      });
+      return out;                          /* [] = 用户明确删光了 */
+    } catch (e) { return null; }
+  }
+  function writeList(list) {
+    try { localStorage.setItem(LS_FOLLOW, JSON.stringify(list)); } catch (e) {}
+  }
+  function clearList() {
+    try { localStorage.removeItem(LS_FOLLOW); } catch (e) {}
+  }
+
+  /* 对外 API：主文件 renderNewsTags 会读它 */
+  window.__newsFollow = {
+    list: readList,
+    set: writeList,
+    reset: clearList
+  };
+
+  function defaults() {
+    var b = bridge();
+    return b ? b.sectors().slice() : [];
+  }
+  function currentList() {
+    var l = readList();
+    return l === null ? defaults() : l;
+  }
+  function isKeyword(name) {
+    var b = bridge();
+    return b ? !b.hasKeywords(name) : false;   /* 没有内置关键词表 = 自定义词 */
+  }
+
+  /* ── toast ────────────────────────────────────────────────────────────── */
+  var toastEl = null, toastTimer = 0;
+  function toast(msg) {
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.className = 'nt-toast';
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = msg;
+    toastEl.classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('on'); }, 1900);
+  }
+
+  /* ── 管理按钮 ─────────────────────────────────────────────────────────── */
+  function ensureBtn() {
+    var actions = document.querySelector('#page-news .header-actions');
+    if (!actions || actions.querySelector('.nt-manage')) return false;
+    var btn = document.createElement('div');
+    btn.className = 'btn nt-manage';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+      + 'stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/>'
+      + '<circle cx="16" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>'
+      + '<span>管理</span>';
+    btn.setAttribute('role', 'button');
+    btn.title = '管理关注的板块 / 关键词';
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (panel) closePanel();
+      else openPanel(btn);
+    });
+    actions.insertBefore(btn, actions.firstChild);
+    return true;
+  }
+
+  /* ── 面板 ─────────────────────────────────────────────────────────────── */
+  var panel = null, draft = [], curEl = null, poolEl = null, headEl = null;
+  var placeRaf = 0, btnRef = null;
+
+  function openPanel(btn) {
+    if (panel) return;
+    btnRef = btn || document.querySelector('.nt-manage');
+    draft = currentList();
+    panel = document.createElement('div');
+    panel.className = 'nt-panel';
+    panel.innerHTML = ''
+      + '<div class="nt-head">关注哪些新闻<small id="nt-count"></small></div>'
+      + '<div class="nt-cur" id="nt-cur"></div>'
+      + '<div class="nt-search"><input class="nt-input" id="nt-input" type="text" '
+      + 'placeholder="加关键词，回车（如：半导体）" autocomplete="off" maxlength="16">'
+      + '<button class="nt-add" id="nt-add" type="button">添加</button></div>'
+      + '<div class="nt-sub">热门板块 · 点一下加入</div>'
+      + '<div class="nt-pool" id="nt-pool"></div>'
+      + '<div class="nt-foot"><span class="nt-hint">只显示你关注板块的相关快讯</span>'
+      + '<button class="nt-btn" id="nt-reset" type="button">恢复默认</button>'
+      + '<button class="nt-btn pri" id="nt-done" type="button">完成</button></div>';
+    document.body.appendChild(panel);
+
+    curEl = panel.querySelector('#nt-cur');
+    poolEl = panel.querySelector('#nt-pool');
+    headEl = panel.querySelector('#nt-count');
+    var inputEl = panel.querySelector('#nt-input');
+
+    renderCur();
+    renderPool();
+    placePanel();
+
+    panel.addEventListener('click', function (e) { e.stopPropagation(); });
+
+    inputEl.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); addTag(inputEl.value); inputEl.value = ''; }
+    });
+    panel.querySelector('#nt-add').addEventListener('click', function () {
+      addTag(inputEl.value); inputEl.value = ''; inputEl.focus();
+    });
+    panel.querySelector('#nt-reset').addEventListener('click', resetFollow);
+    panel.querySelector('#nt-done').addEventListener('click', saveAll);
+
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+    document.addEventListener('click', onOutside, true);
+    document.addEventListener('keydown', onKey, true);
+    if (btn) btn.classList.add('on');
+    setTimeout(function () { if (inputEl) inputEl.focus(); }, 60);
+  }
+
+  function closePanel() {
+    if (!panel) return;
+    panel.remove();
+    panel = null; curEl = poolEl = headEl = null; draft = [];
+    document.removeEventListener('click', onOutside, true);
+    document.removeEventListener('keydown', onKey, true);
+    window.removeEventListener('scroll', onScroll, true);
+    window.removeEventListener('resize', onResize);
+    var b = document.querySelector('.nt-manage');
+    if (b) b.classList.remove('on');
+  }
+
+  function onOutside(e) {
+    if (!panel) return;
+    if (panel.contains(e.target)) return;
+    if (e.target.closest && e.target.closest('.nt-manage')) return;
+    closePanel();
+  }
+  function onKey(e) {
+    if (e.key === 'Escape') { e.preventDefault(); closePanel(); }
+  }
+  function onResize() { if (panel) placePanel(); }
+  function onScroll() {
+    if (!panel) return;
+    if (placeRaf) return;
+    placeRaf = requestAnimationFrame(function () { placeRaf = 0; placePanel(); });
+  }
+
+  function placePanel() {
+    if (!panel) return;
+    if (window.matchMedia && window.matchMedia('(max-width: 640px)').matches) return; /* CSS 居中 */
+    var btn = btnRef || document.querySelector('.nt-manage');
+    if (!btn) return;
+    var r = btn.getBoundingClientRect();
+    var pw = panel.offsetWidth || 332;
+    var ph = panel.offsetHeight || 420;
+    var left = Math.min(Math.max(12, r.left), window.innerWidth - pw - 12);
+    var top = r.bottom + 10;
+    if (top + ph > window.innerHeight - 12) {
+      top = Math.max(12, r.top - ph - 10);   /* 下方放不下就翻到上面 */
+    }
+    panel.style.left = left + 'px';
+    panel.style.top = top + 'px';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+  }
+
+  /* ── 当前关注 chips ───────────────────────────────────────────────────── */
+  function renderCur() {
+    if (!curEl) return;
+    if (headEl) headEl.textContent = '已关注 ' + draft.length + ' 个';
+    if (!draft.length) {
+      curEl.innerHTML = '<span class="nt-empty">还没关注任何板块 —— 标签行只会显示「全部 / 快讯」。从下面加一个吧。</span>';
+      return;
+    }
+    curEl.innerHTML = draft.map(function (name, i) {
+      return '<span class="nt-chip' + (isKeyword(name) ? ' is-kw' : '') + '" data-i="' + i + '">'
+        + escapeHtml(name) + '<b data-del="' + i + '" title="移除">×</b></span>';
+    }).join('');
+    Array.prototype.forEach.call(curEl.querySelectorAll('[data-del]'), function (x) {
+      x.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var idx = parseInt(x.getAttribute('data-del'), 10);
+        draft.splice(idx, 1);
+        renderCur(); renderPool();
+      });
+    });
+  }
+
+  /* ── 热门板块候选 ─────────────────────────────────────────────────────── */
+  function renderPool() {
+    if (!poolEl) return;
+    var all = defaults();
+    if (!all.length) {
+      poolEl.innerHTML = '<div class="nt-empty" style="padding:12px;text-align:center">读取不到热门板块，直接在输入框里加关键词即可</div>';
+      return;
+    }
+    var chosen = {};
+    draft.forEach(function (n) { chosen[n] = 1; });
+    /* 已关注的排后面（显示 ✓），没关注的排前面方便加 */
+    var rows = all.slice().sort(function (a, b) {
+      return (chosen[a] ? 1 : 0) - (chosen[b] ? 1 : 0);
+    });
+    poolEl.innerHTML = rows.map(function (name) {
+      var on = !!chosen[name];
+      return '<div class="nt-row' + (on ? ' on' : '') + '" data-name="' + escapeAttr(name) + '">'
+        + '<span class="nt-row-name">' + escapeHtml(name) + '</span>'
+        + (on ? '<span class="nt-row-flag">已关注</span>' : '')
+        + '<span class="nt-row-add">' + (on ? '' : '+') + '</span></div>';
+    }).join('');
+    Array.prototype.forEach.call(poolEl.querySelectorAll('.nt-row'), function (row) {
+      row.addEventListener('click', function () {
+        var name = row.getAttribute('data-name');
+        if (draft.indexOf(name) >= 0) return;      /* 已关注，点了不动（要删去上面 × ） */
+        addTag(name);
+      });
+    });
+  }
+
+  /* ── 增删 ─────────────────────────────────────────────────────────────── */
+  function addTag(raw) {
+    var name = String(raw || '').trim().replace(/\s+/g, ' ');
+    if (!name) return;
+    if (name.length > 16) name = name.slice(0, 16);
+    if (draft.indexOf(name) >= 0) { toast('「' + name + '」已经在关注里了'); return; }
+    if (draft.length >= MAX_ITEMS) { toast('最多关注 ' + MAX_ITEMS + ' 个，先删几个吧'); return; }
+    draft.push(name);
+    renderCur(); renderPool();
+    toast('已加入「' + name + '」，点完成保存');
+  }
+
+  function resetFollow() {
+    clearList();
+    draft = defaults();
+    renderCur(); renderPool();
+    toast('已恢复为默认（跟随热门板块），点完成保存');
+  }
+
+  /* ── 保存 ─────────────────────────────────────────────────────────────── */
+  function saveAll() {
+    var defs = defaults();
+    var same = draft.length === defs.length && draft.every(function (n, i) { return n === defs[i]; });
+    if (same) clearList(); else writeList(draft);   /* 和默认一致就不落存储，继续跟随板块 */
+    var b = bridge();
+    if (b) {
+      try { b.rerender(); } catch (e) {}
+    }
+    toast(same ? '已恢复默认（跟随热门板块）' : '已保存：' + draft.length + ' 个关注');
+    closePanel();
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function escapeAttr(s) { return escapeHtml(s).replace(/'/g, '&#39;'); }
+
+  /* ── 初始化：首屏 + 切页补挂 ──────────────────────────────────────────── */
+  function init() {
+    ensureBtn();
+    /* 新闻页是 display:none 的，切过去时才需要按钮 —— 定时补挂几轮 */
+    [400, 1200, 2600].forEach(function (ms) { setTimeout(ensureBtn, ms); });
+    /* 点左侧导航后补挂（切页不重载 DOM，按钮只需一次） */
+    document.addEventListener('click', function (e) {
+      var nav = e.target.closest && e.target.closest('.nav-item');
+      if (!nav) return;
+      setTimeout(ensureBtn, 260);
+    }, true);
+    /* 兜底：观察 body 子树变化，出现新闻页 header 就补挂 */
+    if (window.MutationObserver) {
+      var mo = new MutationObserver(function () { ensureBtn(); });
+      mo.observe(document.body, { childList: true, subtree: true });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  /* 调试入口 */
+  window.__newsTune = {
+    open: function () { ensureBtn(); var b = document.querySelector('.nt-manage'); if (b) openPanel(b); },
+    close: closePanel,
+    list: currentList,
+    reset: function () { clearList(); var b = bridge(); if (b) b.rerender(); }
+  };
+})();
+
+</script><!-- NT:JS:END -->
 </body>
 </html>
