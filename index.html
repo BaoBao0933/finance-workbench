@@ -13901,6 +13901,74 @@ function fetchTxAQuotes(secids) {
   });
 }
 
+/* —— 腾讯 qt 批量：简称 + 现价 + 涨跌幅（人气榜 / 关注页补名专用）——
+   ⭐ 2026-10-25 新增。与 fetchTxAQuotes 分开：
+      ① 这里要「简称」（f[1]），它是股票名称的主要来源；
+      ② 停牌股 price 可能是 0，但名称依然有效 —— 不能因为拿不到价格就把整行丢掉，
+         否则人气榜又退化成 "SZ002747" 这种代码串（用户截图反馈的问题）。 */
+function fetchTxBasic(secids) {
+  const list = (secids || []).filter(Boolean);
+  if (!list.length) return Promise.reject(new Error('empty'));
+  const pairs = list.map(s => [s, txCodeOf(s)]);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.charset = 'gbk';
+    script.referrerPolicy = 'no-referrer';
+    const timer = setTimeout(() => { script.remove(); reject(new Error('timeout')); }, 6000);
+    script.onload = () => {
+      clearTimeout(timer);
+      const out = {};
+      pairs.forEach(([secid, tx]) => {
+        const raw = window['v_' + tx];
+        if (!raw) return;
+        const f = raw.split('~');
+        const name = (f[1] || '').replace(/\s+/g, '');
+        if (!name) return;
+        const price = parseFloat(f[3]);
+        const pct = parseFloat(f[32]);
+        out[secid] = {
+          name,
+          price: isFinite(price) ? price : 0,
+          pct: isFinite(pct) ? pct : 0,
+          live: isFinite(price) && price > 0,
+        };
+      });
+      script.remove();
+      Object.keys(out).length ? resolve(out) : reject(new Error('empty'));
+    };
+    script.onerror = () => { clearTimeout(timer); script.remove(); reject(new Error('network')); };
+    script.src = 'https://qt.gtimg.cn/q=' + pairs.map(p => p[1]).join(',');
+    document.head.appendChild(script);
+  });
+}
+
+/* —— 两市成交额（沪深合计）——
+   ⭐ 2026-10-25：东财 ulist 的 f6 拿不到时，用腾讯简版指数补。
+   腾讯简版 s_sh000001 / s_sz399001 的字段 [6]=成交量(手) [7]=成交额(万元)。 */
+function fetchTxAmount() {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.charset = 'gbk';
+    script.referrerPolicy = 'no-referrer';
+    const timer = setTimeout(() => { script.remove(); reject(new Error('timeout')); }, 6000);
+    script.onload = () => {
+      clearTimeout(timer);
+      let amt = 0;
+      ['sh000001', 'sz399001'].forEach(k => {
+        const raw = window['v_s_' + k];
+        if (!raw) return;
+        const v = parseFloat(raw.split('~')[7]);
+        if (isFinite(v) && v > 0) amt += v * 1e4;
+      });
+      script.remove();
+      amt > 0 ? resolve(amt) : reject(new Error('empty'));
+    };
+    script.onerror = () => { clearTimeout(timer); script.remove(); reject(new Error('network')); };
+    script.src = 'https://qt.gtimg.cn/q=s_sh000001,s_sz399001';
+    document.head.appendChild(script);
+  });
+}
+
 // 新浪全球指数（日经225 / 韩国KOSPI 专用兜底）
 function fetchSinaJpkr() {
   return new Promise((resolve, reject) => {
@@ -16210,6 +16278,47 @@ const FUTURES = [
 ];
 const futCache = {}; // secid -> card 节点
 
+/* —— 期货备用通道：push2his 日 K ——
+   ⭐ 2026-10-25。东财 push2 行情集群整片限流时（ulist 直接 RemoteDisconnected），
+   loadFutures 两个域名都失败，整块变成"期货行情加载失败"（线上实测就是这个状态）。
+   备选通道逐个实测过：
+     · 新浪 hq.sinajs.cn      → 浏览器里 403（校验 Referer，无法伪造）→ 弃用
+     · 腾讯 qt.gtimg.cn 期货   → 不支持国内商品期货（返回 v_pv_none_match）→ 弃用
+     · push2his .../kline/get → ✅ 与 push2 不同服务集群，限流时仍返回，且只有 2 条数据
+   klines 每行：日期,开,收,最高,最低,成交量,成交额 */
+function fetchFutKline() {
+  /* 串行而非 Promise.all：12 个并发打同一集群最容易被判限流，
+     串行每个 ~200ms，一轮 ~2.5 秒，而且 60 秒才跑一次，完全够用。 */
+  return (async () => {
+    const out = {};
+    for (const f of FUTURES) {
+      try {
+        const res = await fetchJson(`https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${f.secid}&klt=101&fqt=0&lmt=2&end=20500101&fields1=f1,f2,f3&fields2=f51,f52,f53,f54,f55,f56`, 6000);
+        const k = res && res.data && res.data.klines;
+        if (!k || !k.length) continue;
+        const cur = String(k[k.length - 1]).split(',');
+        const pre = k.length > 1 ? String(k[k.length - 2]).split(',') : null;
+        const last = parseFloat(cur[2]);
+        const preClose = pre ? parseFloat(pre[2]) : NaN;
+        if (!isFinite(last) || last <= 0) continue;
+        const chg = isFinite(preClose) && preClose > 0 ? last - preClose : 0;
+        out[f.secid] = {
+          f2: last,
+          f3: isFinite(preClose) && preClose > 0 ? chg / preClose * 100 : 0,
+          f4: chg,
+          f17: parseFloat(cur[1]),
+          f15: parseFloat(cur[3]),
+          f16: parseFloat(cur[4]),
+        };
+      } catch (e) { /* 跳过该品种 */ }
+    }
+    if (!Object.keys(out).length) throw new Error('empty');
+    return out;
+  })();
+}
+
+let futKlineCache = null, futKlineAt = 0, futFailAt = 0, futUlFailAt = 0;   // 备用通道缓存 + 失败退避
+
 function buildFutCard(f) {
   const div = document.createElement('div');
   div.className = 'index-card';
@@ -16266,29 +16375,72 @@ async function loadFutures() {
   const fields = 'f2,f3,f4,f5,f6,f12,f13,f14,f15,f16,f17';
   const grid = $('fut-grid');
   if (!grid) return;
-  // 多通道容灾：主域名 → 延时镜像域名
-  const hosts = ['push2.eastmoney.com', 'push2delay.eastmoney.com'];
-  for (const host of hosts) {
-    try {
-      const res = await fetchJson(`https://${host}/api/qt/ulist.np/get?fltt=2&secids=${secids}&fields=${fields}`, 4500);
-      const diff = res && res.data && res.data.diff;
-      if (!diff || !diff.length) throw new Error('empty');
-      const map = {};
-      // 期货品种代码存在大小写差异（如 请求 Mm → 返回 mm），统一小写匹配
-      diff.forEach(d => { map[(d.f13 + '.' + d.f12).toLowerCase()] = d; });
+
+  /* ⭐ 2026-10-25：东财 ulist 失败后 5 分钟内不再重试。
+     期货页每 5 秒刷一轮，失败还照打两个域名 = 每分钟 24 次无效请求，
+     只会把 IP 级限流的窗口一直撑开（实测越刷越慢、恢复越晚）。 */
+  const skipUl = futUlFailAt && Date.now() - futUlFailAt < 5 * 60000;
+  if (!skipUl) {
+    const hosts = ['push2.eastmoney.com', 'push2delay.eastmoney.com'];
+    for (const host of hosts) {
+      try {
+        const res = await fetchJson(`https://${host}/api/qt/ulist.np/get?fltt=2&secids=${secids}&fields=${fields}`, 4500);
+        const diff = res && res.data && res.data.diff;
+        if (!diff || !diff.length) throw new Error('empty');
+        const map = {};
+        // 期货品种代码存在大小写差异（如 请求 Mm → 返回 mm），统一小写匹配
+        diff.forEach(d => { map[(d.f13 + '.' + d.f12).toLowerCase()] = d; });
+        FUTURES.forEach(f => {
+          const d = map[f.secid.toLowerCase()];
+          if (!d) return;
+          if (!futCache[f.secid]) { futCache[f.secid] = buildFutCard(f); grid.appendChild(futCache[f.secid]); }
+          updateFutCard(futCache[f.secid], d);
+        });
+        futUlFailAt = 0;
+        const now = new Date();
+        const p = n => String(n).padStart(2, '0');
+        $('fut-status').textContent = `数据源：东方财富 · 5秒刷新 · 更新 ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+        return;
+      } catch (e) { /* 下一域名 */ }
+    }
+    futUlFailAt = Date.now();
+  }
+
+  /* —— 备用：push2his 日 K（与 push2 不同服务集群）——
+     5 分钟缓存 + 3 分钟失败退避；12 个品种串行拉，避免并发把自己打成风暴。 */
+  try {
+    if (!futKlineCache || Date.now() - futKlineAt > 5 * 60000) {
+      if (!(futFailAt && Date.now() - futFailAt < 3 * 60000)) {
+        try {
+          futKlineCache = await fetchFutKline();
+          futKlineAt = Date.now();
+          futFailAt = 0;
+        } catch (e) { futFailAt = Date.now(); }
+      }
+    }
+    if (futKlineCache) {
+      let hit = 0;
       FUTURES.forEach(f => {
-        const d = map[f.secid.toLowerCase()];
+        const d = futKlineCache[f.secid];
         if (!d) return;
         if (!futCache[f.secid]) { futCache[f.secid] = buildFutCard(f); grid.appendChild(futCache[f.secid]); }
         updateFutCard(futCache[f.secid], d);
+        hit++;
       });
-      const now = new Date();
-      const p = n => String(n).padStart(2, '0');
-      $('fut-status').textContent = `数据源：东方财富 · 5秒刷新 · 更新 ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
-      return;
-    } catch (e) { /* 下一域名 */ }
+      if (hit) {
+        grid.querySelectorAll('span[style]').forEach(el => { if (/加载失败|取不到/.test(el.textContent)) el.remove(); });
+        const now = new Date();
+        const p = n => String(n).padStart(2, '0');
+        $('fut-status').textContent = `数据源：东财日 K（备用通道 · 主连收盘价） · 更新 ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+        return;
+      }
+    }
+  } catch (e) { /* 两层皆失败 */ }
+
+  if (!grid.children.length) {
+    grid.innerHTML = '<span style="color:var(--text-sub)">期货行情源暂时受限，60 秒后自动重试…</span>';
+    $('fut-status').textContent = '数据源受限 · 60 秒后自动重试';
   }
-  if (!grid.children.length) grid.innerHTML = '<span style="color:var(--text-sub)">期货行情加载失败，稍后自动重试…</span>';
 }
 $('fut-refresh').addEventListener('click', loadFutures);
 // 期货市场每 5 秒刷新
@@ -16509,7 +16661,52 @@ function setDigitAnim(el, val) {
 const SENTI_HOSTS = ['push2delay.eastmoney.com', 'push2.eastmoney.com'];
 
 // —— 涨跌家数（上证+深证，f104涨/f105跌/f106平）——
+/* —— 涨跌家数 ——
+   ⭐⭐ 2026-10-25 重做。原先只靠东财 push2 的 ulist（f104/f105/f106），
+      该集群整片限流时指标卡立刻从数字变成 "--"（和人气榜同源故障）。
+      现在主通道换成 push2ex 的「涨跌分布」（与涨停池同域，实测未被限流）：
+        getTopicZDFenBu → fenbu:[{"-11":6},{"-1":416},{"0":117},{"1":968},{"11":82}…]
+        键是涨跌幅档位、值是家数 → 正档累加=上涨，负档累加=下跌，0=平盘。
+      备用通道仍是 ulist（口径=沪深两市），最后是 3 天内快照（标 stale）。 */
+const LS_UPDOWN = 'wb_updown_v1';
+
+async function fetchUpDownFenBu() {
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(Date.now() - i * 86400000);
+    const date = fmtYmd(d);
+    try {
+      const res = await fetchJson(`https://push2ex.eastmoney.com/getTopicZDFenBu?ut=7eea3edcaed734bea9cbfc24409ed989&dpt=wz.ztzt&date=${date}`, 4500);
+      const fb = res && res.data && res.data.fenbu;
+      if (!fb || !fb.length) continue;
+      let up = 0, down = 0, flat = 0;
+      fb.forEach(o => {
+        Object.keys(o).forEach(k => {
+          const v = Number(k);
+          const n = Number(o[k]) || 0;
+          if (!isFinite(v)) return;
+          if (v > 0) up += n;
+          else if (v < 0) down += n;
+          else flat += n;
+        });
+      });
+      if (!up && !down) continue;
+      return { up, down, flat, date: res.data.qdate, ts: Date.now(), stale: false };
+    } catch (e) { /* 下一日期 */ }
+  }
+  return null;
+}
+
 async function fetchUpDown() {
+  // ① 主通道：push2ex 涨跌分布
+  try {
+    const fb = await fetchUpDownFenBu();
+    if (fb) {
+      try { localStorage.setItem(LS_UPDOWN, JSON.stringify(fb)); } catch (e) {}
+      return fb;
+    }
+  } catch (e) {}
+
+  // ② 备用：东财 ulist（f104/f105/f106，沪深两市口径）
   for (const host of SENTI_HOSTS) {
     try {
       const res = await fetchJson(`https://${host}/api/qt/ulist.np/get?fltt=2&secids=1.000001,0.399001&fields=f104,f105,f106`, 4500);
@@ -16518,9 +16715,18 @@ async function fetchUpDown() {
       const up = d.reduce((s, x) => s + (x.f104 || 0), 0);
       const down = d.reduce((s, x) => s + (x.f105 || 0), 0);
       const flat = d.reduce((s, x) => s + (x.f106 || 0), 0);
-      return { up, down, flat };
+      if (!up && !down) throw new Error('zero');
+      const out = { up, down, flat, ts: Date.now(), stale: false };
+      try { localStorage.setItem(LS_UPDOWN, JSON.stringify(out)); } catch (e) {}
+      return out;
     } catch (e) { /* 换域名 */ }
   }
+
+  // ③ 最近快照（不假装实时，界面标注 stale）
+  try {
+    const c = JSON.parse(localStorage.getItem(LS_UPDOWN) || 'null');
+    if (c && (c.up || c.down) && Date.now() - c.ts < 3 * 864e5) return { ...c, stale: true };
+  } catch (e) {}
   return null;
 }
 
@@ -16554,23 +16760,80 @@ async function fetchRankList() {
   } catch (e) { return []; }
 }
 
-// 人气榜代码 → 行情（补名称/涨跌幅）
+/* —— 人气榜代码 → 行情（补名称 / 涨跌幅）——
+   ⭐⭐ 2026-10-25 修复「股吧人气榜只显示 SZ002747，股票名字没了」：
+      原来唯一的名称来源是东财 ulist.np/get 的 f14。这个集群一旦整片限流
+      （表现为 RemoteDisconnected 或 data:null），name 就直接回退成 x.sc
+      —— 也就是纯代码串，连涨跌幅一起变成 "--"（用户截图就是这个样子）。
+      现在名称与行情分开兜底，四道保险：
+        ① 腾讯 qt 批量（主通道，一次 script 注入拿全 10 只的简称）
+        ② 东财 ulist（只补腾讯没覆盖的：北交所 / 新股 / 港股）
+        ③ localStorage 名称记忆（简称基本不变，兜住所有源同时挂掉）
+        ④ 最后才退回代码
+      关键点：停牌股 price 可能是 0，但**名字必须保留** —— 不能因为拿不到
+      价格就把整只票的简称丢掉。 */
+const LS_RANK_NAMES = 'wb_rank_names_v1';
+function rankNameCache() {
+  try { return JSON.parse(localStorage.getItem(LS_RANK_NAMES) || '{}') || {}; } catch (e) { return {}; }
+}
+function saveRankNames(map) {
+  try {
+    const cur = rankNameCache();
+    let dirty = false;
+    Object.keys(map).forEach(k => { if (map[k] && cur[k] !== map[k]) { cur[k] = map[k]; dirty = true; } });
+    if (dirty) localStorage.setItem(LS_RANK_NAMES, JSON.stringify(cur));
+  } catch (e) {}
+}
+
 async function fetchRankQuotes(list) {
   if (!list.length) return [];
-  const secids = list.map(x => (x.sc.startsWith('SH') ? '1.' : '0.') + x.sc.slice(2)).join(',');
-  for (const host of SENTI_HOSTS) {
-    try {
-      const res = await fetchJson(`https://${host}/api/qt/ulist.np/get?fltt=2&secids=${secids}&fields=f12,f14,f2,f3`, 4500);
-      const diff = (res && res.data && res.data.diff) || [];
-      const map = {};
-      diff.forEach(d => { map[d.f12] = d; });
-      return list.map(x => {
-        const q = map[x.sc.slice(2)];
-        return { ...x, name: q ? q.f14 : x.sc, price: q ? q.f2 : '-', pct: q ? q.f3 : '-' };
-      });
-    } catch (e) { /* 换域名 */ }
+  const ids = list.map(x => (x.sc.startsWith('SH') ? '1.' : '0.') + x.sc.slice(2));
+  const quote = {};    // secid -> { name, price, pct }
+  const nameOnly = {}; // secid -> name（只要有名字，行情可以缺）
+
+  // ① 腾讯：一次 script 注入拿全部，含简称
+  try {
+    const tx = await fetchTxBasic(ids);
+    ids.forEach(id => {
+      const q = tx[id];
+      if (!q) return;
+      if (q.name) nameOnly[id] = q.name;
+      if (q.live) quote[id] = { name: q.name, price: q.price, pct: q.pct };
+    });
+  } catch (e) { /* 交给东财 */ }
+
+  // ② 东财 ulist 补缺项
+  const miss = ids.filter(id => !quote[id]);
+  if (miss.length) {
+    for (const host of SENTI_HOSTS) {
+      try {
+        const res = await fetchJson(`https://${host}/api/qt/ulist.np/get?fltt=2&secids=${miss.join(',')}&fields=f12,f13,f14,f2,f3`, 4500);
+        const diff = (res && res.data && res.data.diff) || [];
+        if (!diff.length) continue;
+        diff.forEach(d => {
+          const id = (d.f13 === 1 ? '1.' : '0.') + d.f12;
+          if (d.f14) nameOnly[id] = String(d.f14).replace(/\s+/g, '');
+          if (typeof d.f2 === 'number' && d.f2 > 0) {
+            quote[id] = { name: nameOnly[id] || d.f12, price: d.f2, pct: d.f3 };
+          }
+        });
+        break;
+      } catch (e) { /* 换域名 */ }
+    }
   }
-  return list.map(x => ({ ...x, name: x.sc, price: '-', pct: '-' }));
+
+  // ③ 名称记忆（简称是静态的，所有源同时挂也不该丢）
+  const cache = rankNameCache();
+  const learned = {};
+  const out = list.map((x, i) => {
+    const code = x.sc.slice(2);
+    const q = quote[ids[i]];
+    const nm = (q && q.name) || nameOnly[ids[i]] || cache[code] || cache[ids[i]] || '';
+    if (nm) learned[code] = nm;
+    return { ...x, name: nm || x.sc, price: q ? q.price : '-', pct: q ? q.pct : '-' };
+  });
+  saveRankNames(learned);
+  return out;
 }
 
 // —— 新浪财经直播（JSONP，大V/媒体言论）——
@@ -16678,12 +16941,15 @@ async function loadSenti() {
       setDigitAnim($('st-lbc'), maxLbc);
       $('st-lbc-sub').textContent = `数据日 ${ztRes.qdate} · 空间高度`;
     }
-    if (udRes) {
+    // 两市成交额：东财 f6 → 腾讯简版指数兜底（不依赖涨跌家数是否拿到）
+    {
+      let amt = 0;
       try {
         const amtRes = await fetchJson(`https://${SENTI_HOSTS[0]}/api/qt/ulist.np/get?fltt=2&secids=1.000001,0.399001&fields=f6`, 4500);
-        const amt = (amtRes.data.diff || []).reduce((s, x) => s + (x.f6 || 0), 0);
-        if (amt > 0) setDigitAnim($('st-amt'), (amt / 1e12).toFixed(2) + ' 万亿');
+        amt = ((amtRes && amtRes.data && amtRes.data.diff) || []).reduce((s, x) => s + (x.f6 || 0), 0);
       } catch (e) { }
+      if (!(amt > 0)) { try { amt = await fetchTxAmount(); } catch (e) { } }
+      if (amt > 0) setDigitAnim($('st-amt'), (amt / 1e12).toFixed(2) + ' 万亿');
     }
 
     // —— 3. 连板梯队 ——
@@ -16926,6 +17192,8 @@ async function loadSectorBoard() {
 async function loadSecHot() {
   const hosts = ['push2.eastmoney.com', 'push2delay.eastmoney.com'];
   const secids = SEC_HOT.map(b => '90.' + b.code).join(',');
+  let getRow = null;
+
   for (const host of hosts) {
     try {
       const res = await fetchJson(`https://${host}/api/qt/ulist.np/get?fltt=2&secids=${secids}&fields=f2,f3,f12,f14`, 6000);
@@ -16933,38 +17201,79 @@ async function loadSecHot() {
       if (!diff || !diff.length) continue;
       const map = {};
       diff.forEach(d => { map[String(d.f12).toUpperCase()] = d; });
-      const grid = $('sec-hot-grid');
-      grid.querySelectorAll('.news-empty').forEach(el => el.remove());
-      const seen = new Set();
-      SEC_HOT.forEach(b => {
+      getRow = b => {
         const d = map[b.code.toUpperCase()];
-        const key = b.code.toUpperCase();
-        seen.add(key);
-        let card = secHotCache[key];
-        if (!card) {
-          const div = document.createElement('div');
-          div.className = 'sec-hot-card';
-          div.innerHTML = `<div class="hn">${b.name}</div><div class="hp">--</div><div class="hc">--</div>`;
-          div.addEventListener('click', () => openHotSector(b, d ? d.f3 : 0));
-          card = secHotCache[key] = { root: div, pctEl: div.querySelector('.hp'), codeEl: div.querySelector('.hc') };
-        }
-        if (d) {
-          const cls = clsOf(d.f3);
-          card.pctEl.textContent = (d.f3 > 0 ? '+' : '') + fmtNum(d.f3, 2) + '%';
-          card.pctEl.className = 'hp ' + cls;
-          card.codeEl.textContent = d.f14;
-        } else {
-          card.pctEl.textContent = '--';
-          card.pctEl.className = 'hp flat';
-          card.codeEl.textContent = b.code;
-        }
-        grid.appendChild(card.root);
-      });
-      Object.keys(secHotCache).forEach(k => { if (!seen.has(k)) secHotCache[k].root.remove(); });
-      if (!SEC_HOT.length) grid.innerHTML = '';
-      return;
+        return d ? { pct: d.f3, label: d.f14 } : null;
+      };
+      break;
     } catch (e) { /* 换域名 */ }
   }
+
+  /* ⭐ 2026-10-25：东财 push2 整片限流 → 腾讯板块列表按名称匹配。
+     「热点精选」是用户自己挑的板块（存 wb_hot_sectors），东财一挂就整块空白，
+     看着像功能坏了。腾讯 mktHs/rank 的数据更稳，名字能对上就直接用。 */
+  if (!getRow && window.QF && typeof window.QF.fetchQQBoards === 'function') {
+    try {
+      const settle = p => p.then(v => ({ ok: 1, v: v || [] })).catch(() => ({ ok: 0, v: [] }));
+      const [ri, rc] = await Promise.all([
+        settle(window.QF.fetchQQBoards('industry')),
+        settle(window.QF.fetchQQBoards('concept')),
+      ]);
+      const rows = ri.v.concat(rc.v);
+      if (rows.length) {
+        const byName = {};
+        rows.forEach(r => {
+          const nm = r.bd_name || r.f14;
+          if (nm && !byName[nm]) byName[nm] = r;
+        });
+        getRow = b => {
+          const r = byName[b.name];
+          if (!r) return null;
+          const pct = parseFloat(r.bd_zdf != null ? r.bd_zdf : r.f3);
+          return isFinite(pct) ? { pct: pct, label: b.name } : null;
+        };
+      }
+    } catch (e) { /* 两层皆失败 */ }
+  }
+
+  const grid = $('sec-hot-grid');
+  if (!getRow) {
+    if (grid && !grid.querySelector('.sec-hot-card')) {
+      grid.innerHTML = '<div class="news-empty">板块行情短暂不可用，稍后自动重试…</div>';
+    }
+    return;
+  }
+
+  grid.querySelectorAll('.news-empty').forEach(el => el.remove());
+  const seen = new Set();
+  SEC_HOT.forEach(b => {
+    const row = getRow(b);
+    const key = b.code.toUpperCase();
+    seen.add(key);
+    let card = secHotCache[key];
+    if (!card) {
+      const div = document.createElement('div');
+      div.className = 'sec-hot-card';
+      div.innerHTML = `<div class="hn">${b.name}</div><div class="hp">--</div><div class="hc">--</div>`;
+      card = secHotCache[key] = { root: div, pctEl: div.querySelector('.hp'), codeEl: div.querySelector('.hc'), row: null };
+      /* 点击时取最新一行（原来闭包住了创建那一刻的 d，点进去是旧涨跌幅） */
+      div.addEventListener('click', () => openHotSector(b, card.row ? card.row.pct : 0));
+    }
+    card.row = row;
+    if (row) {
+      const cls = clsOf(row.pct);
+      card.pctEl.textContent = (row.pct > 0 ? '+' : '') + fmtNum(row.pct, 2) + '%';
+      card.pctEl.className = 'hp ' + cls;
+      card.codeEl.textContent = row.label;
+    } else {
+      card.pctEl.textContent = '--';
+      card.pctEl.className = 'hp flat';
+      card.codeEl.textContent = b.code;
+    }
+    grid.appendChild(card.root);
+  });
+  Object.keys(secHotCache).forEach(k => { if (!seen.has(k)) secHotCache[k].root.remove(); });
+  if (!SEC_HOT.length) grid.innerHTML = '';
 }
 
 // 点击热点精选板块 → 直接用其行情进入成分股视图（不依赖当前 tab 的板块列表）
@@ -17439,6 +17748,18 @@ async function fetchFocusEngineQuotes() {
       return { pct: pct, list: diff };
     } catch (e) { /* 换域名重试 */ }
   }
+  /* ⭐ 2026-10-25：东财整片限流 → 腾讯补（成分股名称本地已有，只需行情） */
+  try {
+    const tx = await fetchTxAQuotes(FOCUS_ENGINE_STOCKS.map(s => s[0]));
+    const list = FOCUS_ENGINE_STOCKS.map(([id, nm]) => {
+      const q = tx[id];
+      return q ? { f2: q.price, f3: q.pct, f4: q.chg, f6: q.amount || 0, f12: id.split('.')[1], f14: nm } : null;
+    }).filter(Boolean);
+    if (list.length) {
+      const pct = list.reduce((s, d) => s + d.f3, 0) / list.length;
+      return { pct: pct, list: list };
+    }
+  } catch (e) { /* 两层皆失败 */ }
   return null;
 }
 
@@ -17531,13 +17852,35 @@ async function loadFocusSectors() {
 async function loadFocusStocks() {
   const secids = FOCUS_STOCKS.map(s => s[0]).join(',');
   const hosts = ['push2.eastmoney.com', 'push2delay.eastmoney.com'];
+  /* ⭐ 2026-10-25：map 提到循环外。东财 push2 整片限流时两个域名都会
+     RemoteDisconnected，「重点关注」页的核心个股就永远停在"行情加载中"（线上实测如此）。
+     这里补一条腾讯通道，字段口径与东财一致：f2 现价 / f3 涨跌幅 / f4 涨跌额 / f6 成交额。 */
+  let map = null;
   for (const host of hosts) {
     try {
       const res = await fetchJson(`https://${host}/api/qt/ulist.np/get?fltt=2&secids=${secids}&fields=f2,f3,f4,f6,f12,f13`, 6000);
       const diff = res && res.data && res.data.diff;
       if (!diff || !diff.length) continue;
-      const map = {};
+      map = {};
       diff.forEach(d => { map[(d.f13 + '.' + d.f12).toLowerCase()] = d; });
+      break;
+    } catch (e) { /* 换域名 */ }
+  }
+  if (!map) {
+    try {
+      const tx = await fetchTxAQuotes(FOCUS_STOCKS.map(s => s[0]));
+      const keys = Object.keys(tx);
+      if (keys.length) {
+        map = {};
+        keys.forEach(id => {
+          const q = tx[id];
+          map[id.toLowerCase()] = { f2: q.price, f3: q.pct, f4: q.chg, f6: q.amount || 0 };
+        });
+      }
+    } catch (e) { /* 两层皆失败：保留上一轮画面，不清空 */ }
+  }
+  if (!map) return;
+  {
       const wrap = $('focus-stocks');
       wrap.querySelectorAll('.news-empty').forEach(el => el.remove());
       const seen = new Set();
@@ -17573,8 +17916,6 @@ async function loadFocusStocks() {
         wrap.appendChild(row.root);
       });
       Object.keys(focusStockCache).forEach(k => { if (!seen.has(k)) focusStockCache[k].root.remove(); });
-      return;
-    } catch (e) { /* 换域名 */ }
   }
 }
 
