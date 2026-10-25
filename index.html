@@ -11829,26 +11829,30 @@ html[data-fps-q] .live-bar {
   height: 22px;
 }
 
-/* ⭐ 2026-10-25 标题图标尺寸（用户：「可以稍微放大一点这些图标。再页面里看太小了」）
-   22 → 28px（+27%）。要点：
+/* ⭐ 2026-10-25 标题图标尺寸（用户两次调大：「再页面里看太小了」→「再大一点跟字体差不多」）
+   22 → 28 → **40px**。为什么 28 看着还是小：
+   SVG 是 48×48 方框、按**最长边**适配，扁图标（报纸/图表牌）在方框里视觉高度只有 ~50%，
+   28px 框下实际只有 12px 左右 —— 比 14px 的字还矮。
+   40px 框：高图标视觉 ~34px、扁图标 ~18px，和 14px 标题**视觉齐平**（样张实测）。
+   要点：
    · 主文件 `.title-ico img { width:22px }` 只约束 <img>，我们的是 SVG，尺寸由这里给
    · `.title-ico` 是 inline-block 无固定尺寸 → 会被撑开，不用改容器
-   · 但 `vertical-align:-4px` 是给 22px 图标调的，大图标不跟着调会往下沉 → -7px
-   · `.fund-ico` 容器固定 34×28，图标 28 正好，容器高度放到 30 免得裁切 */
+   · `vertical-align` 必须跟着调（-4 → -12），否则大图标往下沉
+   · `.fund-ico` 容器固定 34×28 → 放到 46×42 免得裁切 */
 .title-ico .hi-iso,
 .fund-ico .hi-iso {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   display: block;
 }
 .title-ico:has(.hi-iso) {
-  vertical-align: -7px;
-  margin-right: 9px;
+  vertical-align: -12px;
+  margin-right: 10px;
 }
 .fund-ico:has(.hi-iso) {
-  width: 34px;
-  height: 30px;
-  vertical-align: -8px;
+  width: 46px;
+  height: 42px;
+  vertical-align: -13px;
 }
 /* 火焰 idle：极缓的呼吸缩放（模拟火焰的"活着"），不抢内容
    ⚠️ 只给 flame（热门行业板块）：其他图标是 kit 造的静物，不该整体呼吸 */
